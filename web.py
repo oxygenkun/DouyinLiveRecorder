@@ -348,7 +348,12 @@ def main() -> None:
 
     # Web 模式默认不自动开录：录制引擎线程保持运行（配置热加载 / 调度器就绪），但不拉起房间线程，
     # 由面板「开始录制」经 POST /api/recording/toggle 手动触发；CLI/GUI 直跑不受影响（默认 True）。
-    main.recording_enabled = False
+    # 无人值守部署（容器）可显式设置环境变量 DOUYIN_WEB_AUTO_START_RECORDING=1 恢复「启动即录」：
+    # 该变量只决定引擎线程拉起前的**初值**，不落配置文件；面板的「停止/开始录制」仍是运行期开关
+    # （POST /api/recording/toggle），随时可再停再开。不设或设 0/false/no 时与上游行为完全一致。
+    # 判定写法与上方 DOUYIN_WEB_ALLOW_INSECURE 同源（大小写不敏感，真值 1/true/yes）。
+    _auto_start = os.environ.get("DOUYIN_WEB_AUTO_START_RECORDING", "").strip().lower() in ("1", "true", "yes")
+    main.recording_enabled = _auto_start
     recorder_thread = threading.Thread(
         target=main.main,
         name="recorder-engine",
