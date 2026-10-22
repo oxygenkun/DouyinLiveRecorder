@@ -1151,4 +1151,11 @@
   "状态栏刷新": "Status bar refresh",
   "画质统计刷新": "Quality statistics refresh",
   "读取录制状态失败，房间列表中的录制态标记为未知: {type_name}: {e}": "Failed to read recording state; room recording flags marked unknown: {type_name}: {e}",
-  "配置备份未能脱敏（解析失败：{e}），本次副本可能包含明文凭据，请勿外传": "Config backup could not be redacted (parse failed: {e}); this copy may contain plaintext credentials, do not share it"}
+  "配置备份未能脱敏（解析失败：{e}），本次副本可能包含明文凭据，请勿外传": "Config backup could not be redacted (parse failed: {e}); this copy may contain plaintext credentials, do not share it",
+  "[私信自动录制]已开始监听抖音私信，间隔 {interval} 秒": "[DM auto-record] Started listening to Douyin DMs every {interval}s",
+  "[私信自动录制]本轮失败: {type_name}: {e}": "[DM auto-record] Poll failed: {type_name}: {e}",
+  "[私信自动录制]读取会话失败: {type_name}: {e}": "[DM auto-record] Failed to read conversation: {type_name}: {e}",
+  "[私信自动录制]达到每日添加上限 {limit}，跳过 {anchor}": "[DM auto-record] Daily add limit {limit} reached; skipping {anchor}",
+  "[私信自动录制]已添加直播间: {url}": "[DM auto-record] Added live room: {url}",
+  "[私信自动录制]跳过 {anchor}（{reason}）{url}": "[DM auto-record] Skipped {anchor} ({reason}) {url}",
+  "读取 URL 配置失败，跳过追加: {e}": "Failed to read URL config; append skipped: {e}"}

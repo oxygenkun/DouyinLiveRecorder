@@ -188,6 +188,52 @@ def _rewrite_anchor_field(raw_line: str, url: str, new_name: str) -> str | None:
     return f"{comment_prefix}{rebuilt}{eol}"
 
 
+# append_room_line 的返回值（机器码，供调用方/测试断言，不翻译）。
+ROOM_ADDED = "added"
+ROOM_EXISTS = "exists"
+ROOM_DISABLED = "disabled"
+ROOM_INVALID = "invalid"
+ROOM_WRITE_FAILED = "write_failed"
+
+
+# 把一行直播间配置追加到 URL_config.ini；已存在时按启用状态返回 exists/disabled，绝不
+# 自动取消注释（用户手工禁用的意图优先）。校验/格式化在锁外完成（validate_room_target
+# 会做 DNS 解析，持锁期间不应阻塞录制主循环的写配置），读改写全程持 file_update_lock。
+def append_room_line(url_config_file: str, url: str, quality: str = "", name: str = "") -> str:
+    # 唯一写入口的校验与行格式：与 Web 面板 add_room 共用 format_url_line，避免两套规则。
+    from src import web_config
+
+    clean_name = re.sub(r"[,，\r\n]+", " ", name or "").strip()[:80]
+    try:
+        line = web_config.format_url_line(url, quality, clean_name)
+    except ValueError:
+        return ROOM_INVALID
+    target = web_config.normalize_url(url)
+    with main.file_update_lock:
+        try:
+            with open(url_config_file, "r", encoding=main.text_encoding, newline="") as f:
+                data = f.read()
+        except FileNotFoundError:
+            data = ""
+        except (OSError, UnicodeDecodeError) as e:
+            logger.error(i18n.tr("读取 URL 配置失败，跳过追加: {e}", e=e))
+            return ROOM_WRITE_FAILED
+        # parse_url_config 自带 utf-8-sig 与注释行解析；文件刚被本次读入时内容一致。
+        existing = web_config.parse_url_config(url_config_file) if data else []
+        for room in existing:
+            if web_config.normalize_url(str(room["url"])) == target:
+                return ROOM_EXISTS if bool(room["enabled"]) else ROOM_DISABLED
+        # 保留文件原有行尾；末行无换行时先补一个，避免新行粘到上一条（MIN-2242 同因）。
+        eol = "\r\n" if "\r\n" in data else "\n"
+        if data and not data.endswith(("\n", "\r")):
+            data += eol
+        data += line + eol
+        if not _atomic_write_text(url_config_file, data):
+            return ROOM_WRITE_FAILED
+        main.ini_URL_content = data
+        return ROOM_ADDED
+
+
 # 从 file_path 中删除与 del_line 完全相同的行，delete_all=True 时删除全部匹配行；
 # 返回是否真的删除并落盘成功（False = 未命中 / 读失败 / 原子写失败）。
 # 返回值是 SEV-05 契约的一半：调用方（main.py 的重复行清理、web_api 的「删除房间」端点）

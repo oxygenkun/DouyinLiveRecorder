@@ -102,6 +102,7 @@ from src import get_danmaku_collector, spider, stream, utils
 from src.config_io import (
     _safe_float,
     _safe_int,
+    append_room_line,
     backup_file_start,
     delete_line,
     read_config_bool,
@@ -110,6 +111,7 @@ from src.config_io import (
     update_file,
 )
 from src.config_read import tolerant_config_parser, warn_duplicate_options
+from src.douyin_dm import DouyinDmMonitor
 from src.ffmpeg_install import check_ffmpeg, ffmpeg_path, should_prepend_bundled_ffmpeg_dir
 
 # ---- 重构：以下函数已抽离至 src 子模块，此处重新导出以保持 main.<name> 命名空间兼容 ----
@@ -352,6 +354,15 @@ bark_msg_api: str = ""
 bark_msg_level: str = "active"
 bark_level_overrides: dict[str, str] = {}
 follow_monitor = DouyinFollowMonitor(shutdown_manager.stopping)
+
+
+# 私信分享自动录制：add 回调把解析出的直播间写进 URL_config.ini，主循环下一轮自动拉起。
+# 独立于弹幕监控——私信是账号级消息，不依赖任何直播间是否在录。
+def _add_room_from_dm(url: str, quality: str, name: str) -> str:
+    return append_room_line(url_config_file, url, quality, name)
+
+
+douyin_dm_monitor = DouyinDmMonitor(shutdown_manager.stopping, add_room=_add_room_from_dm)
 bark_msg_ring: str = "bell"
 
 # 邮件
@@ -4722,6 +4733,7 @@ except Exception as err:
 def main(non_interactive: bool = False) -> None:
     global bark_level_overrides
     follow_monitor.start()
+    douyin_dm_monitor.start()
     global a, acfun_cookie, args, auto_update_anchor_name, baidu_cookie, bark_msg_api, bark_msg_level, bark_msg_ring, begin_push_message_text, begin_show_push, bigo_cookie, bili_cookie, blued_cookie
     global changliao_cookie, chzzk_cookie, clean_emoji, converts_to_h264, converts_to_mp4, create_time_file, custom_script, delay_default, delete_origin_file, dingtalk_api_url, danmaku_platforms, danmaku_split_time, enable_danmaku, enable_danmaku_monitor
     global dingtalk_is_atall, dingtalk_phone_num, disable_record, disk_limited, disk_space_limit, douyu_cookie, dy_cookie, email_host, email_password, enable_https_recording, enable_proxy_platform, enable_proxy_platform_list, exit_recording
@@ -4969,6 +4981,19 @@ def main(non_interactive: bool = False) -> None:
         follow_monitor.configure(follow_mode == "关注优先", dy_cookie, follow_interval, follow_proxy)
         if first_run and follow_mode == "关注优先" and dy_cookie:
             follow_monitor.wait_initial(timeout=20)
+        # 私信分享自动录制：独立于「关注优先/逐个」检测方式，默认关闭。
+        # 回溯分钟只影响首次启动：服务重启后不会把很久以前的分享重新加一遍。
+        douyin_dm_monitor.configure(
+            enabled=read_config_bool(config, "录制设置", "抖音私信分享自动录制(是/否)", False),
+            cookie=dy_cookie,
+            proxy=follow_proxy,
+            interval=_safe_int(read_config_value(config, "录制设置", "抖音私信轮询间隔(秒)", 60), 60),
+            daily_limit=_safe_int(read_config_value(config, "录制设置", "抖音私信自动录制每日上限(个)", 20), 20),
+            cooldown=_safe_int(read_config_value(config, "录制设置", "抖音私信自动录制冷却时间(秒)", 60), 60),
+            quality=read_config_value(config, "录制设置", "抖音私信自动录制画质", "原画"),
+            require_live=read_config_bool(config, "录制设置", "抖音私信自动录制仅在播(是/否)", False),
+            lookback_minutes=_safe_int(read_config_value(config, "录制设置", "抖音私信自动录制回溯分钟", 30), 30),
+        )
         ks_cookie = read_config_value(config, "Cookie", "快手cookie", "")
         tiktok_cookie = read_config_value(config, "Cookie", "tiktok_cookie", "")
         hy_cookie = read_config_value(config, "Cookie", "虎牙cookie", "")

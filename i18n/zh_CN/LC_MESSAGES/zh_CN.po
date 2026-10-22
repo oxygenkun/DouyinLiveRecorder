@@ -3867,3 +3867,24 @@ msgstr "隐藏主窗口"
 
 msgid "设置"
 msgstr "设置"
+
+msgid "[私信自动录制]已开始监听抖音私信，间隔 {interval} 秒"
+msgstr "[私信自动录制]已开始监听抖音私信，间隔 {interval} 秒"
+
+msgid "[私信自动录制]本轮失败: {type_name}: {e}"
+msgstr "[私信自动录制]本轮失败: {type_name}: {e}"
+
+msgid "[私信自动录制]读取会话失败: {type_name}: {e}"
+msgstr "[私信自动录制]读取会话失败: {type_name}: {e}"
+
+msgid "[私信自动录制]达到每日添加上限 {limit}，跳过 {anchor}"
+msgstr "[私信自动录制]达到每日添加上限 {limit}，跳过 {anchor}"
+
+msgid "[私信自动录制]已添加直播间: {url}"
+msgstr "[私信自动录制]已添加直播间: {url}"
+
+msgid "[私信自动录制]跳过 {anchor}（{reason}）{url}"
+msgstr "[私信自动录制]跳过 {anchor}（{reason}）{url}"
+
+msgid "读取 URL 配置失败，跳过追加: {e}"
+msgstr "读取 URL 配置失败，跳过追加: {e}"
