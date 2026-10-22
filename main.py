@@ -3556,13 +3556,9 @@ def _build_ffmpeg_input_args(
         tuning["bufsize"],
         "-sn",
         "-dn",
-        # -thread_queue_size 只能放在 -i 之后：上游已将其收窄为输出专属（6.1 起 release 标
-        # input/output、master 仅 output）。放在 -i 前不是「静默不生效」而是拒绝打开输入：
-        #   Option thread_queue_size ... cannot be applied to input url ... Invalid argument
-        # 代价：≤9.0.2 上失去「强制独立输入读取线程」效果（master 已无此机制）。
-        # 回归锁：tests/test_ffmpeg_reconnect_args.py::TestOutputOnlyOptionsFollowInputFlag
-        "-thread_queue_size",
-        "1024",
+        # FFmpeg 5.1.9 rejects thread_queue_size in the output group; omit this optional tuning
+        # instead of assuming the option has the same scope across deployed FFmpeg versions.
+        # [历史注 2026-10-22] 原「6.1 起输出侧均合法」结论不涵盖镜像自带的 5.1，已实测拒绝输出。
         "-max_muxing_queue_size",
         tuning["max_muxing_queue_size"],
         "-correct_ts_overflow",

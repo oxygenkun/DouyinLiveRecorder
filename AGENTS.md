@@ -439,7 +439,7 @@ find . -name "*.isorted" -delete
 > 完整流程、事故背景与验证命令见 `.agents/skills/ffmpeg-command-construction/SKILL.md`。以下为本节硬约束摘要。
 
 - **`-reconnect*` 必须在 `-i` 之前且紧跟取值**: 写在 `-i` 之后被静默忽略。HLS 输入必须移除 `-reconnect_at_eof`。回归锁：`tests/test_ffmpeg_reconnect_args.py`。
-- **`-thread_queue_size` 只能位于 `-i` 之后**: 放错侧致录制 100% 失败。
+- **本机镜像的 FFmpeg 5.1.9 不接受输出侧 `-thread_queue_size`**：录制命令省略此可选参数，使用默认队列；不得无版本校验重新加入。回归锁 `tests/test_ffmpeg_reconnect_args.py::TestOptionalQueueCompatibility`。[历史注 2026-10-22] 原「只能放在 -i 之后」约束不兼容镜像内版本，已由真实录制报错和合成复现证伪。
 - **`-segment_format` 一律经 `SEGMENT_FORMAT_BY_SUFFIX` 查表**: 禁止任何分支直接写字面量。回归锁：`tests/test_record_container.py`。
 - **命令构造统一到四个单一定义点（F-01）**: ① `_build_ffmpeg_input_args` ② `_build_record_output_path` ③ `_run_ffmpeg_record`+`_convert_after_record` ④ `_PLATFORM_RESOLVERS`+`_PlatformResolveContext`。禁止各平台分支手写 `command=[...]`。回归锁：`tests/test_platform_dispatch.py`+`tests/test_start_record_command_golden.py`。
 

@@ -50,11 +50,12 @@ description: >
   - AST 锁「每 `-reconnect*` 紧跟字面量值」+「全在 `-i` 之前」。
   - `TestReconnectAtEofDroppedForHls`。
 
-## `-thread_queue_size` 位置约束
+## `-thread_queue_size` 兼容性约束
 
-- **只能位于 `-i` 之后**（2026-09-23 事故）。
-- 放错侧 → `Option thread_queue_size ... cannot be applied to input url` → 退出码 -22 → 录制 100% 失败。
-- 回归锁：`tests/test_ffmpeg_reconnect_args.py::TestOutputOnlyOptionsFollowInputFlag`。
+- 本机镜像自带 FFmpeg 5.1.9，输出侧使用该选项会在写入前报错退出。
+- 录制命令省略此可选调优项，使用默认队列，避免假定不同版本具有相同选项归属。
+- 回归锁：`tests/test_ffmpeg_reconnect_args.py::TestOptionalQueueCompatibility`。
+- [历史注 2026-10-22] 原「只能位于 -i 之后」约束不兼容镜像内版本，已实测证伪。
 
 ## `-segment_format` 查表约束
 
