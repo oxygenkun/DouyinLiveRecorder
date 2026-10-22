@@ -7,9 +7,13 @@
 # 三个**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
 # 目录并重编 .mo，否则本脚本会一直报「0 缺失」的假绿：
 #   ① color_obj.print_colored(...)（main.py 彩色控制台输出，不是 print 调用）；
-#   ② messagebox.show*（gui.py 弹窗标题与正文）；③ 推送正文（msg_push.py 裸字面量 + replace 模板）。
+#   ② messagebox.show*（gui.py 弹窗标题与正文）。
 # 另两个边界：web/app.js 自带四套内嵌目录（与后端目录互不相干，不在扫描面内，须手工五处同改）；
 # 「疑似冗余」段只是参考级——孤儿 msgid（目录比代码多）不会变红，改源码删功能时要人工回查。
+#
+# 原盲区③「推送正文（msg_push.py 裸字面量 + replace 模板）」自 2026-10-22 起**已收编**：推送模板
+# 统一经 msg_push.render_push_content/render_push_template 渲染，前者是「查表」入口，其首参常量
+# 与 tr() 同义（占位符为 ASCII {ROOM_NAME}/{TIME}，永不进译文），故一并纳入本扫描面。
 #
 # f-string 模板还原约定（与既有目录一致）：
 #   1. 丢弃格式说明符：{_backoff:.0f} → {_backoff}
@@ -93,6 +97,21 @@ def extract_constant_or_template(node: ast.AST, source: str) -> str | None:
 # 否则该调用点会从提取结果消失，缺失检测对它退化为假绿（gui.py 用的是 i18n_module）。
 TR_CALLER_IDS = {"i18n", "i18n_module"}
 
+# 会「查表」的推送模板渲染入口：msg_push.render_push_content(首参常量, ...) 等价于 tr(首参)。
+# render_push_template 不在其列——它渲染的是用户 config 里手写的文本，本就不是目录条目。
+PUSH_RENDER_CALLER_IDS = {"msg_push"}
+
+
+def _is_push_render_call(func: ast.expr) -> bool:
+    # msg_push.render_push_content(...)：模板本体要进四语目录，故首参按 tr 处理
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "render_push_content"
+        and isinstance(func.value, ast.Name)
+        and func.value.id in PUSH_RENDER_CALLER_IDS
+    )
+
+
 # ui_i18n.T(...) 的调用形态：裸 T（gui.py 的静态标签标记，src/ui_i18n.py 提供）。
 # i18n 静态标签（按钮/表头/窗口标题）经 T() 建时查表 + 登记重译，其 msgid 与 tr 同族；
 # 不纳入扫描面则这批词条只有人工登记一条路，缺失检测对它们退化为假绿。
@@ -137,7 +156,7 @@ def scan_file(path: Path) -> set[str]:
             # ui_i18n.T(模板)：静态标签标记，首参同样按规则 5 提取（apply_title 的第二参
             # 也是 T(...)，内层 T 调用被 ast.walk 独立访问，无需为它写特例）
             is_t = isinstance(func, ast.Name) and func.id in T_CALLER_IDS
-            if is_tr or is_t:
+            if is_tr or is_t or _is_push_render_call(func):
                 text = extract_constant_or_template(node.args[0], source)
                 if text is not None:
                     found.add(text)

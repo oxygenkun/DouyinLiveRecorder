@@ -51,6 +51,58 @@ opener: urllib.request.OpenerDirector = _build_push_opener()
 headers: dict[str, str] = {"Content-Type": "application/json"}
 
 
+# ---------------------------------------------------------------------------
+# 推送模板占位符（2026-10-22 重新设计）
+#
+# 规则只有一条：**占位符是模板字段，永不翻译**。模板本体（谁开播了、现在几点之外的文案）
+# 走 i18n 目录，占位符必须逐字节原样穿过翻译层。
+#
+# 为什么不能靠中文占位符：旧实现用 [直播间名称]/[时间] 当记号，且把它们写进了 i18n 目录的
+# 译文（en_US 译作 "[Room name]"，zh_TW 译作 "[直播間名稱]"）。于是 tr() 查表命中的一瞬间，
+# 代码里 `replace("[直播间名称]", ...)` 就再也匹配不上——中文界面正常、切英文界面推送标题
+# 直接退化成 "[Room name] is now live"（实测于 v4.6.0 本地镜像）。翻译层改写了机器记号，
+# 这本身就是错误的分层：目录该管的是文案，不是协议字段。
+#
+# 故占位符定为 ASCII：{ROOM_NAME} / {TIME}。ASCII 大写串在任何语言的译文里都不会被"顺手翻一下"，
+# 译者也不必知道它的存在。旧配置里已写下的 [直播间名称]/[时间] 保留为**兼容别名**（同样先于
+# 翻译层替换），中文用户的历史配置继续可用，无需改 config.ini。
+# ---------------------------------------------------------------------------
+
+# 占位符与其兼容别名 → 渲染值
+_PUSH_PLACEHOLDER_ALIASES: dict[str, str] = {
+    "{ROOM_NAME}": "ROOM_NAME",
+    "{TIME}": "TIME",
+    "[直播间名称]": "ROOM_NAME",
+    "[时间]": "TIME",
+}
+
+
+# 把**用户可编辑的模板**（config.ini 自定义标题/开播/关播推送内容）里的占位符换成真实值。
+#
+# 必须先于 i18n.tr() 调用：用户模板不是目录条目，走 tr 只会擦一身灰；而占位符在替换后已不可能
+# 被译文改写，这条路径天然免疫上面那个 bug。
+# 用 str.replace 而非 str.format：值里可能自带花括号（主播昵称「兔{酱}」很常见），format 会把它
+# 当占位符直接抛 KeyError；replace 对任意文本安全。
+def render_push_template(template: str, room_name: str, push_time: str) -> str:
+    values = {"ROOM_NAME": room_name, "TIME": push_time}
+    rendered = template
+    for placeholder, key in _PUSH_PLACEHOLDER_ALIASES.items():
+        rendered = rendered.replace(placeholder, values[key])
+    return rendered
+
+
+# 渲染**内置推送文案**：先 tr 取译文，再把译文里的占位符换成真实值。
+#
+# 内置模板的占位符写成 {ROOM_NAME}/{TIME}（ASCII，与目录键逐字一致），译文里必须原样保留这两个
+# 记号——这一条由 tests/test_msg_push.py 的四语言用例机检，译者改坏会立刻变红。
+def render_push_content(template: str, room_name: str, push_time: str) -> str:
+    if _PUSH_PLACEHOLDER_ALIASES["[直播间名称]"] in template:
+        # 用户模板混进内置路径时也不能让中文别名漏过去：先渲染再查表会破坏 msgid 匹配，
+        # 故按"用户模板"语义直接渲染（不查表）——只有 config 里手写的文本会走到这里。
+        return render_push_template(template, room_name, push_time)
+    return render_push_template(i18n.tr(template), room_name, push_time)
+
+
 # 推送地址准入校验（M-07）：只放行 http/https，并拒绝「内部用途名字」。
 # 不拒绝回环与 RFC1918：自建 ntfy / Bark 反代跑在局域网或本机是**合规配置**，拦掉会把真实用户的
 # 推送打哑。真正有攻击面的是「非 HTTP 协议」（能读本地文件）与「云元数据 / 内部 DNS 名」（把推送

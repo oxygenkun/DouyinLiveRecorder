@@ -110,3 +110,82 @@ def test_run_script_uses_safe_split_not_shell(log_capture: io.StringIO) -> None:
     notify.run_script('echo "unterminated')
     log_text = log_capture.getvalue()
     assert "脚本命令解析失败" in log_text
+
+
+# 通知标题解析（build_push_title）：标题必须带得出主播名。
+#
+# 背景（2026-10-22）：标题原先恒等于 push_message_title，未配置时是写死的常量
+# 「直播间状态更新通知」——Bark 只把 title 显示成通知首行，锁屏/横幅上看不到是哪个主播，
+# 主播名只躺在正文里被折叠。故标题也走同一套模板占位符（2026-10-22 起为 ASCII
+# {ROOM_NAME}/{TIME}：机器字段永不进翻译层，中文 [直播间名称]/[时间] 仅作旧配置兼容别名）。
+def test_build_push_title_default_carries_room_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 未配置自定义标题时，兜底标题必须含 record_name（而不是死文本）
+    monkeypatch.setattr(main, "push_message_title", "")
+    assert notify.build_push_title("序号37 哈那TωTira", "2026-10-22 18:11:45") == "序号37 哈那TωTira 正在直播中"
+
+
+def test_build_push_title_replaces_placeholders(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 自定义标题里的占位符按约定替换：正文与标题共用 {ROOM_NAME}/{TIME} 两个记号
+    monkeypatch.setattr(main, "push_message_title", "开播啦：{ROOM_NAME} @ {TIME}")
+    title = notify.build_push_title("序号37 哈那TωTira", "2026-10-22 18:11:45")
+    assert title == "开播啦：序号37 哈那TωTira @ 2026-10-22 18:11:45"
+
+
+def test_build_push_title_accepts_legacy_chinese_placeholders(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 旧配置（改了占位符语法之前写下的）继续可用：中文别名在渲染时同样展开，
+    # 不需要用户去 config.ini 里改一个字符
+    monkeypatch.setattr(main, "push_message_title", "开播啦：[直播间名称] @ [时间]")
+    title = notify.build_push_title("序号37 哈那TωTira", "2026-10-22 18:11:45")
+    assert title == "开播啦：序号37 哈那TωTira @ 2026-10-22 18:11:45"
+
+
+def test_build_push_title_without_placeholder_is_literal(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 没写占位符的自定义标题保持原样：不给老用户的通知标题强插主播名（对齐「只加占位符支持」的取舍）
+    monkeypatch.setattr(main, "push_message_title", "直播间状态更新通知")
+    assert notify.build_push_title("序号37 哈那TωTira", "2026-10-22 18:11:45") == "直播间状态更新通知"
+
+
+def test_build_push_title_survives_braces_in_room_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 主播昵称带花括号是常态（如「兔{酱}」）；渲染走 str.replace 而非 str.format，才不会被当占位符炸掉
+    monkeypatch.setattr(main, "push_message_title", "{ROOM_NAME} 开播")
+    assert notify.build_push_title("序号1 兔{酱}", "t") == "序号1 兔{酱} 开播"
+
+
+def test_push_message_sends_room_name_as_bark_title(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 端到端：push_message 传给 bark 的 title 必须带主播名，body 维持 main.py 拼好的正文
+    monkeypatch.setattr(main, "push_message_title", "")
+    monkeypatch.setattr(main, "live_status_push", "BARK")
+    sent: dict[str, object] = {}
+
+    def fake_bark(api: str, title: str = "", content: str = "", **kwargs: object) -> dict[str, list[str | int]]:
+        sent.update(title=title, content=content)
+        return {"success": [api], "error": []}
+
+    monkeypatch.setattr(notify, "bark", fake_bark)
+    notify.push_message(
+        "序号37 哈那TωTira",
+        "https://live.douyin.com/123",
+        "直播间状态更新：序号37 哈那TωTira 正在直播中，时间：2026-10-22 18:11:45",
+    )
+    assert sent["title"] == "序号37 哈那TωTira 正在直播中"
+    assert "序号37 哈那TωTira" in str(sent["content"])
+
+
+# 跨语言锁（2026-10-22 的真实回归）：占位符曾经是中文的 [直播间名称]/[时间]，且被写进了译文
+# （en_US 的 "[Room name]"、zh_TW 的 "[直播間名稱]"）。tr() 一命中目录，代码里的 replace 就匹配
+# 不上，英文界面下推送标题退化成 "[Room name] is now live"。此处逐语言断言「渲染后既没有漏替换的
+# 占位符、也没有被翻译的字段」，坏掉会立刻红。
+@pytest.mark.parametrize("lang", ["zh_CN", "en_US", "en_GB", "zh_TW"])
+def test_build_push_title_keeps_placeholder_out_of_translation(monkeypatch: pytest.MonkeyPatch, lang: str) -> None:
+    import i18n
+
+    original = i18n.get_language()
+    monkeypatch.setattr(main, "push_message_title", "")
+    try:
+        i18n.set_language(lang)
+        title = notify.build_push_title("序号37 哈那TωTira", "2026-10-22 18:11:45")
+    finally:
+        i18n.set_language(original)
+    assert "序号37 哈那TωTira" in title, f"{lang}: 标题里没有主播名 -> {title!r}"
+    for leaked in ("ROOM_NAME", "Time]", "[Room name]", "[直播間名稱]", "[時間]", "{"):
+        assert leaked not in title, f"{lang}: 占位符泄漏进通知文案 -> {title!r}"

@@ -60,9 +60,10 @@ class TestI18nStringsExtractable:
     # f-string 直传 print_colored），因此非 zh_CN 语言下这几处始终是简体中文。
 
     MSGIDS = [
-        # MIN-2232 推送正文（占位符是方括号字面量，走 .replace 链而非 tr kwargs）
-        "直播间状态更新：[直播间名称] 直播已结束！时间：[时间]",
-        "直播间状态更新：[直播间名称] 正在直播中，时间：[时间]",
+        # MIN-2232 推送正文：占位符 2026-10-22 起改为 ASCII {ROOM_NAME}/{TIME}（机器字段永不进
+        # 翻译层），msgid 随之整串变更；模板本体仍必须被提取器收录，非 zh_CN 下才有译文。
+        "直播间状态更新：{ROOM_NAME} 直播已结束！时间：{TIME}",
+        "直播间状态更新：{ROOM_NAME} 正在直播中，时间：{TIME}",
         # MIN-2233 自然语言
         "\r{record_name} 正在直播中...",
         "\r{anchor_name} 准备开始录制视频: {full_path}/{filename}",
@@ -81,20 +82,36 @@ class TestI18nStringsExtractable:
         assert msgid in extracted, f"提取器扫不到，非 zh_CN 语言下该处仍是简体中文: {msgid!r}"
 
     def test_push_templates_not_naked_literals(self) -> None:
-        # 防回归到「裸字面量」形态：两条推送模板出现处必须都是 i18n.tr( 的实参——只断言「提取器
-        # 收录」锁不住「赋值右侧裸串」这一具体写法。
+        # 防回归到「整串写死」形态：两条内置推送模板必须以**含占位符的常量**形式传给
+        # msg_push.render_push_content(...)，既不能是裸赋值，也不能把主播名/时间直接拼进字面量
+        # （拼进去就没有模板字段了，翻译层只能看着一坨已插值的文本）。
         tree = ast.parse(MAIN_SRC.read_text(encoding="utf-8-sig"))
         naked: list[str] = []
+        bad_render_args: list[str] = []
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Assign):
+            if isinstance(node, ast.Assign):
+                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+                if "push_content" in targets and isinstance(node.value, ast.Constant):
+                    if "直播间状态更新" in str(node.value.value):
+                        naked.append(str(node.value.value))
+            if not isinstance(node, ast.Call):
                 continue
-            targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-            if "push_content" not in targets:
+            func = node.func
+            if not (
+                isinstance(func, ast.Attribute)
+                and func.attr == "render_push_content"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "msg_push"
+            ):
                 continue
-            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                if "直播间状态更新" in node.value.value:
-                    naked.append(node.value.value)
+            first = node.args[0] if node.args else None
+            if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
+                bad_render_args.append(ast.dump(first) if first is not None else "<no arg>")
+                continue
+            if "{ROOM_NAME}" not in first.value or "{TIME}" not in first.value:
+                bad_render_args.append(first.value)
         assert naked == [], f"push_content 又被赋成裸字面量: {naked}"
+        assert bad_render_args == [], f"内置推送模板必须带 {{ROOM_NAME}}/{{TIME}} 占位符: {bad_render_args}"
 
     def test_tr_kwargs_are_actually_used(self) -> None:
         # tr 模板用了 {record_name}/{anchor_name} 等占位符就必须传 kwargs，否则 tr() 内部格式化抛

@@ -93,6 +93,9 @@ from urllib.parse import urlsplit
 import httpx
 from loguru import logger
 
+# 推送模板渲染（占位符永不翻译）的唯一实现：main 与 src.notify 共用，故在模块级导入。
+# 位置刻意放在 src.notify 之前——notify 内部 `import msg_push` 会命中已加载的这份模块。
+import msg_push
 from src import get_danmaku_collector, spider, stream, utils
 from src.config_io import (
     _safe_float,
@@ -345,6 +348,7 @@ dingtalk_is_atall: bool = False
 xizhi_api_url: str = ""
 bark_msg_api: str = ""
 bark_msg_level: str = "active"
+bark_level_overrides: dict[str, str] = {}
 bark_msg_ring: str = "bell"
 
 # 邮件
@@ -3892,15 +3896,16 @@ def start_record(
 
                             if start_pushed:
                                 if over_show_push:
-                                    # 裸字面量必须包 tr() 才会进入 i18n 提取集合，否则非简中下
-                                    # 推送正文仍是中文；占位符是方括号，故仍走下面的 .replace 链。
-                                    push_content = i18n.tr("直播间状态更新：[直播间名称] 直播已结束！时间：[时间]")
-                                    if over_push_message_text:
-                                        push_content = over_push_message_text
-
-                                    push_content = push_content.replace("[直播间名称]", record_name).replace(
-                                        "[时间]", push_at
+                                    # 内置模板的占位符是 ASCII {ROOM_NAME}/{TIME}：机器字段永不翻译，
+                                    # 由 msg_push.render_push_content 统一「先查表、后渲染」，这里不再手写 replace。
+                                    push_content = msg_push.render_push_content(
+                                        "直播间状态更新：{ROOM_NAME} 直播已结束！时间：{TIME}", record_name, push_at
                                     )
+                                    if over_push_message_text:
+                                        push_content = msg_push.render_push_template(
+                                            over_push_message_text, record_name, push_at
+                                        )
+
                                     threading.Thread(
                                         target=push_message,
                                         args=(record_name, record_url, push_content.replace(r"\n", "\n")),
@@ -3914,14 +3919,15 @@ def start_record(
 
                             if live_status_push and not start_pushed:
                                 if begin_show_push:
-                                    # 同上：裸字面量补 tr() 包裹
-                                    push_content = i18n.tr("直播间状态更新：[直播间名称] 正在直播中，时间：[时间]")
-                                    if begin_push_message_text:
-                                        push_content = begin_push_message_text
-
-                                    push_content = push_content.replace("[直播间名称]", record_name).replace(
-                                        "[时间]", push_at
+                                    # 同上：内置模板走「先查表、后渲染」，ASCII 占位符不会被译文改写
+                                    push_content = msg_push.render_push_content(
+                                        "直播间状态更新：{ROOM_NAME} 正在直播中，时间：{TIME}", record_name, push_at
                                     )
+                                    if begin_push_message_text:
+                                        push_content = msg_push.render_push_template(
+                                            begin_push_message_text, record_name, push_at
+                                        )
+
                                     threading.Thread(
                                         target=push_message,
                                         args=(record_name, record_url, push_content.replace(r"\n", "\n")),
@@ -4685,6 +4691,7 @@ except Exception as err:
 # 检查磁盘余量 → 解析清理 URL_config.ini → 为新增房间拉起 start_record 线程」。
 # non_interactive=True 时 URL 配置为空不阻塞 input（Web 模式）。
 def main(non_interactive: bool = False) -> None:
+    global bark_level_overrides
     global a, acfun_cookie, args, auto_update_anchor_name, baidu_cookie, bark_msg_api, bark_msg_level, bark_msg_ring, begin_push_message_text, begin_show_push, bigo_cookie, bili_cookie, blued_cookie
     global changliao_cookie, chzzk_cookie, clean_emoji, converts_to_h264, converts_to_mp4, create_time_file, custom_script, delay_default, delete_origin_file, dingtalk_api_url, danmaku_platforms, danmaku_split_time, enable_danmaku, enable_danmaku_monitor
     global dingtalk_is_atall, dingtalk_phone_num, disable_record, disk_limited, disk_space_limit, douyu_cookie, dy_cookie, email_host, email_password, enable_https_recording, enable_proxy_platform, enable_proxy_platform_list, exit_recording
@@ -4885,6 +4892,7 @@ def main(non_interactive: bool = False) -> None:
         xizhi_api_url = read_config_value(config, "推送配置", "微信推送接口链接", "")
         bark_msg_api = read_config_value(config, "推送配置", "bark推送接口链接", "")
         bark_msg_level = read_config_value(config, "推送配置", "bark推送中断级别", "active")
+        bark_level_overrides = dict(config.items("Bark主播中断级别")) if config.has_section("Bark主播中断级别") else {}
         bark_msg_ring = read_config_value(config, "推送配置", "bark推送铃声", "bell")
         dingtalk_phone_num = read_config_value(config, "推送配置", "钉钉通知@对象(填手机号)", "")
         dingtalk_is_atall = read_config_bool(config, "推送配置", "钉钉通知@全体(是/否)", False)

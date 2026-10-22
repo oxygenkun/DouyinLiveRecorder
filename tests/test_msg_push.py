@@ -173,3 +173,46 @@ class TestDingtalk:
         payload = json.loads(cast(bytes, captured["data"]).decode("utf-8"))
         assert payload["at"]["atMobiles"] == ["13800000000"]
         assert payload["at"]["isAtAll"] is False
+
+
+# 推送模板占位符（2026-10-22 重新设计）：占位符是模板字段，**永不进翻译层**。
+# 守护点：
+#   ① 内置模板在四语言下都只替换成真实值，绝不出现遗留记号或被翻译的字段；
+#   ② 旧配置里的中文别名 [直播间名称]/[时间] 仍可渲染（兼容，不要求用户改配置）；
+#   ③ 用户文本里的花括号（主播昵称「兔{酱}」）不会被当成占位符。
+class TestPushTemplateRendering:
+    ROOM = "序号37 哈那TωTira"
+    TIME = "2026-10-22 18:11:45"
+    LIVE_ON = "直播间状态更新：{ROOM_NAME} 正在直播中，时间：{TIME}"
+    LIVE_OFF = "直播间状态更新：{ROOM_NAME} 直播已结束！时间：{TIME}"
+
+    def test_builtin_templates_render_in_every_language(self) -> None:
+        import i18n
+        from msg_push import render_push_content
+
+        original = i18n.get_language()
+        try:
+            for lang in ("zh_CN", "en_US", "en_GB", "zh_TW"):
+                i18n.set_language(lang)
+                for template in (self.LIVE_ON, self.LIVE_OFF):
+                    out = render_push_content(template, self.ROOM, self.TIME)
+                    assert self.ROOM in out, f"{lang}: 主播名没渲染进去 -> {out!r}"
+                    assert self.TIME in out, f"{lang}: 时间没渲染进去 -> {out!r}"
+                    for leaked in ("ROOM_NAME", "TIME}", "[Room name]", "[Time]", "[直播間名稱]", "[時間]"):
+                        assert leaked not in out, f"{lang}: 占位符泄漏进推送正文 -> {out!r}"
+        finally:
+            i18n.set_language(original)
+
+    def test_legacy_chinese_placeholders_still_render(self) -> None:
+        # 兼容路径：旧配置/旧文案里的中文记号同样展开，且不查表也能出结果
+        from msg_push import render_push_content, render_push_template
+
+        legacy = "开播啦：[直播间名称] @ [时间]"
+        assert render_push_template(legacy, self.ROOM, self.TIME) == f"开播啦：{self.ROOM} @ {self.TIME}"
+        assert render_push_content(legacy, self.ROOM, self.TIME) == f"开播啦：{self.ROOM} @ {self.TIME}"
+
+    def test_braces_in_room_name_are_not_treated_as_placeholders(self) -> None:
+        # 走 str.replace 而非 str.format：昵称自带花括号时不得抛 KeyError，也不得被吃掉
+        from msg_push import render_push_template
+
+        assert render_push_template("{ROOM_NAME} 开播", "序号1 兔{酱}", self.TIME) == "序号1 兔{酱} 开播"

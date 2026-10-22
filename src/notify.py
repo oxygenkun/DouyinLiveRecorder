@@ -6,11 +6,13 @@ import subprocess
 import sys
 import time
 from typing import cast
+from urllib.parse import urlsplit
 
 from loguru import logger
 
 import i18n
 import main
+import msg_push
 from msg_push import bark, dingtalk, ntfy, pushplus, send_email, tg_bot, xizhi
 from src import utils
 from src.video_postprocess import get_startup_info
@@ -29,9 +31,42 @@ from src.video_postprocess import get_startup_info
 
 # 按配置的推送渠道（微信/钉钉/邮箱/TG/BARK/NTFY/PUSHPLUS）分发直播状态消息：
 # record_name 房间显示名、live_url 直播间地址（部分渠道作跳转链接）、content 推送正文。
+def get_bark_level(live_url: str, default_level: str, overrides: dict[str, str]) -> str:
+    # URLs share a room key regardless of query strings and trailing slashes.
+    def room_key(url: str) -> tuple[str, str]:
+        url = url.strip()
+        parsed = urlsplit(url if "://" in url else "https://" + url)
+        return parsed.netloc.lower(), parsed.path.rstrip("/")
+
+    target = room_key(live_url)
+    for room_url, level in overrides.items():
+        if room_key(room_url) == target and level in {"active", "passive", "timeSensitive", "critical"}:
+            return level
+    return default_level
+
+
+# 推送模板占位符约定（唯一实现在下方 render_push_template/render_push_content）：
+# 机器字段永不翻译，故一律 ASCII —— {ROOM_NAME} = 房间/主播名（「序号37 哈那TωTira」）、
+# {TIME} = 推送时刻；中文 [直播间名称]/[时间] 只作旧配置的兼容别名。
+
+
+# 解析通知标题：自定义标题优先，未配置时兜底到带主播名的开播文案。
+#
+# 背景：标题原先恒为「直播间状态更新通知」（未配置时是写死的常量、配置了也是死文本），
+# Bark 这类只把 title 显示成通知首行的渠道上，锁屏/横幅里根本看不到主播是谁——正文里
+# 明明有「序号37 哈那TωTira」，却被折叠在下面。故这里统一做一次占位符渲染：
+# 标题里写了 {ROOM_NAME}/{TIME}（或旧配置的 [直播间名称]/[时间]）就换成真实值；
+# 完全没配置时给 "{ROOM_NAME} 正在直播中"，让开播通知的标题本身就能认人。
+def build_push_title(record_name: str, push_time: str) -> str:
+    configured = main.push_message_title.strip()
+    if configured:
+        # 用户模板不是目录条目：直接渲染，不查表
+        return msg_push.render_push_template(configured, record_name, push_time)
+    return msg_push.render_push_content("{ROOM_NAME} 正在直播中", record_name, push_time)
+
+
 def push_message(record_name: str, live_url: str, content: str) -> None:
-    # 兜底标题是推送文案（提取盲区③），过 tr 先查表后插值才能被目录命中
-    msg_title = main.push_message_title.strip() or i18n.tr("直播间状态更新通知")
+    msg_title = build_push_title(record_name, time.strftime("%Y-%m-%d %H:%M:%S"))
     push_functions = {
         "微信": lambda: xizhi(main.xizhi_api_url, msg_title, content),
         "钉钉": lambda: dingtalk(main.dingtalk_api_url, content, main.dingtalk_phone_num, main.dingtalk_is_atall),
@@ -49,7 +84,11 @@ def push_message(record_name: str, live_url: str, content: str) -> None:
         ),
         "TG": lambda: tg_bot(main.tg_chat_id, main.tg_token, content),
         "BARK": lambda: bark(
-            main.bark_msg_api, title=msg_title, content=content, level=main.bark_msg_level, sound=main.bark_msg_ring
+            main.bark_msg_api,
+            title=msg_title,
+            content=content,
+            level=get_bark_level(live_url, main.bark_msg_level, main.bark_level_overrides),
+            sound=main.bark_msg_ring,
         ),
         "NTFY": lambda: ntfy(
             main.ntfy_api,

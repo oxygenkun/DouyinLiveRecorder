@@ -30,7 +30,12 @@ ROOT = Path(__file__).resolve().parent.parent
 # src/ui_i18n.py:34 是 Translatable.render() 的 `tr(self.msgid)`——候选即全仓 T(...) 的字面量
 # 首参，那批串由 tests/test_i18n_migration.py 的不变量③逐条核对，本锁不重复收。
 # 新增不可解析点必须先进本白名单并写明「由哪条锁覆盖」，否则该 msgid 无人核对。
-ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/ui_i18n.py:34"}
+# msg_push.py:103 是 render_push_content() 里的 `i18n.tr(template)`：template 是**形参**，
+# 而透传它的调用点 main.py 是跨文件调用（本文件的作用域索引按设计不跨文件）。候选由
+# tests/test_regression_2026_09_22_main.py::TestI18nStringsExtractable 逐字面量核对
+# （提取器已按 PUSH_RENDER_CALLER_IDS 把 render_push_content 的首参当 tr 首参扫）；另由
+# tests/test_msg_push.py::TestPushTemplateRendering 逐语言断言渲染结果。
+ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/ui_i18n.py:34", "msg_push.py:103"}
 
 # 参数位实参链式解析的收敛轮数：`模块常量 → 调用方实参 → 形参 → 再传入下一层 → tr(形参)`
 # 在 gui.py / src/gui_qt/shared.py 的实际深度是 2 层（_pattern_from_template → _sentinel_text），
