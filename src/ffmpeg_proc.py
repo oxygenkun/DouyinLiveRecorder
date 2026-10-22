@@ -16,6 +16,7 @@ import time
 from loguru import logger
 
 import i18n
+from graceful_shutdown import shutdown_manager
 
 # 全局登记/注销正在运行的 ffmpeg 子进程
 _ffmpeg_processes: list[subprocess.Popen[bytes]] = []
@@ -81,6 +82,7 @@ def register_ffmpeg_process(process: subprocess.Popen[bytes]) -> None:
 
 # 从全局列表中移除已结束的 process；列表中不存在时静默跳过，无返回值
 def unregister_ffmpeg_process(process: subprocess.Popen[bytes]) -> None:
+    shutdown_manager.forget(process)
     with _processes_lock:
         if process in _ffmpeg_processes:
             _ffmpeg_processes.remove(process)
@@ -98,6 +100,10 @@ def _stage_budget(deadline: float, stages_left: int) -> float:
 # （三段按剩余预算分摊）；返回进程是否已退出。多处复用，故收敛成一处避免逻辑漂移。
 # 默认值与 _TERMINATE_TIMEOUT_SECONDS 同源（清理总预算按它配平，见 _cleanup_wait_budget）。
 def _terminate_ffmpeg_process(proc: subprocess.Popen[bytes], timeout: int = int(_TERMINATE_TIMEOUT_SECONDS)) -> bool:
+    if shutdown_manager.owns(proc):
+        shutdown_manager.stop_process(proc)
+        proc.wait()
+        return True
     if proc.poll() is not None:
         return True
     deadline = time.monotonic() + max(float(timeout), _MIN_STAGE_WAIT_SECONDS * 3)

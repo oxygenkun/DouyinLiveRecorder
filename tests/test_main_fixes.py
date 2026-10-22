@@ -169,6 +169,8 @@ class FakeProcess:
         self.out = out
         self.timeout_on_communicate = timeout_on_communicate
         self.killed = False
+        self.stopped = False
+        self._active = False
 
     def __enter__(self) -> "FakeProcess":
         return self
@@ -178,9 +180,17 @@ class FakeProcess:
 
     def communicate(self, timeout: int | None = None) -> tuple[object, ...]:
         if self.timeout_on_communicate:
+            self._active = True
             self.timeout_on_communicate = False  # 仅第一次超时，供 kill 后重读
             raise subprocess.TimeoutExpired(cmd=["ffmpeg"], timeout=timeout or 1)
         return self.out, b""
+
+    def poll(self) -> int | None:
+        return None if self._active else self.returncode
+
+    def send_signal(self, signum: int) -> None:
+        self.stopped = True
+        self._active = False
 
     def kill(self) -> None:
         # 记录 kill 被调用（验证超时路径确实终止了 ffmpeg 子进程）。
@@ -257,14 +267,15 @@ class TestRunFfmpegChecked:
         # 另两条变红而本条仍绿；补上这条计数断言后三条全红）。
         assert len(popen.popen_calls) == 1
 
-    def test_timeout_kills_process(
+    def test_timeout_stops_process_gracefully(
         self, main_mod: Any, ffmpeg_checked_globals: dict[str, Any], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         fake = FakeProcess(returncode=0, out=b"", timeout_on_communicate=True)
         _install_subprocess_shim(ffmpeg_checked_globals, monkeypatch, _popen_class_returning(fake))
         with pytest.raises(subprocess.TimeoutExpired):
             main_mod._run_ffmpeg_checked(["ffmpeg", "-i", "x"], timeout=1)
-        assert fake.killed
+        assert fake.stopped
+        assert not fake.killed
 
 
 class _FakeResponse:

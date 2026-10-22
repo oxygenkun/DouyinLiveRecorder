@@ -161,6 +161,9 @@ class TestRunFfmpegChecked:
         class _Proc:
             returncode = 1
 
+            def poll(self) -> int:
+                return self.returncode
+
             def communicate(self, timeout: int | None = None) -> tuple[bytes, bytes]:
                 return b"boom", b""
 
@@ -176,11 +179,17 @@ class TestRunFfmpegChecked:
         with pytest.raises(subprocess.CalledProcessError):
             vp._run_ffmpeg_checked(["ffmpeg", "-version"])
 
-    def test_timeout_kills_process_and_reraises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        state = {"killed": 0, "calls": 0}
+    def test_timeout_stops_process_and_reraises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        state = {"killed": 0, "calls": 0, "stopped": 0}
 
         class _Proc:
             returncode = -9
+
+            def poll(self) -> int | None:
+                return self.returncode if state["stopped"] else None
+
+            def send_signal(self, signum: int) -> None:
+                state["stopped"] += 1
 
             def communicate(self, timeout: int | None = None) -> tuple[bytes, bytes]:
                 state["calls"] += 1
@@ -202,11 +211,14 @@ class TestRunFfmpegChecked:
         monkeypatch.setattr(vp, "subprocess", shim)
         with pytest.raises(subprocess.TimeoutExpired):
             vp._run_ffmpeg_checked(["ffmpeg", "-i", "x"], timeout=1)
-        assert state == {"killed": 1, "calls": 2}
+        assert state == {"killed": 0, "calls": 2, "stopped": 1}
 
     def test_success_returns_decoded_output(self, monkeypatch: pytest.MonkeyPatch) -> None:
         class _Proc:
             returncode = 0
+
+            def poll(self) -> int:
+                return self.returncode
 
             def communicate(self, timeout: int | None = None) -> tuple[bytes, bytes]:
                 return "ffmpeg ok \u4e2d\u6587".encode("gbk", errors="ignore"), b""

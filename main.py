@@ -96,6 +96,7 @@ from loguru import logger
 # 推送模板渲染（占位符永不翻译）的唯一实现：main 与 src.notify 共用，故在模块级导入。
 # 位置刻意放在 src.notify 之前——notify 内部 `import msg_push` 会命中已加载的这份模块。
 import msg_push
+from graceful_shutdown import shutdown_manager
 from src import get_danmaku_collector, spider, stream, utils
 from src.config_io import (
     _safe_float,
@@ -564,7 +565,10 @@ def _shutdown_own_postprocess_pool() -> None:
 # 信号处理器：置退出标志 → 排空后处理池 → 清理 ffmpeg 与 HTTP 连接池 → 退出进程
 def safe_exit(_signum: int, _frame: types.FrameType | None) -> None:
     global exit_recording
+    if shutdown_manager.stopping.is_set():
+        return
     exit_recording = True
+    shutdown_manager.shutdown()
     color_obj.print_colored("\n正在安全退出...", color_obj.YELLOW)
     # 先排空后处理线程池，再做 ffmpeg / HTTP 连接池清理（理由见 _shutdown_postprocess_executor 上方注释）
     _shutdown_postprocess_executor()
@@ -591,6 +595,7 @@ _atexit_result_1 = atexit.register(cleanup_all_ffmpeg_processes)
 from src.async_http import async_req, close_all_clients_sync
 
 _atexit_result_2 = atexit.register(close_all_clients_sync)
+_atexit_local_shutdown = atexit.register(shutdown_manager.shutdown)
 
 
 os_type: str = os.name
@@ -751,7 +756,7 @@ def direct_download_stream(
 ) -> bool:
     _downloaded = 0
     try:
-        with open(save_path, "wb") as f:
+        with shutdown_manager.download(), open(save_path, "wb") as f:
             headers: dict[str, str] = {}
             header_params = get_record_headers(platform, live_url, cookies=cookies)
             if header_params:
@@ -764,7 +769,7 @@ def direct_download_stream(
 
             # headers 只逐请求传，不挂 client 级：client 头会跟随经该 client 的每一个请求
             # （含重定向），一旦复用就会带出录制的 Referer/Cookie（与 src/stream_select.py 探针同口径）。
-            with httpx.Client(timeout=30, verify=_http_config.get_effective_ssl_verify(platform)) as client:
+            with httpx.Client(timeout=15, verify=_http_config.get_effective_ssl_verify(platform)) as client:
                 with client.stream("GET", source_url, headers=headers, follow_redirects=True) as response:
                     if response.status_code != 200:
                         logger.error(
@@ -780,7 +785,7 @@ def direct_download_stream(
                     downloaded = 0
                     chunk_size = 1024 * 16
 
-                    for chunk in response.iter_bytes(chunk_size):
+                    for chunk in response.iter_bytes():
                         if live_url in url_comments or exit_recording or not recording_enabled:
                             # f-string 直传 print_colored 提取器扫不到（盲区①），先查表后插值才能被目录命中
                             color_obj.print_colored(
@@ -895,6 +900,8 @@ def _get_postprocess_executor() -> ThreadPoolExecutor:
 
 # 提交一个录后转码任务（含删除源文件开关）；线程池满时任务排队而非无限新建线程
 def _submit_postprocess(func: Callable[..., Any], path: str, delete_origin: bool, record_name: str = "") -> None:
+    if shutdown_manager.stopping.is_set():
+        return
     try:
         _ = _get_postprocess_executor().submit(func, path, delete_origin)
     except RuntimeError as e:
@@ -1055,9 +1062,15 @@ def check_subprocess(
         # 展示用 stop_time 仍走挂钟。看门狗的时长判据见 _watch_seconds（同类问题、不同解法）。
         # 回归锁：tests/test_regression_2026_09_22_main.py::test_fast_fail_judgement_ignores_wall_clock_jump
         _proc_started_mono = time.monotonic()
-        process = subprocess.Popen(
-            ffmpeg_command, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, startupinfo=get_startup_info(os_type)
-        )
+        with shutdown_manager.launch():
+            process = subprocess.Popen(
+                ffmpeg_command,
+                stdin=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                startupinfo=get_startup_info(os_type),
+                start_new_session=(os.name != "nt"),
+            )
+            shutdown_manager.track(process)
 
         register_ffmpeg_process(process)
 
@@ -1307,6 +1320,8 @@ def check_subprocess(
                 _ = _terminate_ffmpeg_process(process)
             unregister_ffmpeg_process(process)
             clear_record_info(record_name, record_url)
+        if process is not None:
+            shutdown_manager.forget(process)
 
     # 显式收窄供静态检查（Popen 抛错时异常已向上传播，不会落到本行之后）。
     # 类型必须写成字符串：测试把 main.subprocess 换成 SimpleNamespace 替身，裸下标会抛 TypeError。

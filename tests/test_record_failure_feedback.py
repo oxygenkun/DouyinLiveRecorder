@@ -270,7 +270,7 @@ class _FakeStreamResponse:
     def __exit__(self, *args: Any) -> None:
         return None
 
-    def iter_bytes(self, chunk_size: int) -> Any:
+    def iter_bytes(self, chunk_size: int | None = None) -> Any:
         return iter(self._chunks)
 
 

@@ -10,6 +10,7 @@ from loguru import logger
 
 import i18n
 import main
+from graceful_shutdown import ShutdownRequested, shutdown_manager
 from src import utils
 
 # 视频后处理（独立模块）：FFmpeg 分段 / 转封装 / 转码 / 时间字幕生成
@@ -193,22 +194,25 @@ def get_startup_info(system_type: str) -> object | None:
 # 同步执行 ffmpeg 命令 command（超过 timeout 秒则杀掉子进程并抛 TimeoutExpired，避免转码卡死
 # 永久挂住后处理线程池的工作线程）；返回合并后的输出文本，返回码非 0 时抛 CalledProcessError
 def _run_ffmpeg_checked(command: list[str], timeout: int = 600) -> str:
-    with subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, startupinfo=get_startup_info(main.os_type)
+    with shutdown_manager.start_process(
+        command,
+        popen_factory=subprocess.Popen,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        startupinfo=get_startup_info(main.os_type),
     ) as process:
         try:
             out, _ = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            process.kill()
-            # L-36（2026-10-02）：第二次 communicate 必须带超时（对齐 notify.py M-5 同款防线）——
-            # kill() 只杀直接子进程，孙进程握着管道写端时无超时的读取会永久挂住后处理线程；
-            # 超时后抛 TimeoutExpired 交上层兜底，输出取「已读到的部分」。
-            try:
-                out, _ = process.communicate(timeout=10)
-            except subprocess.TimeoutExpired:
-                out = b""
-                raise
+            # A timeout still gives FFmpeg a chance to flush its trailer; never hard-kill a managed writer.
+            shutdown_manager.stop_process(process)
+            process.communicate()
+            shutdown_manager.forget(process)
             raise
+        shutdown_manager.forget(process)
+        if shutdown_manager.stopping.is_set():
+            raise ShutdownRequested("Conversion interrupted; retain original file")
         if process.returncode != 0:
             raise subprocess.CalledProcessError(process.returncode, command, output=out)
         return out.decode("utf-8", errors="replace")
@@ -255,7 +259,7 @@ def segment_video(
                 segment_save_file_path,
             ]
             _run_postprocess_command(ffmpeg_command, segment_save_file_path, converts_file_path)
-            if is_original_delete:
+            if is_original_delete and not shutdown_manager.stopping.is_set():
                 time.sleep(1)
                 if os.path.exists(converts_file_path):
                     os.remove(converts_file_path)
