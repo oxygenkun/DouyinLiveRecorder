@@ -3398,8 +3398,8 @@ def _build_ffmpeg_output_args(
                 SEGMENT_FORMAT_BY_SUFFIX[".mp4"],
                 "-reset_timestamps",
                 "1",
-                "-movflags",
-                "+frag_keyframe+empty_moov",
+                "-segment_format_options",
+                "movflags=+frag_keyframe+empty_moov",
                 save_file_path,
             ]
         return ["-map", "0", "-c:v", "copy", "-c:a", "copy", "-f", "mp4", save_file_path]

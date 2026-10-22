@@ -625,8 +625,8 @@
       "mp4",
       "-reset_timestamps",
       "1",
-      "-movflags",
-      "+frag_keyframe+empty_moov",
+      "-segment_format_options",
+      "movflags=+frag_keyframe+empty_moov",
       "/recordings/抖音直播/测试主播_2026-09-13_12-00-00_%03d.mp4"
     ],
     "platform": "抖音直播",

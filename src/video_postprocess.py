@@ -243,8 +243,7 @@ def segment_video(
                 segment_format,
                 "-reset_timestamps",
                 "1",
-                "-movflags",
-                "+frag_keyframe+empty_moov",
+                *(["-segment_format_options", "movflags=+frag_keyframe+empty_moov"] if segment_format == "mp4" else []),
                 # MIN-2236⑥：补 `-n`（输出已存在时立即退出、不询问），与 converts_m4a / converts_mp4
                 # 的既有写法对齐——原缺该项：目标名与磁盘已有文件撞车时 ffmpeg 会打印
                 # "Overwrite? [y/N]"，而本命令由 _run_ffmpeg_checked 以管道启动、子进程没有可用
