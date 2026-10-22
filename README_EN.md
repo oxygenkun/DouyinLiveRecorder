@@ -70,15 +70,18 @@ git clone https://github.com/y123ao6/DouyinLiveRecorder.git
 cd DouyinLiveRecorder
 
 # Install dependencies (uv is recommended)
-uv sync
+uv sync --locked
 
-# Or use pip
+# Or use pip (base only; desktop users: pip install ".[gui]")
 pip install -r requirements.txt
 
-# Run the program
-python main.py        # CLI mode
-python gui.py         # GUI mode
-python web.py         # Web management panel mode
+# Run using the project environment
+uv run --locked python main.py        # CLI mode
+uv run --locked python web.py         # Web management panel mode
+
+# GUI / Windows Web tray require the optional extra
+uv sync --locked --extra gui
+uv run --locked --extra gui python gui.py
 ```
 
 ### Method 3: Run with Docker
@@ -260,10 +263,9 @@ DouyinLiveRecorder/
 ├── requirements.txt            # Python dependencies
 ├── pyproject.toml             # Python project config
 ├── Dockerfile                  # Docker build file (multi-stage)
-├── docker-compose.yaml         # Docker Compose (recorder/web/gui three services)
+├── docker-compose.yaml         # Docker Compose (recorder/web two services)
 ├── .dockerignore               # Docker build-context exclude
 ├── .gitignore                  # Git exclude
-├── StopRecording.vbs           # Windows stop-recording script
 ├── CODE_WIKI.md                # project architecture doc
 └── README.md                   # project README doc
 ```
@@ -702,7 +704,7 @@ Four translation catalogs are built in, probed at load time in the order `gettex
 
 ### Stop recording
 
-- **Windows**: run `StopRecording.vbs` or press `Ctrl+C` in the terminal
+- **Windows**: press `Ctrl+C` in the terminal
 - **Linux/macOS**: press `Ctrl+C` in the terminal
 - **Docker**: run `docker-compose stop`
 
@@ -757,7 +759,7 @@ docker run -d -v ./config:/app/config -v ./downloads:/app/downloads \
   The two per-architecture tags (`:vX.Y.Z-amd64` / `-arm64`) are intermediate products of the merge step and are not
   cleaned up automatically at the moment.
 - Anonymous pulls require the GHCR package visibility to be **public** — a one-off manual action in the repository settings.
-- This is **deliberately a different name** from `image: y123ao6/douyin-live-recorder:latest` in `docker-compose.yaml` (the `gui` service uses its own `:latest-gui`, see ‘Switch run mode’ below):
+- This is **deliberately a different name** from `image: y123ao6/douyin-live-recorder:latest` in `docker-compose.yaml`:
   compose goes through `pull_policy: build` and builds in place (it does not pull a same-named registry image), so the
   "Quick start" instructions above stay as they are. Use the `docker run` line above for the GHCR image; on an arm64
   host the in-place compose build works just as well.
@@ -773,15 +775,9 @@ docker compose up -d
 # Web management panel mode (maps port 8000, access via browser at http://localhost:8000)
 docker compose --profile web up -d
 
-# GUI mode (requires an X11 display environment; run xhost +local: on the host first)
-docker compose --profile gui up -d
 ```
 
-> ℹ️ The image ships in two dependency shapes: the default one used by `recorder` / `web` **does not**
-> install the GUI window layer (PySide6 measures 647.56MB unpacked on this host, and both services keep a
-> complete import chain without it, so it would only add weight). `--profile gui` builds **a second image
-> under its own tag** (`...:latest-gui`) with `--build-arg INSTALL_GUI=true` plus the Qt runtime libraries,
-> so the first GUI run costs one extra build and never replaces the image recorder / web are using.
+> Docker supports CLI / Web only. There is no GUI image or X11 profile. Install the desktop GUI on the host with `uv sync --locked --extra gui`.
 
 > ⚠️ Web-mode note: `web.py` listens on `127.0.0.1` by default; inside the container you must set `web_host = 0.0.0.0` in the `[Web]` section of `config/config.ini` to access it from the host; it is also recommended to enable `web_auth_enable = true` and set `web_password`.
 
@@ -797,7 +793,7 @@ volumes:
 
 ### Port mapping
 
-Only the `web` service (Web management panel mode) maps ports; the `recorder` / `gui` services listen on no ports:
+Only the `web` service (Web management panel mode) maps ports; the `recorder` service listens on no ports:
 
 ```yaml
 ports:
@@ -833,29 +829,20 @@ ports:
 
 ```bash
 # Use uv (recommended)
-uv sync --dev
+uv sync --locked --extra dev --extra gui
 
-# Or use pip
-pip install -r requirements.txt
-pip install .[dev]
+# Or use pip (compatibility)
+pip install ".[dev,gui]"
 ```
 
 ### Code conventions
 
 ```bash
 # Format code (line-length = 120)
-black .
+ruff format .
 
 # Sort imports
-isort .
-
-# Type check (CI uses mypy; no path argument, scope comes from pyproject.toml [tool.mypy].files)
-mypy
-
-# Type check (local enhancement, optional): basedpyright
-# Configured in pyproject.toml under [tool.basedpyright], venvPath points to the workspace .venv (relative path, portable)
-# First time: create and install deps: python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-basedpyright
+ruff check --fix .
 
 # Run tests
 pytest
@@ -863,7 +850,7 @@ pytest
 
 > **Comment convention**: module/function docs uniformly use `#` line comments, not triple-quoted `"""` docstrings; functional multiline string literals (templates/SQL) use single quotes + line concatenation instead of `"""`.
 
-> **Five-tool quality gate**: this project uses `mypy` (src + tests) / `basedpyright` (tests) / `pytest` (0 warnings) / `black --check .` / `isort --check-only .` jointly as a quality gate; all-green in CI is a prerequisite for merging. Current baseline: **974 passed / 2 skipped / 0 warnings**.
+> **Quality gates**: Ruff formats code and sorts imports; pytest requires zero warnings. There is no permanent type-checker gate. The authoritative command list is in AGENTS.md.
 
 > **Test note**: `tests/test_web_api.py`'s symlink-related cases (`TestListFiles::test_broken_symlink_skipped` / `test_symlink_outside_skipped`) auto-`pytest.skip` in environments where real symlinks cannot be created (Windows without Developer Mode, some sandboxes) — this is normal and does not indicate a code defect.
 

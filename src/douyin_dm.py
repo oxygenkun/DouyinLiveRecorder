@@ -32,7 +32,7 @@ USER_INFO_URL = "https://www.douyin.com/aweme/v1/web/im/user/info/"
 LIVE_ENTER_URL = "https://live.douyin.com/webcast/room/web/enter/"
 CHAT_REFERER = "https://www.douyin.com/chat?isPopup=1"
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 )
 # 网页当前使用的 IM 构建号；字段本身不参与鉴权，但缺少它会被 SDK 侧判成旧客户端。
 IM_BUILD = "0d50935:feat/pc-im-group"

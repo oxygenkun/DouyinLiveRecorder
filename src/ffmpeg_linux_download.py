@@ -285,8 +285,7 @@ def _verify_archive(archive: Path, official: str, dest_dir: Path, source_url: st
         # 首次记账必须 warning（与 Windows master 侧同一档）：这是「本次没有可比对期望值」的唯一书面证据。
         logger.warning(
             i18n.tr(
-                "未取得官方 SHA256，本次为 Linux ffmpeg 首次记录基准（TOFU，等同未校验安装）: "
-                "{file} = {actual}{stale}",
+                "未取得官方 SHA256，本次为 Linux ffmpeg 首次记录基准（TOFU，等同未校验安装）: {file} = {actual}{stale}",
                 file=str(hash_file),
                 actual=current,
                 stale=("（已修剪陈旧基准 " + ", ".join(removed) + "）") if removed else "",

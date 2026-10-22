@@ -204,9 +204,9 @@ def test_macos_ffprobe_signature_entry_matches_its_artifact_url() -> None:
     for key in ("macos-x64", "macos-arm64"):
         sig_url, fingerprint = build_exe._RUNTIME_GPG_SIGNATURES[key]["ffprobe"]
         assert sig_url == f"{build_exe._EXTRA_EXECUTABLE_URLS[key]['ffprobe']}.sig", sig_url
-        assert (
-            fingerprint == build_exe._RUNTIME_GPG_SIGNATURES[key]["ffmpeg"][1]
-        ), "ffprobe 与 ffmpeg 同页同钥，另立指纹等于引入第二把未核实的钥匙"
+        assert fingerprint == build_exe._RUNTIME_GPG_SIGNATURES[key]["ffmpeg"][1], (
+            "ffprobe 与 ffmpeg 同页同钥，另立指纹等于引入第二把未核实的钥匙"
+        )
         # 实测：两份 .sig 的签发者都是主钥名下的同一把子钥（判据见 build_exe 侧注释）
         assert fingerprint == _PRIMARY_FPR
 
@@ -875,9 +875,9 @@ def test_zip_install_restores_exec_bit(monkeypatch: pytest.MonkeyPatch, tmp_path
     with zipfile.ZipFile(archive) as zf:
         zf.extractall(via_extractall)
     if os.name != "nt":
-        assert (
-            not (via_extractall / "ffmpeg").stat().st_mode & stat.S_IXUSR
-        ), "extractall 竟然保留了执行位：本用例的前提（Python 不还原 unix mode）已被证伪，须重判"
+        assert not (via_extractall / "ffmpeg").stat().st_mode & stat.S_IXUSR, (
+            "extractall 竟然保留了执行位：本用例的前提（Python 不还原 unix mode）已被证伪，须重判"
+        )
         assert got.stat().st_mode & stat.S_IXUSR, "补位后仍不可执行，chmod 没落到目标文件上"
 
 
@@ -1385,7 +1385,7 @@ def test_dockerignore_excludes_dev_only_artifacts_as_bare_patterns() -> None:
     patterns = _ignore_patterns(".dockerignore")
     # 这三条是本轮实测「伪装成已排除」的形态：65KB 打包脚本 / 37KB UTF-16 的 Windows 脚本 /
     # 仓库内散落的 *.jsonl（弹幕监控边车日志）都会经 COPY . ./ 进镜像。
-    for must in ("build_exe.py", "StopRecording.vbs", "*.jsonl"):
+    for must in ("build_exe.py", "*.jsonl"):
         assert must in patterns, f".dockerignore 缺少裸模式 {must!r}（带行内注释的规则永不匹配）"
     # 空规则：i18n/ 下从来没有 compile_po.py（真身在 scripts/，已整目录排除），留着只会误导读者
     assert not [p for p in patterns if "compile_po" in p], "i18n/**/compile_po.py 永不匹配，属空规则"

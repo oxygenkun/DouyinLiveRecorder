@@ -263,9 +263,9 @@ async def test_reject_auth_close_failure_is_reclaimed_and_logged(monkeypatch: py
         logger.remove(handler_id)
 
     assert lines, "未捕获到任何日志，本用例的观察点失效（假绿）"
-    assert any(
-        "[弹幕]后台协程异常" in text and "RuntimeError" in text and "close-boom" in text for text in lines
-    ), f"关停协程的异常未被托管回收（应经 spawn_danmaku_task 落一条 warning）: {lines!r}"
+    assert any("[弹幕]后台协程异常" in text and "RuntimeError" in text and "close-boom" in text for text in lines), (
+        f"关停协程的异常未被托管回收（应经 spawn_danmaku_task 落一条 warning）: {lines!r}"
+    )
 
 
 # ── 真机通道：仅在 `python tests/test_bilibili_danmaku.py [房间URL] [存活秒数]` 下执行 ──

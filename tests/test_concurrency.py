@@ -136,9 +136,9 @@ class TestThreadSafeCredential:
         #  第二个房间线程的新循环里 await 即抛 "bound to a different event loop"）。
         # 本条取代旧版的「拿一个本地新建锁断言它有 acquire/release」——那与生产代码无关。
         assert not isinstance(ttwid_module._ttwid_lock, asyncio.Lock), "ttwid 去重锁退化成 asyncio.Lock 单例"
-        assert isinstance(
-            ttwid_module._ttwid_lock, _rlock_type
-        ), "ttwid 锁跨 await 持有，必须是 RLock（普通 Lock 下同线程重入即自旋死锁）"
+        assert isinstance(ttwid_module._ttwid_lock, _rlock_type), (
+            "ttwid 锁跨 await 持有，必须是 RLock（普通 Lock 下同线程重入即自旋死锁）"
+        )
         assert not isinstance(stream_select._probe_throttle_lock, asyncio.Lock)
         assert isinstance(stream_select._probe_throttle_lock, _plain_lock_type), "探针节流锁必须是跨线程原语"
         assert isinstance(main.douyin_rate_lock, _plain_lock_type), "抖音限流锁必须是跨线程原语"

@@ -368,7 +368,7 @@ def _setup_case(main: ModuleType, monkeypatch: pytest.MonkeyPatch, case: dict[st
     monkeypatch.setattr(
         main,
         "get_record_headers",
-        lambda *a, **k: ({"Referer": "http://example.com", "Cookie": "a=b"} if case.get("headers") else None),
+        lambda *a, **k: {"Referer": "http://example.com", "Cookie": "a=b"} if case.get("headers") else None,
     )
     # 返回 None → 走默认移动端 UA（确定性）
     monkeypatch.setattr(main, "get_record_user_agent", lambda *a, **k: None)
@@ -545,9 +545,9 @@ def test_start_record_command_golden(
         # SEV-2224：基准条目必须真的带 platform / danmaku_args。缺键说明这份 JSON 是
         # 旧格式（手改过、或用被 MIN-2265 污染的 _REGEN 语义重生成过），那时弹幕接线
         # 不在比对范围内——快照会「全绿但什么都没看」。
-        assert {"command", "platform", "danmaku_args"} <= set(
-            expected
-        ), f"基准条目 {case['id']} 缺键，实际键: {sorted(expected)}（请 GOLDEN_REGEN=1 重生成）"
+        assert {"command", "platform", "danmaku_args"} <= set(expected), (
+            f"基准条目 {case['id']} 缺键，实际键: {sorted(expected)}（请 GOLDEN_REGEN=1 重生成）"
+        )
     # start_record 的 except 会吞掉真实异常并只打日志；命令为 None 时把捕获到的
     # ERROR/WARNING 一并抛出，否则失败信息只剩「None != [...]」，无从定位。
     assert actual == expected, (
@@ -619,8 +619,8 @@ def test_golden_snapshot_shape_is_sane() -> None:
         command = entry["command"]
         assert isinstance(command, list) and len(command) > 5, f"{case['id']} 的命令为空或过短: {command}"
         assert "-i" in command, f"{case['id']} 的命令缺 -i 输入锚点（F-01 的输入侧参数全靠它定位）"
-        assert str(command[command.index("-i") + 1]).startswith(
-            ("http://", "https://", "rtmp://")
-        ), f"{case['id']} 的 -i 后面不是拉流地址: {command[command.index('-i') + 1]!r}"
+        assert str(command[command.index("-i") + 1]).startswith(("http://", "https://", "rtmp://")), (
+            f"{case['id']} 的 -i 后面不是拉流地址: {command[command.index('-i') + 1]!r}"
+        )
         assert entry["platform"] == case["platform"], f"{case['id']} 快照里的 platform 与用例不符"
         assert "danmaku_args" in entry, f"{case['id']} 快照缺 danmaku_args 键（SEV-2224 的接线未被记录）"

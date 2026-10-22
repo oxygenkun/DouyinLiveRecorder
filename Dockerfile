@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # =============================================================================
 # DouyinLiveRecorder 容器镜像（多阶段构建）
 # 基础镜像：python:3.14-slim-bookworm（Debian 12，最小 Python 运行时）
@@ -8,15 +9,19 @@
 # 阶段1：构建阶段 —— 只把 Python 依赖装进 /opt/venv
 # Node.js 不在此阶段装：它只被 PyExecJS / exejs 在**运行时**跑各平台 JS 签名脚本，
 # 构建期引入只会拖慢层缓存；弹幕采集链的 websockets / protobuf / brotli 随
-# requirements.txt 一并装入 /opt/venv，运行时直接可用。
+# uv.lock 一并装入 /opt/venv，运行时直接可用。
 # -----------------------------------------------------------------------------
+FROM ghcr.io/astral-sh/uv:0.10.9@sha256:10902f58a1606787602f303954cea099626a4adb02acbac4c69920fe9d278f82 AS uv
+
 FROM python:3.14-slim-bookworm AS builder
+COPY --from=uv /uv /uvx /usr/local/bin/
 
 # 无缓冲输出便于容器日志、禁止写字节码减小体积、关闭 pip 缓存与版本检查
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy
 
 # build-essential 用于编译无二进制轮子的依赖（如部分加密 / 解析库）
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,30 +30,80 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 虚拟环境落在中立路径 /opt/venv，对所有用户可读，供运行时阶段整目录复用
-RUN python -m venv /opt/venv
+RUN uv venv --python /usr/local/bin/python /opt/venv
 
 WORKDIR /build
 
 # 只先拷依赖声明文件：仅依赖变更才重装，源码变更不打断层缓存
-COPY requirements.txt pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
-# requirements.txt 含 HTTP / 日志 / 加密 / GUI / Web / 弹幕全部运行时依赖。
-# INSTALL_GUI=false（默认）时**不装** PySide6：镜像按设计只跑 main.py 与 web.py，本机实测两者
-# 屏蔽 PySide6 后导入链完整（gui.py 把窗口层延迟到 main() 内导入，可导入、但起窗才需要它）；
-# 而 PySide6 解压后本机实测 647.56MB，阶段2 的 slim-bookworm 又缺 Qt 运行库
-# （libEGL/libGL/glib/fontconfig/xkbcommon…），默认装入只会撑大一倍却仍起不动窗口。
-# 需要容器内 GUI 时显式 --build-arg INSTALL_GUI=true，由阶段2 同条件补装 Qt 运行库
-# （两侧判据必须一起改）；过滤只发生在镜像侧，requirements.txt 与 pyproject
-# [project.dependencies] 的集合相等锁不受影响。
-ARG INSTALL_GUI=false
-RUN /opt/venv/bin/pip install --upgrade pip \
-    && if [ "$INSTALL_GUI" = "true" ]; then \
-           /opt/venv/bin/pip install --no-cache-dir -r requirements.txt; \
-       else \
-           grep -viE '^[[:space:]]*pyside6' requirements.txt > /tmp/requirements.nogui.txt \
-           && echo "[build] INSTALL_GUI=false：已从镜像依赖清单剔除 $(grep -icE '^[[:space:]]*pyside6' requirements.txt) 条 GUI 依赖" \
-           && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.nogui.txt; \
-       fi
+# Docker 永远只跑 CLI / Web；GUI 仅供宿主机通过 gui extra 安装。
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
+
+# -----------------------------------------------------------------------------
+# 自建精简 FFmpeg（2026-10-22）
+#
+# 为什么不再 apt 装 ffmpeg：Debian 包是「全家桶」构建，实测依赖闭包 232 个包 / 493MB
+# 已安装体积，其中 450MB 只服务 ffmpeg 自己——libllvm15 112MB + libgl1-mesa-dri 25MB
+# （--enable-opengl/--enable-sdl2 拉进来的 mesa/llvmpipe）、libflite1 27MB（语音合成）、
+# libmfx1 27MB（Intel MediaSDK）、libz3-4 22MB、libcodec2 16MB，以及 aom / svt-av1 /
+# rav1e / placebo / libass / sdl2 等录制链路永远走不到的可选后端。
+# 这里改成自编：原生 demuxer/muxer/decoder/filter 全保留（flv、hls、mp4、mpegts、
+# segment；https/tls/rtmp/crypto 协议都在，不需要逐格式白名单），只在外部后端上做减法——
+#   * libx264：转 H.264 用（video_postprocess 的 -c:v libx264）
+#   * libx265：HEVC 编码，预留给后续站点（本仓当前不主动调用，但必须编进去）
+#   * libmp3lame：转 MP3 用（原生只有 mp3 解码，没有编码器）
+#   * gnutls：https/tls（不用 openssl：其 3.x 是 Apache-2.0，与 GPLv2 不兼容，
+#     configure 会要求 --enable-version3；gnutls 是 LGPLv2.1+，与 --enable-gpl 相容）
+# 其余（HEVC 解码、h264 解码、aac、flv/hls 解封装等）都是 ffmpeg 原生实现，不依赖外部库，
+# 功能面不减。
+#
+# 链接口径：libav* 静态链进二进制（只产出一个 /opt/ffmpeg/bin/ffmpeg，不装 .so），编码库按
+# Debian 运行时包动态链接——x265 由 Debian 发安全更新，比在镜像里自编一份更省事；代价只是
+# 运行阶段多 libx264-164 / libx265-199 / libmp3lame0 三个包（约 19MB）。ffprobe / ffplay
+# 运行期不用（全仓 grep 只出现在安装器与打包脚本），故不构建，省一次编译。
+#
+# 版本与哈希钉定：URL 与 sha256 成对升级，哈希不符即构建失败（fail-closed），口径同
+# NodeSource；--disable-autodetect 关掉全部自动探测的外部库，下面再显式开需要的三个。
+FROM python:3.14-slim-bookworm AS ffmpeg-builder
+
+ARG FFMPEG_VERSION=7.1.5
+ARG FFMPEG_SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        nasm \
+        pkg-config \
+        libgnutls28-dev \
+        zlib1g-dev \
+        libx264-dev \
+        libx265-dev \
+        libmp3lame-dev \
+        curl \
+        xz-utils \
+    && curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o /tmp/ffmpeg.tar.xz \
+    && echo "${FFMPEG_SHA256}  /tmp/ffmpeg.tar.xz" | sha256sum -c - \
+    && mkdir -p /usr/src/ffmpeg \
+    && tar -xJf /tmp/ffmpeg.tar.xz -C /usr/src/ffmpeg --strip-components=1 \
+    && cd /usr/src/ffmpeg \
+    && ./configure \
+        --prefix=/opt/ffmpeg \
+        --disable-doc \
+        --disable-ffplay \
+        --disable-ffprobe \
+        --disable-debug \
+        --disable-autodetect \
+        --enable-gpl \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libmp3lame \
+        --enable-gnutls \
+        --enable-zlib \
+    && make -j"$(nproc)" \
+    && make install \
+    && strip /opt/ffmpeg/bin/ffmpeg \
+    && rm -rf /usr/src/ffmpeg /tmp/ffmpeg.tar.xz /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
 # 阶段2：运行阶段 - 最小化运行镜像
@@ -93,8 +148,18 @@ ENV PYTHONUNBUFFERED=1 \
 #   当前哈希对应 2026-09-12 抓取的 setup_24.x（3907 字节）。
 ARG NODESOURCE_SETUP_URL=https://deb.nodesource.com/setup_24.x
 ARG NODESOURCE_SETUP_SHA256=6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72
+# ffmpeg 本体改由阶段1 自编（原因与配置见阶段1 的「自建精简 FFmpeg」段），这里只装它按
+# so 名依赖的三个编码库：libx264（H.264 转码）、libx265（HEVC 编码，预留）、libmp3lame
+# （MP3 转码）。三者合计约 19MB，取代原先 apt ffmpeg 的 493MB 依赖闭包。
+#
+# Node 只被 execjs 以 `node -`（从 stdin 读脚本）调用，不跑 npm、不编原生插件，故 NodeSource
+# 的 nodejs 包里两坨运行期死重量装完即删：/usr/include/node（node-gyp 头文件，67MB）与
+# npm + corepack（约 17MB）。删除必须放在 apt-get upgrade 之后——否则升级 nodejs 会重新解包
+# 把这两坨带回来；紧跟的 `node -e` 自检保证删完 node 本体仍可执行。
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
+    libx264-164 \
+    libx265-199 \
+    libmp3lame0 \
     tzdata \
     curl \
     procps \
@@ -105,31 +170,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -f /tmp/nodesource_setup.sh \
     && apt-get install -y nodejs \
     && apt-get upgrade -y \
+    && rm -rf /usr/include/node /usr/lib/node_modules /usr/bin/npm /usr/bin/npx /usr/bin/corepack \
+    && node -e 'process.exit(0)' \
     && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# 运行阶段的 Qt 系统库：只在 INSTALL_GUI=true 时装。slim-bookworm 默认没有 libEGL/libGL/glib/
-# fontconfig/xkbcommon/xcb 等 QtWidgets 链接依赖，缺任一项 `import PySide6.QtWidgets` 即失败——
-# 「装 PySide6」与「装 Qt 库」是同一个开关的两半，必须同条件、同批改（ARG 不跨阶段，本阶段须
-# 重新声明）。默认 false 时本 RUN 只落一个空层，不影响镜像体积。
-ARG INSTALL_GUI=false
-RUN if [ "$INSTALL_GUI" = "true" ]; then \
-        apt-get update \
-        && apt-get install -y --no-install-recommends \
-            libegl1 \
-            libgl1 \
-            libglib2.0-0 \
-            libfontconfig1 \
-            libxkbcommon0 \
-            libxkbcommon-x11-0 \
-            libdbus-1-3 \
-            libxcb-xinerama0 \
-            libxcb-cursor0 \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/*; \
-    fi
 
 # 创建非 root 用户（降低容器被攻破后的影响面；uid/gid=1000 便于卷挂载权限对齐）
 RUN groupadd --gid 1000 recorder \
@@ -139,10 +185,22 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 
+# 自编 ffmpeg（构建细节见阶段1）：libav* 静态链进二进制，编码库走上面装的三个 Debian 包。
+COPY --from=ffmpeg-builder /opt/ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg
+
+# 构建期自检：编码器/协议缺任一就让镜像构建失败，而不是等运行期第一次录制才暴露。
+# 判据只钉「存在性」——libx264/libx265/libmp3lame 与 https/tls 是运行期硬需求，
+# 具体编码参数的正确性由 tests/test_ffmpeg_reconnect_args.py 与 golden 命令锁覆盖。
+RUN ffmpeg -hide_banner -version > /dev/null \
+    && ffmpeg -hide_banner -encoders | grep -q 'libx265' \
+    && ffmpeg -hide_banner -encoders | grep -q 'libx264' \
+    && ffmpeg -hide_banner -encoders | grep -q 'libmp3lame' \
+    && ffmpeg -hide_banner -protocols | grep -q 'https'
+
 # 应用代码以 recorder 属主入镜像，实际内容由 .dockerignore 裁剪（那份文件是唯一清单事实源）：
-# 留下 main.py / web.py / gui.py + src/（javascript/ 签名脚本、platforms/ 平台实现、proto/ 弹幕协议）
+# 留下 main.py / web.py + src/（不含桌面窗口层；包含 javascript/ 签名脚本、platforms/ 平台实现、proto/ 弹幕协议）
 #   + web/ 静态资源 + i18n/**/*.mo（gettext 运行时必需，构建期不重编译）；排除测试与工具
-#   （tests/ scripts/ typings/ uv.lock 等）、文档、运行期产物（logs/ downloads/ backup_config/，
+#   （tests/ scripts/ typings/ 等）、文档、运行期产物（logs/ downloads/ backup_config/，
 #   改由卷挂载提供）、平台二进制与 config/*.ini（含凭据）。
 COPY --chown=recorder:recorder . ./
 
@@ -153,7 +211,7 @@ RUN mkdir -p logs downloads backup_config \
 USER recorder
 
 # 健康检查：经 pgrep 匹配进程命令行，同时兼容 main.py（命令行）与 web.py（面板）两种模式；
-# compose 的 web 服务继承此判定，gui 服务必须单独覆盖（本判定对 gui.py 永远失败）
+# compose 的 web 服务继承此判定。
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD pgrep -f 'python (main|web).py' || exit 1
 
@@ -162,5 +220,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 EXPOSE 8000
 
 # 默认命令行录制模式；Web 面板模式改 command 为 python web.py
-# （docker-compose.yaml 已提供 web / gui 两个 profile 服务）
+# （docker-compose.yaml 提供 web profile 服务）
 ENTRYPOINT ["python", "main.py"]

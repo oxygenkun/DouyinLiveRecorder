@@ -111,6 +111,21 @@ def test_uv_lock_root_package_matches_pyproject_metadata() -> None:
 
     assert root_package.get("version") == project["version"], "uv.lock 根包版本未随 pyproject.toml 更新"
     assert lock_names == _names_from_pyproject_dependencies(pyproject_text), "uv.lock 根包运行时依赖集合已漂移"
+    gui_names = {item["name"] for item in root_package["optional-dependencies"]["gui"]}
+    assert "pyside6" in gui_names
+    assert not {"pyside6", "shiboken6"} & lock_names, "Qt 不得成为基础依赖"
+
+
+def test_development_tools_use_ruff_without_legacy_type_checkers() -> None:
+    # 工具声明只留 Ruff；旧工具不能通过另一个 extra 被悄悄带回。
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    names = {
+        _normalize_dist_name(match.group(1))
+        for spec in project["optional-dependencies"]["dev"]
+        if (match := _REQ_NAME.match(spec)) is not None
+    }
+    assert "ruff" in names
+    assert not names & {"black", "isort", "mypy", "basedpyright", "pyright"}
 
 
 def test_httpx_extra_runtime_requirements_are_declared() -> None:
@@ -144,9 +159,9 @@ def test_httpx_runtime_import_sites_match_the_declared_extras() -> None:
 
     # http2=True 分支必须仍以 `import h2` 作为前置检查；socks5 分支必须仍 `import socksio`
     assert re.search(r"^\s*import h2\b", client_src, re.M), "httpx 不再在 http2 分支 import h2：请复核 h2 是否仍需声明"
-    assert re.search(
-        r"^\s*import socksio\b", transport_src, re.M
-    ), "httpx 不再在 socks5 分支 import socksio：请复核 socksio 是否仍需声明"
+    assert re.search(r"^\s*import socksio\b", transport_src, re.M), (
+        "httpx 不再在 socks5 分支 import socksio：请复核 socksio 是否仍需声明"
+    )
 
 
 def test_repo_has_enabled_http2_at_runtime() -> None:
@@ -169,18 +184,18 @@ def test_repo_has_enabled_http2_at_runtime() -> None:
                 if arg.arg == "http2":
                     default = dflt
     assert default is not None, "src/async_http.py 的 async_req 已无 http2 形参（SEV-2216 的注释理由需复核）"
-    assert (
-        isinstance(default, ast.Constant) and default.value is True
-    ), "async_req 的 http2 默认值不再是 True：若 http2 已全程关闭，h2 的声明理由需重新论证"
+    assert isinstance(default, ast.Constant) and default.value is True, (
+        "async_req 的 http2 默认值不再是 True：若 http2 已全程关闭，h2 的声明理由需重新论证"
+    )
 
 
 def test_repo_supports_socks5_proxy_scheme() -> None:
     # 同理锁 socksio 的声明理由：本仓必须仍把 socks5/socks5h 当合法代理协议（白名单在
     # src/web_config.py）。若这条不成立，socksio 的注释即被证伪。
     source = (ROOT / "src" / "web_config.py").read_text(encoding="utf-8")
-    assert re.search(
-        r"_PROXY_SCHEMES\s*=\s*frozenset\(\([^)]*\"socks5\"", source, re.S
-    ), "src/web_config.py 的 _PROXY_SCHEMES 已不含 socks5：请复核 socksio 是否仍需声明"
+    assert re.search(r"_PROXY_SCHEMES\s*=\s*frozenset\(\([^)]*\"socks5\"", source, re.S), (
+        "src/web_config.py 的 _PROXY_SCHEMES 已不含 socks5：请复核 socksio 是否仍需声明"
+    )
 
 
 def _httpx_extra_requirements() -> list[str]:
@@ -321,9 +336,9 @@ def test_run_gates_comment_about_stdout_matches_implementation() -> None:
     )
     # 反向：pytest 兜底那条**必须**接管 stdout（warnings summary 走 stdout，不接管就永远检不出）
     summary_kwargs = _popen_keywords(src, "gate_pytest_warnings_summary")
-    assert (
-        "stdout" in summary_kwargs
-    ), "gate_pytest_warnings_summary 未接管 stdout：warnings summary 走 stdout，此回路会永久失明"
+    assert "stdout" in summary_kwargs, (
+        "gate_pytest_warnings_summary 未接管 stdout：warnings summary 走 stdout，此回路会永久失明"
+    )
 
 
 def _popen_keywords(source: str, function_name: str) -> set[str]:
@@ -365,7 +380,7 @@ def test_run_gates_fatal_patterns_reach_stderr_channel() -> None:
         # UserWarning、rc 仍为 0），不是语法错误——后者 rc 非 0，就证不出「只认退出码即假绿」。
         target.write_bytes(b"# coding: utf-8\n# " + bytes([0xFF, 0xFE]) + b" bad\nx = 1\n")
         proc = subprocess.run(
-            [sys.executable, "-m", "isort", "--check-only", "--profile", "black", tmp],
+            [sys.executable, "-m", "ruff", "check", "--no-fix", tmp],
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
@@ -373,13 +388,8 @@ def test_run_gates_fatal_patterns_reach_stderr_channel() -> None:
             errors="replace",
             check=False,
         )
-    assert (
-        proc.returncode == 0
-    ), f"isort 解析失败的 rc 不再是 0（{proc.returncode}）：扫描回路的必要性变了，请复核本用例前提"
-    assert "Unable to parse file" in (proc.stderr or ""), (
-        f"告警不再出现在 stderr（可能在 stdout）：FATAL_STDERR_PATTERNS 的扫描通道会失明。"
-        f"stdout={proc.stdout[:200]!r}"
-    )
+    assert proc.returncode != 0, "Ruff 不得把非法编码源文件静默当成已检查"
+    assert proc.stdout or proc.stderr, "解析失败必须给出诊断"
 
 
 def test_run_gates_parses_all_gate_commands_and_env() -> None:
@@ -392,13 +402,18 @@ def test_run_gates_parses_all_gate_commands_and_env() -> None:
     assert cmds, "未能从 AGENTS.md 解析出任何门禁命令（章节标题/围栏可能已改）"
     # 本仓声明的全部门禁都应在清单内（抽查关键项，避免只断言「非空」）
     joined = "\n".join(cmds)
-    for expected in ("black --check", "isort --check-only", "mypy", "check_annotations.py", "check_runtime_pins.py"):
+    for expected in (
+        "ruff format --check",
+        "ruff check --no-fix",
+        "check_annotations.py",
+        "check_runtime_pins.py",
+    ):
         assert expected in joined, f"门禁清单缺少 {expected!r}（AGENTS.md 章节可能被改）"
     # 写型命令兜底拦截仍生效（清单里不得出现不带 --check 的 black/isort）
     assert not [c for c in cmds if run_gates.is_write_command(c)], "清单里出现了写型格式化命令"
-    assert (
-        run_gates.extract_gate_env(agents).get("PYTHONUTF8") == "1"
-    ), "门禁块行首的 PYTHONUTF8=1 前缀未被解析出：isort 会在非 UTF-8 locale 下静默跳文件"
+    assert run_gates.extract_gate_env(agents).get("PYTHONUTF8") == "1", (
+        "门禁块行首的 PYTHONUTF8=1 前缀未被解析出：isort 会在非 UTF-8 locale 下静默跳文件"
+    )
 
 
 def _load_script_module(name: str) -> Any:
@@ -549,9 +564,9 @@ def test_make_zip_calls_credential_assertion_before_archiving() -> None:
     # [历史注 2026-09-24] 压缩动作由 shutil.make_archive( 改为自建的 _zip_release_dir(（为指定
     # compresslevel=9），锚点同步改新接缝；锁的语义（凭据校验必须早于压缩）完全不变。
     assert "assert_no_credentials_in_release()" in body, "make_zip 未调用凭据校验"
-    assert body.index("assert_no_credentials_in_release()") < body.index(
-        "_zip_release_dir("
-    ), "凭据校验晚于压缩：zip 已生成才拦，等于没拦"
+    assert body.index("assert_no_credentials_in_release()") < body.index("_zip_release_dir("), (
+        "凭据校验晚于压缩：zip 已生成才拦，等于没拦"
+    )
 
 
 def _function_body_source(source: str, name: str) -> str:
@@ -592,9 +607,9 @@ def test_prepare_url_config_reentrant_with_sanitizer_output() -> None:
     # 兼容性锁：_prepare_url_config() 与 _prepare_config_dir() 必须**同源且可重入**——二者都会写
     # config/URL_config.ini，样例串不一致时后跑的那个会覆盖前者（冒烟路径与打包路径各调一次）。
     build_exe = _load_build_exe()
-    assert (
-        build_exe._sanitized_url_config_text() == "#https://live.douyin.com/000000000000\n"
-    ), "URL_config.ini 的样例串与 _prepare_url_config 不一致（两处会互相覆盖）"
+    assert build_exe._sanitized_url_config_text() == "#https://live.douyin.com/000000000000\n", (
+        "URL_config.ini 的样例串与 _prepare_url_config 不一致（两处会互相覆盖）"
+    )
 
 
 def test_three_exe_names_share_one_source() -> None:
@@ -603,9 +618,9 @@ def test_three_exe_names_share_one_source() -> None:
     build_exe = _load_build_exe()
     template = build_exe.SPEC_TEMPLATE
     suffixes = re.findall(r"name='\{app\}([^']*)'", template)
-    assert sorted(suffixes) == sorted(
-        ["", "-GUI", "-Web", ""]
-    ), f"exe 名称不再全部由 {{app}} 派生（实际后缀 {suffixes}）：改名时会漂移"
+    assert sorted(suffixes) == sorted(["", "-GUI", "-Web", ""]), (
+        f"exe 名称不再全部由 {{app}} 派生（实际后缀 {suffixes}）：改名时会漂移"
+    )
 
 
 def test_smoke_fatal_markers_cover_import_failures() -> None:

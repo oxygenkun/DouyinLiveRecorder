@@ -55,8 +55,8 @@ def test_extract_matches_agents_section() -> None:
     # 真源解析：首条必须是 black 的逐字门禁命令（含显式传参），证明清单来自章节而非脚本内复制
     cmds = run_gates.extract_gate_commands(ROOT / "AGENTS.md")
     assert len(cmds) >= MIN_GATE_COMMANDS
-    assert cmds[0] == "python -m black --check --diff --line-length 120 --target-version py314 ."
-    assert any(c.startswith("python -m isort --check-only") for c in cmds)
+    assert cmds[0] == "python -m ruff format --check --diff ."
+    assert any(c.startswith("python -m ruff check --no-fix") for c in cmds)
     # 行尾注释必须被剥掉（cmd.exe 不识别 #，保留会把注释当参数）
     assert all("#" not in c for c in cmds)
     # 围栏外的行绝不许混入：「isort 收尾清理」小节的 Remove-Item 也是 bash 围栏之外的内容
@@ -72,26 +72,19 @@ def test_extract_missing_section_returns_empty() -> None:
 def test_extract_empty_when_section_renamed(tmp_path: Path) -> None:
     # 标题被改名（如重构文档时手滑）视同缺源：宁可报「没跑」也不返回旧清单
     fake = tmp_path / "AGENTS.md"
-    fake.write_text("## 别的章节\n\n```bash\npython -m black --check .\n```\n", encoding="utf-8")
+    fake.write_text("## 别的章节\n\n```bash\npython -m ruff format --check .\n```\n", encoding="utf-8")
     assert run_gates.extract_gate_commands(fake) == []
 
 
 @pytest.mark.parametrize(
     ("cmd", "expect_write"),
     [
-        # 门禁合法形态：带检查开关
-        ("python -m black --check --diff --line-length 120 --target-version py314 .", False),
-        ("python -m isort --check-only --diff --profile black --line-length 120 .", False),
-        # 写型形态：必须拦
-        ("python -m black .", True),
-        ("python -m isort .", True),
-        ("black .", True),
-        # 历史坑回归：isort 的 --profile 参数值恰为 black，按 token 扫同名会误判成
-        # 「裸 black 写调用」（首版实测即此），只认结构位置后必须放行
-        ("python -m isort --check-only --profile black .", False),
-        ("python -m isort --profile black .", True),
-        # 非守卫对象不受影响
-        ("mypy", False),
+        ("python -m ruff format --check .", False),
+        ("ruff format --diff .", False),
+        ("ruff format .", True),
+        ("python -m ruff check --no-fix .", False),
+        ("ruff check --fix .", True),
+        ("ruff check --fix-only .", True),
         ("python scripts/check_version.py", False),
     ],
 )
@@ -295,14 +288,14 @@ def _stub_popen(monkeypatch: pytest.MonkeyPatch) -> list[tuple[Any, dict[str, An
 
 def test_run_command_uses_argv_list_for_plain_commands(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _stub_popen(monkeypatch)
-    run_gates.run_command("python -m black --check --line-length 120 .")
+    run_gates.run_command("python -m ruff format --check --line-length 120 .")
     assert len(calls) == 1
     args, kwargs = calls[0]
     assert kwargs.get("shell") is False, "普通门禁命令仍经 cmd.exe/sh 二次解释 = L-30 的引号层还在"
     assert isinstance(args, list), f"应传参数列表，实际 {type(args).__name__}: {args!r}"
     assert args[0] == sys.executable, "行首解释器必须仍是当前解释器（换绑语义不得随形态改动丢失）"
     assert all('"' not in token for token in args), f"argv 里不该再有任何引号层：{args}"
-    assert args[1:] == ["-m", "black", "--check", "--line-length", "120", "."]
+    assert args[1:] == ["-m", "ruff", "format", "--check", "--line-length", "120", "."]
 
 
 def test_run_command_falls_back_to_shell_only_when_needed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -310,21 +303,21 @@ def test_run_command_falls_back_to_shell_only_when_needed(monkeypatch: pytest.Mo
     #   ① 含 shell 结构符：参数列表无法等价表达，硬拆会把 `>` 当字面参数传给工具；
     #   ② 行首解析到 .bat/.cmd：Windows 的 CreateProcess 不执行批处理。
     calls = _stub_popen(monkeypatch)
-    run_gates.run_command("python -m black --check . > out.txt")
+    run_gates.run_command("python -m ruff format --check . > out.txt")
     args, kwargs = calls[0]
     assert kwargs.get("shell") is True and isinstance(args, str), "含重定向的命令必须仍走 shell"
     assert ">" in args, f"shell 形态应把原命令串交给 shell：{args!r}"
 
     shutil_shim = types.SimpleNamespace(**vars(run_gates.shutil))
-    shutil_shim.which = lambda name: "/fake/Scripts/black.cmd"
+    shutil_shim.which = lambda name: "/fake/Scripts/ruff.cmd"
     monkeypatch.setattr(run_gates, "shutil", shutil_shim)
-    assert run_gates.build_gate_argv("black --check .") is None, "批处理入口被拆成 argv = Windows 上必起不来"
+    assert run_gates.build_gate_argv("ruff format --check .") is None, "批处理入口被拆成 argv = Windows 上必起不来"
 
 
 def test_build_gate_argv_keeps_backslashes_and_quotes_stripped() -> None:
     # posix=False 的意义就在这里：默认模式会把反斜杠当转义吃掉，Windows 绝对路径被切成
     # `C:venvScriptspython.exe`（argv[0] 不存在，门禁会「跑不起来却报成通过」）。
-    argv = run_gates.build_gate_argv(r'python -m black --exclude "C:\path\to\x" .')
+    argv = run_gates.build_gate_argv(r'python -m ruff format --exclude "C:\path\to\x" .')
     assert argv is not None
     assert r"C:\path\to\x" in argv, f"反斜杠被吃掉或引号没剥净：{argv}"
     assert all('"' not in token for token in argv)
@@ -334,9 +327,8 @@ def test_build_gate_argv_keeps_backslashes_and_quotes_stripped() -> None:
     "cmd",
     [
         "python scripts/check_annotations.py",
-        "mypy",
-        "mypy --platform linux",
-        "python -m isort --check-only --profile black --line-length 120 .",
+        "ruff",
+        "python -m ruff check --no-fix .",
     ],
 )
 def test_every_gate_command_shape_is_argv_executable(cmd: str) -> None:
@@ -403,8 +395,8 @@ def _fake_agents(tmp_path: Path) -> Path:
     agents.write_text(
         "## 格式化命令（用例用）\n\n"
         "```bash\n"
-        "PYTHONUTF8=1 python -m black --check .\n"
-        "mypy --platform linux   # 条件增跑\n"
+        "PYTHONUTF8=1 python -m ruff format --check .\n"
+        "python scripts/check_annotations.py   # 条件增跑\n"
         "```\n",
         encoding="utf-8",
     )
@@ -426,7 +418,7 @@ def test_main_fails_on_fatal_pattern_even_with_zero_rc(monkeypatch: pytest.Monke
     monkeypatch.setattr(run_gates, "check_executables", lambda cmds: [])
     assert run_gates.main([]) == 1, "rc=0 + 致命告警被判成通过 = MID-63 假绿"
     assert len(calls) == 1, f"默认应首个失败即停，实际跑了 {len(calls)} 条"
-    assert calls[0] == ("python -m black --check .", {"PYTHONUTF8": "1"}), calls[0]
+    assert calls[0] == ("python -m ruff format --check .", {"PYTHONUTF8": "1"}), calls[0]
 
     calls.clear()  # 第二次跑只看本轮次数，不与上一轮的 fail-fast 计数混在一起
     assert run_gates.main(["--keep-going"]) == 1
@@ -437,7 +429,7 @@ def test_main_exits_3_when_gate_tool_missing(monkeypatch: pytest.MonkeyPatch, tm
     # 「工具没装」与「代码不合格」必须用不同退出码区分开，否则环境噪声会被读成回归
     monkeypatch.setattr(run_gates, "ROOT", tmp_path)
     _fake_agents(tmp_path)
-    monkeypatch.setattr(run_gates, "check_executables", lambda cmds: ["mypy"])
+    monkeypatch.setattr(run_gates, "check_executables", lambda cmds: ["ruff"])
     monkeypatch.setattr(run_gates, "run_command", lambda *a: (0, 0.0, []))
     assert run_gates.main([]) == 3
 
@@ -449,8 +441,8 @@ def test_check_executables_accepts_module_fallback_without_path_scripts(monkeypa
     shim = types.SimpleNamespace(**vars(run_gates.shutil))
     shim.which = lambda name: None
     monkeypatch.setattr(run_gates, "shutil", shim)
-    assert run_gates.check_executables(["python -m black --check ."]) == []
-    assert run_gates.check_executables(["mypy"]) == []
+    assert run_gates.check_executables(["python -m ruff format --check ."]) == []
+    assert run_gates.check_executables(["ruff"]) == []
     assert run_gates._module_unavailable("definitely_not_a_real_module_xyz") is True
     assert run_gates._module_unavailable("json") is False
 
@@ -600,7 +592,6 @@ def test_pytest_rc_semantics_table_covers_documented_codes() -> None:
 # 方向刻意只做「pyproject 有、清单必须也有」——反向（清单更严）是允许的保守侧。
 # ---------------------------------------------------------------------------
 
-_BLACK_COMMENT_OR_REGEX_ONLY = (".pyc",)  # black 的 `\.pyc` 是文件后缀模式，不是目录名
 _DIRNAME_OK = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
@@ -624,12 +615,7 @@ def _pyproject_excluded_dirs() -> set[str]:
     raw = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     out: set[str] = set()
 
-    black_regex = str(raw["tool"]["black"]["exclude"])
-    for line in black_regex.splitlines():
-        line = line.split("#", 1)[0]  # 清单里的说明注释行（`# 运行期产物目录…`）不是条目
-        out.add(_normalize_exclude_token(line))
-
-    for token in raw["tool"]["isort"]["extend_skip"]:
+    for token in raw["tool"]["ruff"]["extend-exclude"]:
         out.add(_normalize_exclude_token(str(token)))
 
     for pattern in raw["tool"]["coverage"]["run"]["omit"]:
@@ -647,7 +633,6 @@ def _pyproject_excluded_dirs() -> set[str]:
     # 纯文件后缀模式（.pyc）、glob（pytest-cache-files-*，由 is_excluded 的精确名匹配覆盖不到，
     # 属另一条口径）与括号等正则残片都不算目录名，统一按字符集筛掉。
     out.discard("tests")
-    out -= set(_BLACK_COMMENT_OR_REGEX_ONLY)
     return {name for name in out if _DIRNAME_OK.match(name) and "*" not in name}
 
 
@@ -666,7 +651,7 @@ def test_check_annotations_exclude_dirs_cover_pyproject_excludes() -> None:
     assert len(required) >= 20, f"pyproject 排除清单解析异常，只归一出 {len(required)} 项: {sorted(required)}"
     missing = sorted(required - excluded)
     assert not missing, (
-        "scripts/check_annotations.py 的 EXCLUDE_DIRS 落后 pyproject 的 black/isort/coverage 清单，"
+        "scripts/check_annotations.py 的 EXCLUDE_DIRS 落后 pyproject 的 Ruff/coverage 清单，"
         f"缺: {missing}（悬空符号检查会把未排除目录里的同名绑定当成全仓绑定 → 漏报）"
     )
 
@@ -696,33 +681,15 @@ def test_check_annotations_scan_face_still_includes_tests_and_src() -> None:
 # 后来被修干净了，改回裸名 mypy 照样全绿——失明只会静默复发，靠门禁自身发现不了。
 # 锁的是语义不变量（files 扫描面内任何源文件都不得被任何 exclude 模式命中），不钉具体写法：
 # `^ffmpeg/` 与 `(^|/)ffmpeg/` 等价形态都放行；「exclude 不得覆盖源文件」才是承重判据。
-def test_mypy_exclude_never_shadows_source_files() -> None:
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    mypy_cfg = cast("dict[str, Any]", pyproject["tool"]["mypy"])
-    excludes = cast("list[str]", mypy_cfg["exclude"])
-    scope_entries = cast("list[str]", mypy_cfg["files"])
-    assert len(excludes) >= 10, f"exclude 清单解析异常，只有 {len(excludes)} 项: {excludes}"
-
-    scanned: list[str] = []
-    for entry in scope_entries:
-        base = ROOT / entry
-        if base.is_file():
-            scanned.append(base.relative_to(ROOT).as_posix())
-            continue
-        assert base.is_dir(), f"[tool.mypy].files 条目 {entry} 在仓库内不存在"
-        for path in base.rglob("*"):
-            if path.suffix in (".py", ".pyi"):
-                scanned.append(path.relative_to(ROOT).as_posix())
-
-    # 见证扫描面非空且覆盖到两个曾经的失明家族：枚举口径写坏（如 rglob 被删）时
-    # 「0 文件全不命中」照样全绿，与 AGENTS.md「配置键审计的三个陷阱」同族的假绿形态。
-    assert len(scanned) >= 200, f"mypy 扫描面枚举异常，只收集到 {len(scanned)} 个文件"
-    assert "src/ffmpeg_install.py" in scanned, "枚举漏掉 src/（曾经的 ffmpeg 失明家族不在判定面）"
-    assert "tests/test_node_install.py" in scanned, "枚举漏掉 tests/（曾经的 node 失明家族不在判定面）"
-
-    shadowed = [(pattern, path) for pattern in excludes for path in scanned if re.search(pattern, path)]
-    assert (
-        not shadowed
-    ), "[tool.mypy].exclude 出现子串命中源文件的裸名形态（无参 mypy 将静默漏查这些文件）: " + "; ".join(
-        f"{pattern!r} 命中 {path}" for pattern, path in shadowed[:10]
+def test_ruff_discovery_keeps_product_and_test_files() -> None:
+    # 直接问 Ruff 扫了哪些文件，避免再实现一份目录匹配器而得到假绿。
+    proc = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--show-files", "."],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
     )
+    scanned = {Path(name).relative_to(ROOT).as_posix() for name in proc.stdout.splitlines()}
+    assert len(scanned) >= 200
+    assert {"main.py", "gui.py", "web.py", "src/ffmpeg_install.py", "tests/test_node_install.py"} <= scanned

@@ -38,7 +38,7 @@ HEADERS = {
 # 桌面端 Chrome UA：部分抖音接口（如 iesdouyin 用户信息接口）在旧版移动端 UA 下
 # 会被风控静默拦截（返回 HTTP 200 但响应体为空），需改用桌面端 UA 请求。
 DESKTOP_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 )
 
 # 缓存自动获取的抖音 ttwid（已委托给共享 ttwid.py 模块，保留变量兼容旧引用）

@@ -270,9 +270,9 @@ class TestFlvConvertBeforeCommentEnd:
         # 修复前 FLV 在 comment_end 早退路径上是 0 次调用（已录内容永久留在 .flv）；
         # MKV/MP4 任何路径都必须是 0 次（成品容器不转码，历史行为不可改）。
         calls = self._drive(save_type)
-        assert (
-            len(calls) == expected
-        ), f"{save_type} 在 comment_end 路径上转码调用次数应为 {expected}，实为 {len(calls)}"
+        assert len(calls) == expected, (
+            f"{save_type} 在 comment_end 路径上转码调用次数应为 {expected}，实为 {len(calls)}"
+        )
 
     @pytest.mark.parametrize("save_type", ["FLV", "MKV", "MP4"])
     def test_not_started_never_converts(self, save_type: str) -> None:

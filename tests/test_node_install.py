@@ -26,7 +26,7 @@ import pytest
 import src.node_install as node_install
 
 ZIP_A = b"fake-node-build-A"
-PAGE_HTML_OK = "<html>download https://npmmirror.com/mirrors/node/v22.11.0/" "node-v22.11.0-x64.msi</html>"
+PAGE_HTML_OK = "<html>download https://npmmirror.com/mirrors/node/v22.11.0/node-v22.11.0-x64.msi</html>"
 NODE_ZIP_BASE = "node-v22.11.0-win-x64"
 
 # 三个模块级常量的作用域差异，是本文件能「只测映射、不测上游」的前提：PAGE_HTML_OK 只负责被

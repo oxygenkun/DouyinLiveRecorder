@@ -809,9 +809,9 @@ class TestWindowsInstallSingleSource:
         source = (Path(__file__).resolve().parents[1] / "src" / "ffmpeg_install.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         names = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
-        assert not {
-            n for n in names if "lanzou" in n.lower()
-        }, f"仍残留蓝奏云入口：{sorted(n for n in names if 'lanzou' in n.lower())}"
+        assert not {n for n in names if "lanzou" in n.lower()}, (
+            f"仍残留蓝奏云入口：{sorted(n for n in names if 'lanzou' in n.lower())}"
+        )
         env_reads = {
             node.args[0].value
             for node in ast.walk(tree)
@@ -1032,9 +1032,9 @@ class TestDownloadSourceWhitelist:
         # 反向见证（防空扫描）：本锁的全部威力建立在「真的扫到了这些常量」上。
         # 扫描根为空 / 只扫到一个文件，都会让它「绿着什么都没查」——AGENTS.md MID-68 同族形态。
         literals = _src_http_literals()
-        assert (
-            _modules_holding_whitelisted_hosts(literals) == _download_module_files()
-        ), f"下载源注册表与实际持有下载 URL 的模块不一致：{sorted(literals)}"
+        assert _modules_holding_whitelisted_hosts(literals) == _download_module_files(), (
+            f"下载源注册表与实际持有下载 URL 的模块不一致：{sorted(literals)}"
+        )
         assert ZIP_URL in literals["ffmpeg_install.py"], "扫描没看到官方源 URL（锁将形同虚设）"
         assert any("fyhub.cn" in u for urls in literals.values() for u in urls), "扫描漏了镜像源，锁即失效"
 
@@ -1067,9 +1067,9 @@ class TestDownloadSourceWhitelist:
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_master_source_allowed")
         # 开关名在实现里是**模块常量引用**（`os.environ.get(_FFMPEG_MASTER_ENV)`）而非字面量，
         # 故按 Name 判定；再单独断言该常量的值，两侧合起来才等价于「读取点与登记的开关名不脱节」。
-        assert any(
-            isinstance(node, ast.Name) and node.id == "_FFMPEG_MASTER_ENV" for node in ast.walk(fn)
-        ), "开关名与 env 读取点脱节"
+        assert any(isinstance(node, ast.Name) and node.id == "_FFMPEG_MASTER_ENV" for node in ast.walk(fn)), (
+            "开关名与 env 读取点脱节"
+        )
         assert ffmpeg_install._FFMPEG_MASTER_ENV == "FFMPEG_MASTER_ALLOWED", "对外承诺的开关变量名不得改动"
         parse_call = next(
             node

@@ -398,7 +398,7 @@ class TestDigestPayloadShape:
     def test_array_payload_digest_is_empty_not_raised(self, monkeypatch: pytest.MonkeyPatch) -> None:
         want = fld._asset_name(LINUXARM64_URL)
         for payload in ([], [{"name": want, "digest": "sha256:" + "b" * 64}]):
-            get_fn = (lambda p: (lambda *a, **kw: _json_resp(200, p)))(payload)
+            get_fn = (lambda p: lambda *a, **kw: _json_resp(200, p))(payload)
             monkeypatch.setattr(fld, "requests", _requests_shim(get_fn))
             # 第二条是「数组里就带着形状合法的 digest」的畸形应答：一旦形态判定被摘，
             # 它会立刻被当作官方期望值采信，所以判据是空串而不是「异常」。
@@ -439,7 +439,7 @@ class TestApiStatusGate:
         body = {"assets": [{"name": want, "digest": "sha256:" + "c" * 64}]}
         for status in (201, 204, 403, 404, 500):
             monkeypatch.setattr(
-                fld, "requests", _requests_shim((lambda s: (lambda *a, **kw: _json_resp(s, body)))(status))
+                fld, "requests", _requests_shim((lambda s: lambda *a, **kw: _json_resp(s, body))(status))
             )
             assert fld._fetch_asset_digest(LINUXARM64_URL) == "", f"status={status} 的载荷不得被采信"
         # 反向见证：同一份载荷在 200 下必须被采信，否则上面那条循环是恒真的空锁。

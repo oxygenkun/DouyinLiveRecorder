@@ -1,6 +1,6 @@
 # 代码审查报告 CODE_REVIEW_2026-10-02
 
-> **审查对象**: DouyinLiveRecorder 工作空间全部源代码（Python / JavaScript / Node.js / HTML / CSS / VBS / CI 配置），排除第三方依赖目录（`node_modules`）与构建产物（`dist` / `build`）。
+> **审查对象**: DouyinLiveRecorder 工作空间全部源代码（Python / JavaScript / Node.js / HTML / CSS / CI 配置），排除第三方依赖目录（`node_modules`）与构建产物（`dist` / `build`）。
 > **审查日期**: 2026-10-02　**基线**: main 分支工作区（含未提交改动）
 > **问题总量**: 66 项 —— **严重 2 / 中等 17 / 轻微 47**（另含 3 项不计入清单的信息级记录，见第 7 章）
 > **上一次全仓审查**: [CODE_REVIEW_2026-09-30.md](CODE_REVIEW_2026-09-30.md)（严重 2 / 中等 51 / 轻微 160，P0 批次已修复）
@@ -32,7 +32,7 @@
 | 弹幕链路 | `src/collector.py`（583）、`src/ws_client.py`（486）、`src/srt_writer.py`（230）、`src/danmaku_monitor.py`（796）、`src/ttwid.py`（240）、`src/cookie_cache.py`（408）、`src/base.py`（116）、`src/proto/`（仅手写文件） |
 | Web 面板 | `src/web_api.py`（1,593）、`src/web_config.py`（1,311）、`src/web_models.py`（191）、`src/web_tray.py`（265）、`src/recorder_status.py`（240）、`web.py`（354）、`web/app.js`（2,089）、`web/index.html`（201）、`web/style.css` |
 | 工具/配置/通知 | `src/utils.py`（1,003）、`src/config_io.py`（415）、`src/config_bool.py`（54）、`src/notify.py`（346）、`src/logger.py`（293）、`src/log_archive.py`（224）、`i18n.py`（415）、`src/video_postprocess.py`（499） |
-| GUI/构建/安装 | `gui.py`（4,530）、`src/ui_theme.py`（385）、`build_exe.py`（1,740）、`src/ffmpeg_install.py`（688）、`src/ffmpeg_master_download.py`（478）、`src/ffmpeg_proc.py`（311）、`src/node_install.py`（404）、`StopRecording.vbs` |
+| GUI/构建/安装 | `gui.py`（4,530）、`src/ui_theme.py`（385）、`build_exe.py`（1,740）、`src/ffmpeg_install.py`（688）、`src/ffmpeg_master_download.py`（478）、`src/ffmpeg_proc.py`（311）、`src/node_install.py`（404） |
 | 独立发行版 | `scripts/douyin_live_recorder_standalone.py`（2,458，与主线逐点对照） |
 
 ### 2.2 测试代码（风险模式抽查）
@@ -306,7 +306,6 @@
 | L-38 | gui.py:113-122（关键行 120） | 异常吞没/注释矛盾 | `_install_crash_sink` 弹窗路径引用 `i18n_module.tr`，但 sink 在业务 import 之前安装；导入期崩溃（恰是设计目标场景）时 NameError 被吞、弹窗静默失效，与 :119/:141 两段注释互相矛盾。标题改字面量或 `globals().get("i18n_module")` 条件取用 |
 | L-39 | gui.py:3570-3571（配合 3518-3526） | 资源空转 | `_drain_log_queue` 只在 messages 非空分支清 `_log_queue_has_data`；哨兵被单独取空且 `_process_ended` 提前 return 时刷新链以 200ms 间隔永久空转。`has_data=False` 移到「队列已取空」的无条件位置 |
 | L-40 | gui.py:4321-4340、4359-4366 | 死代码 | `_cleanup_zombie_ffmpeg` 兜底过滤器结构性无法命中（Windows PARENTPID/POSIX pkill -P 都只匹配 GUI 直接派生 ffmpeg，而 ffmpeg 父进程恒为 main.py），给「有第二道网」假象。删除或改按映像名+命令行锚定 |
-| L-41 | StopRecording.vbs:294-325、44 | 进程误杀面 | `IsRecorderPython` 对任意命令行含 `main.py|gui.py|web.py` 的 python.exe 命中并整树强杀，其他项目的 `python D:\别的项目\main.py` 会被误杀；文件头「已知残余」只声明了漏杀形态。命中入口名后追加「路径位于 appDir 之下」二次确认（复核既有回归锁） |
 | L-42 | src/ffmpeg_install.py:80-81 | 注释漂移 | 注释称可执行文件位于 `execute_dir/ffmpeg/bin/`，实际 copytree 平铺为 `execute_dir/ffmpeg/ffmpeg.exe`（PATH 注入与实际一致）。改正注释 |
 | L-43 | src/ffmpeg_install.py:487；src/node_install.py:344 | 不可达分支 | 两处 `except subprocess.CalledProcessError` 不可达：`subprocess.run(..., capture_output=True, timeout=...)` 未传 `check=True` 永不抛。删除该 except 或改捕 OSError |
 | L-44 | src/ffmpeg_install.py:257-262；src/node_install.py:163-168 | 完整性缺口（待确认） | TOFU 降级分支在「基准存在但读取失败」时 warning 后 return True 放行安装（fail-open），与 `ffmpeg_master_download.py:289-314` 对同形态定性 SEV-2222 收紧为拒装的口径不一致。触发需「官方文档不可达 ∧ 基准损坏 ∧ CDN 投毒」三重叠加，属防御纵深缺口。**改动前先跑 `pytest tests/test_ffmpeg_install.py` 确认现行为是否被锁**；对齐 SEV-2222 口径 |
@@ -358,7 +357,7 @@
 
 ### 8.3 P2（轻微项）
 
-- 随对应文件触碰面顺手收敛；建议先做 **L-44**（TOFU fail-open 与 SEV-2222 口径对齐，先确认回归锁归属）与 **L-41**（StopRecording.vbs 误杀面）两项防御纵深缺口。
+- 随对应文件触碰面顺手收敛。
 - **结构性建议**：
   1. **脱敏键型完备性测试化**：`mask_credentials` 的键黑名单是开放集合问题，建议以「平台 Cookie 全键清单 × 形态（query/header/Cookie 头）」矩阵表驱动用例替代逐案补键（M-01/L-07/L-32 同根）。
   2. **standalone 回灌清单机检**：孪生锁目前只覆盖直接候选 URL；建议在 `tests/test_regression_2026_09_22_standalone.py` 增加「主线防线编号 → standalone 对应符号存在性」结构清单，防止本次 SR-02/M-16/17/18 类漂移再次静默发生。

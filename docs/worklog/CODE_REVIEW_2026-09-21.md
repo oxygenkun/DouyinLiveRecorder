@@ -78,10 +78,10 @@
 | G10 | `gui.py`（3,696）、`i18n.py`、`msg_push.py` | ≈4,900 | 全文 |
 | G11 | `src/utils.py`、`src/config_io.py`、`src/config_bool.py`、`src/logger.py`、`src/log_archive.py`、`src/scheduler.py`、`src/ffmpeg_proc.py`、`src/ffmpeg_install.py`、`src/node_install.py`、`src/video_postprocess.py` | ≈6,400 | 全文 |
 | G12 | `web/app.js`（1,567）、`web/index.html`、`web/style.css`、根 `index.html`、`src/javascript/{haixiu,liveme,migu,x-bogus}.js` | 5,118 | 全文 |
-| G13 | `build_exe.py`、`Dockerfile`、`docker-compose.yaml`、`pyproject.toml`、`requirements.txt`、`.github/workflows/*`、`.github/actions/retry/action.yml`、`scripts/*`、`StopRecording.vbs` | ≈6,400 | 全文 |
+| G13 | `build_exe.py`、`Dockerfile`、`docker-compose.yaml`、`pyproject.toml`、`requirements.txt`、`.github/workflows/*`、`.github/actions/retry/action.yml`、`scripts/*` | ≈6,400 | 全文 |
 | G14 | `tests/`（85 个 `.py` + `tests/frontend/test_quality_ui.mjs`）、`scripts/douyin_live_recorder_standalone.py` | 26,639 + 2,058 | 全文（可信度专项） |
 
-统计口径：生产 Python 65 个文件 / 36,969 行；测试 85 个 Python 文件 / 26,639 行；前端与签名 JS/HTML/CSS 5,118 行；构建、CI、脚本与 VBS 约 2,239 行（不含 `i18n/` 目录数据文件）。
+统计口径：生产 Python 65 个文件 / 36,969 行；测试 85 个 Python 文件 / 26,639 行；前端与签名 JS/HTML/CSS 5,118 行；构建、CI、脚本 约 2,239 行（不含 `i18n/` 目录数据文件）。
 
 ### 2.2 明确排除项
 
@@ -663,7 +663,6 @@ i18n/zh_TW.yaml:231  "正在录制中"                      ->  "正在錄製中
 8. **并发与锁**：无模块级 `asyncio.Lock()` 单例、无跨循环 `aclose()` 协程、`_get_client` 临界区零 await；`ResizableSemaphore` 容量 / 已持有分离、`set_value` 收缩不回收、允许 0；`PlatformBreaker` 的 `_probing` 在 open 态恒 False、租约重授予只在 half-open 生效、熔断计数增量维护且 `import time` 在顶层；`web_api` 的四把 `threading.Lock` 全链路同序、未见反向持锁（`_purge_expired_tokens` 自死锁教训已落地）。
 9. **面板安全面的既有强度**：token 用 `secrets.token_urlsafe(32)` + `compare_digest` + 精确吊销 + 改密清表；PBKDF2 盐随机 / 200k 迭代 / 上下界钳制；登录端点为同步 def（线程池）+ IP 与全局双预算限流；路径遍历用 `realpath` + `commonpath` 逐条目复核并跳过悬空链接、`FileResponse` 恒 attachment；`run_script` 用 `shlex.split` 无 shell，唯一 RCE 落点「自定义脚本执行命令」已黑名单且 `casefold` 与行匹配同强度；CSP / nosniff / X-Frame-Options 在放行与拒绝两路均加；无 CORS 放行。
 10. **发布链三层防线均在位**：`_PINNED_RUNTIME_SHA256` 按形状判「已钉定」（占位 `UNVERIFIED_PIN` 一律算未钉，发布链在官方值填入前必然红是**预期**）；`--require-pinned` 在下载前 `SystemExit`；`_download_file(slot=...)` 已改必填关键字参数；`check_runtime_pins.py` 表空 / 缺槽一律 rc=2 且 `--emit-env` 不伪造「已钉定」。
-11. **`StopRecording.vbs`**：实测为 UTF-16 LE（`FF FE` BOM）+ CRLF；三层进程匹配（专属 exe → python 命令行 token 整名匹配 → ffmpeg 父进程 / 路径锚定）、`appDir` 深度守卫、只认字面量 `-y`、先主进程后 ffmpeg 全部落地。
 12. **Dockerfile / compose**：`ARG APP_VERSION` 先于 `LABEL`（`check_version.py` 的行序断言含续写回溯与注释跳过）；NodeSource 脚本先 SHA256 校验后执行、`sha256sum -c` 双空格写法正确；`pull_policy: build` 已去掉 `:latest` 回退；`127.0.0.1:8000` + `no-new-privileges`。
 13. **供应链与注入面**：无 `pull_request_target`；无不可信上下文进 `run`；retry 复合动作经 env 传命令（不二次展开）、`set -euo pipefail` 语义正确；`ci-summary.needs` 覆盖全部 8 个 job，无被静默旁路者。
 14. **前端 XSS 与脱敏**：全部 13 处 `innerHTML` 的动态成分均过 `esc()`（属性位含 `"` / `'` 双引号转义），`toast` / `login-error` / `#log-stream` / 无认证横幅一律 `textContent`，无 `href` / `window.open` / `document.write` 消费外部值；token 只经 `Authorization: Bearer`、从不进 query；掩码五套正则与 `src/web_config.py` 逐字等价；`parseConfigBool` token 集合与 Python 侧逐项一致且用 `hasOwnProperty` 规避原型链；四套内嵌目录实测各 119 键且键集逐一相等；`#rooms-view .data-table` 的 `table-layout:fixed` 定宽与省略约束与定稿逐条吻合。

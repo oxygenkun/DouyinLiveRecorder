@@ -83,8 +83,7 @@ def as_int(value: object, default: int = 0) -> int:
 STATUS_TPL_RECORDING: Final[str] = "{recording_live}[{qa}] 正在录制中 {have_record_time}"
 STATUS_TPL_IDLE: Final[str] = "\r没有正在录制的直播 循环监测间隔时间：{delay_default}秒"
 STATUS_TPL_DOWNGRADE: Final[str] = (
-    "{record_name} 画质降级：设置 {record_quality_zh}({record_quality})"
-    " 实际 {actual_quality_zh}({actual_quality_code})"
+    "{record_name} 画质降级：设置 {record_quality_zh}({record_quality}) 实际 {actual_quality_zh}({actual_quality_code})"
 )
 # [2026-09-29 M-14②] 刻意不对称的一条：该串生产侧**未过 tr()**
 # （src/recorder_status.py::display_info 裸写 print("\r没有正在监测和录制的直播")），

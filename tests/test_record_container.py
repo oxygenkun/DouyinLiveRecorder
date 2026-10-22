@@ -87,9 +87,9 @@ class TestSegmentFormatSecondDefinitionPoint:
 
     def test_value_is_not_bare_literal(self) -> None:
         for node in _segment_format_nodes(_POSTPROCESS_PATH):
-            assert not isinstance(
-                node, ast.Constant
-            ), f"video_postprocess.py 的 -segment_format 不得使用裸字面量: {ast.unparse(node)}"
+            assert not isinstance(node, ast.Constant), (
+                f"video_postprocess.py 的 -segment_format 不得使用裸字面量: {ast.unparse(node)}"
+            )
 
 
 class TestNoBareSegmentFormatLiteral:

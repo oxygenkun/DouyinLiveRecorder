@@ -245,9 +245,9 @@ class TestWriteSideSensitiveParity:
         assert marker in code, "写侧未判旧值形态（清空路径漏判）"
         segment = code[: code.index(marker)]
         segment = segment[segment.index('old_value = ""') :]
-        assert (
-            "read_config_safe" not in segment
-        ), "old_value 又从脱敏读（read_config_safe）取了：值型凭据会被读成掩码，判定失效"
+        assert "read_config_safe" not in segment, (
+            "old_value 又从脱敏读（read_config_safe）取了：值型凭据会被读成掩码，判定失效"
+        )
         assert "configparser.ConfigParser" in segment, "old_value 未从未脱敏的原始配置读取"
 
 

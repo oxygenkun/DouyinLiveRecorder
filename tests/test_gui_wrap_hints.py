@@ -324,14 +324,14 @@ class TestRealWindowWrap:
         if result.get("skipped"):
             pytest.skip(f"无显示环境，跳过真窗用例: {result['skipped']}")
         assert result["ok"], result.get("error")
-        assert not result[
-            "clipped_narrow"
-        ], f"窄容器下标签仍溢出（会两侧裁切）: reqwidth={result['narrow_req']} winfo_width={result['narrow_win']}"
+        assert not result["clipped_narrow"], (
+            f"窄容器下标签仍溢出（会两侧裁切）: reqwidth={result['narrow_req']} winfo_width={result['narrow_win']}"
+        )
         assert result["narrow_wrap"] >= 120
         # 加宽后 wraplength 必须跟随增长：绑在 <Configure> 上持续自适应，不是一次性初值
-        assert (
-            result["wide_wrap"] > result["narrow_wrap"]
-        ), f"加宽后 wraplength 未增长: narrow={result['narrow_wrap']} wide={result['wide_wrap']}"
+        assert result["wide_wrap"] > result["narrow_wrap"], (
+            f"加宽后 wraplength 未增长: narrow={result['narrow_wrap']} wide={result['wide_wrap']}"
+        )
 
     def test_dpi_flip_stress_drains_event_loop_with_bounded_writes(self) -> None:
         # 卡死回归锁：DPI 反复翻转（用户跨屏拖拽走 check_dpi_scaling 同一回调链）下，

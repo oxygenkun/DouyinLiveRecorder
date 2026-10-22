@@ -244,93 +244,93 @@ def build_stylesheet(pal: Palette) -> str:
     # 同一套排版基线。
     return f"""
 QMainWindow, QDialog {{
-    background: {t['bg_app']};
+    background: {t["bg_app"]};
 }}
 
 QWidget {{
-    color: {t['text_1']};
+    color: {t["text_1"]};
     font-size: {px(13.5)};
-    selection-background-color: {t['accent_soft']};
-    selection-color: {t['text_1']};
+    selection-background-color: {t["accent_soft"]};
+    selection-color: {t["text_1"]};
 }}
 
 QWidget#sidebar {{
-    background: {t['bg_sidebar']};
-    border-right: 1px solid {t['border']};
+    background: {t["bg_sidebar"]};
+    border-right: 1px solid {t["border"]};
 }}
 
 QWidget#topbar {{
-    background: {t['bg_content']};
-    border-bottom: 1px solid {t['border']};
+    background: {t["bg_content"]};
+    border-bottom: 1px solid {t["border"]};
 }}
 
 QWidget#content {{
-    background: {t['bg_content']};
+    background: {t["bg_content"]};
 }}
 
 /* ── 卡片（设计稿 .card：radius 18 + shadow-m） ── */
 QFrame#card {{
-    background: {t['bg_elevated']};
-    border: 1px solid {t['border']};
+    background: {t["bg_elevated"]};
+    border: 1px solid {t["border"]};
     border-radius: {px(RADIUS_LG)};
 }}
 QFrame#card:hover {{
-    border-color: {t['border_strong']};
+    border-color: {t["border_strong"]};
 }}
 
 /* ── 按钮 ── */
 QPushButton {{
-    background: {t['bg_elevated']};
-    color: {t['text_1']};
-    border: 1px solid {t['border_strong']};
+    background: {t["bg_elevated"]};
+    color: {t["text_1"]};
+    border: 1px solid {t["border_strong"]};
     border-radius: {px(RADIUS_MD)};
     padding: {px(7)} {px(14)};
 }}
 QPushButton:hover {{
-    border-color: {t['accent']};
-    color: {t['accent']};
+    border-color: {t["accent"]};
+    color: {t["accent"]};
 }}
 QPushButton:pressed {{
-    background: {t['bg_hover']};
+    background: {t["bg_hover"]};
 }}
 QPushButton:disabled {{
-    color: {t['text_3']};
-    border-color: {t['border']};
+    color: {t["text_3"]};
+    border-color: {t["border"]};
 }}
 QPushButton#primary {{
-    background: {t['accent']};
-    color: {t['bg_elevated']};
-    border: 1px solid {t['accent']};
+    background: {t["accent"]};
+    color: {t["bg_elevated"]};
+    border: 1px solid {t["accent"]};
 }}
 QPushButton#primary:hover {{
-    background: {t['accent_hover']};
-    color: {t['bg_elevated']};
+    background: {t["accent_hover"]};
+    color: {t["bg_elevated"]};
 }}
 QPushButton#primary:disabled {{
-    background: {t['text_3']};
-    border-color: {t['text_3']};
-    color: {t['bg_elevated']};
+    background: {t["text_3"]};
+    border-color: {t["text_3"]};
+    color: {t["bg_elevated"]};
 }}
 QPushButton#danger {{
-    background: {t['bg_elevated']};
-    color: {t['danger']};
-    border: 1px solid {t['danger']};
+    background: {t["bg_elevated"]};
+    color: {t["danger"]};
+    border: 1px solid {t["danger"]};
 }}
 QPushButton#danger:hover {{
-    background: {t['danger_soft']};
-    color: {t['danger']};
+    background: {t["danger_soft"]};
+    color: {t["danger"]};
 }}
 QPushButton#danger:disabled {{
-    color: {t['text_3']};
-    border-color: {t['border']};
+    color: {t["text_3"]};
+    border-color: {t["border"]};
 }}
 QPushButton#ghost {{
     background: transparent;
-    border: 1px solid {t['border']};
+    border: 1px solid {t["border"]};
 }}
 QPushButton#ghost:hover {{
-    border-color: {t['accent']};
-    background: {t['bg_hover']};
+    border-color: {t["accent"]};
+    background: {t["bg_hover"]};
 }}
 
 /* ── 侧边栏导航项（设计稿 .history-item：8px 圆角、hover 浅底、active 略深） ── */
@@ -340,38 +340,38 @@ QPushButton#nav {{
     border-radius: {px(RADIUS_SM)};
     padding: {px(9)} {px(12)};
     text-align: left;
-    color: {t['text_2']};
+    color: {t["text_2"]};
 }}
 QPushButton#nav:hover {{
-    background: {t['bg_hover']};
-    color: {t['text_1']};
+    background: {t["bg_hover"]};
+    color: {t["text_1"]};
 }}
 QPushButton#nav:checked {{
-    background: {t['bg_active']};
-    color: {t['text_1']};
+    background: {t["bg_active"]};
+    color: {t["text_1"]};
     font-weight: 600;
 }}
 
 /* ── 输入类控件 ── */
 QPlainTextEdit, QTextEdit {{
-    background: {t['bg_elevated']};
-    color: {t['text_1']};
-    border: 1px solid {t['border_strong']};
+    background: {t["bg_elevated"]};
+    color: {t["text_1"]};
+    border: 1px solid {t["border_strong"]};
     border-radius: {px(RADIUS_MD)};
-    selection-background-color: {t['accent_soft']};
+    selection-background-color: {t["accent_soft"]};
 }}
 QPlainTextEdit:focus, QTextEdit:focus {{
-    border-color: {t['accent']};
+    border-color: {t["accent"]};
 }}
 QLineEdit {{
-    background: {t['bg_elevated']};
-    border: 1px solid {t['border_strong']};
+    background: {t["bg_elevated"]};
+    border: 1px solid {t["border_strong"]};
     border-radius: {px(RADIUS_MD)};
     padding: {px(6)} {px(10)};
 }}
 QComboBox {{
-    background: {t['bg_elevated']};
-    border: 1px solid {t['border_strong']};
+    background: {t["bg_elevated"]};
+    border: 1px solid {t["border_strong"]};
     border-radius: {px(RADIUS_SM)};
     padding: {px(5)} {px(10)};
     /* 右侧给自绘箭头留位（widgets.ArrowComboBox 固定占 22px + 2px 内缩）：
@@ -380,7 +380,7 @@ QComboBox {{
     min-height: {px(18)};
 }}
 QComboBox:hover {{
-    border-color: {t['accent']};
+    border-color: {t["accent"]};
 }}
 /* 原生 drop-down 一律收窄到 0：它的默认按钮底在纯白输入框上是一条可见白缝
    （截图红框处），而 QSS 接管后箭头又不会自己绘制。箭头改由 ArrowComboBox
@@ -391,15 +391,15 @@ QComboBox::drop-down {{
     background: transparent;
 }}
 QLabel#comboArrow {{
-    color: {t['text_2']};
+    color: {t["text_2"]};
     font-size: {px(13)};
     background: transparent;
 }}
 QComboBox QAbstractItemView {{
-    background: {t['bg_elevated']};
-    border: 1px solid {t['border_strong']};
-    selection-background-color: {t['accent_soft']};
-    selection-color: {t['text_1']};
+    background: {t["bg_elevated"]};
+    border: 1px solid {t["border_strong"]};
+    selection-background-color: {t["accent_soft"]};
+    selection-color: {t["text_1"]};
 }}
 
 /* ── 侧栏滚动区（导航 + 偏好设置）──
@@ -417,32 +417,32 @@ QScrollArea#sidebarScroll > QWidget > QWidget {{
 
 /* ── 表格（画质 / 弹幕统计）：扁平化表头，无纵向网格线 ── */
 QTableView {{
-    background: {t['bg_elevated']};
-    border: 1px solid {t['border']};
+    background: {t["bg_elevated"]};
+    border: 1px solid {t["border"]};
     border-radius: {px(RADIUS_MD)};
-    gridline-color: {t['border']};
-    selection-background-color: {t['accent_soft']};
-    selection-color: {t['text_1']};
+    gridline-color: {t["border"]};
+    selection-background-color: {t["accent_soft"]};
+    selection-color: {t["text_1"]};
 }}
 QTableView::item {{
     padding: {px(4)} {px(8)};
 }}
 QHeaderView::section {{
-    background: {t['bg_elevated']};
-    color: {t['text_2']};
+    background: {t["bg_elevated"]};
+    color: {t["text_2"]};
     border: none;
-    border-bottom: 1px solid {t['border']};
+    border-bottom: 1px solid {t["border"]};
     padding: {px(6)} {px(8)};
     font-weight: 600;
 }}
 
 /* ── 终端区（日志 / 弹幕流）：配色刻意不随主题（见上面 terminal_* 注释） ── */
 QTextEdit#terminal, QPlainTextEdit#terminal {{
-    background: {t['terminal_bg']};
-    color: {t['terminal_fg']};
-    border: 1px solid {t['border']};
+    background: {t["terminal_bg"]};
+    color: {t["terminal_fg"]};
+    border: 1px solid {t["border"]};
     border-radius: {px(RADIUS_MD)};
-    selection-background-color: {t['terminal_select']};
+    selection-background-color: {t["terminal_select"]};
 }}
 
 /* ── 滚动条（设计稿 6px 细条 + 半透明滑块） ── */
@@ -457,12 +457,12 @@ QScrollBar:horizontal {{
     margin: 0;
 }}
 QScrollBar::handle {{
-    background: {t['border_strong']};
+    background: {t["border_strong"]};
     border-radius: {px(3)};
     min-height: {px(24)};
 }}
 QScrollBar::handle:hover {{
-    background: {t['accent']};
+    background: {t["accent"]};
 }}
 QScrollBar::add-line, QScrollBar::sub-line {{
     height: 0;
@@ -474,30 +474,30 @@ QScrollBar::add-page, QScrollBar::sub-page {{
 
 /* ── 状态胶囊 / Toast ── */
 QFrame#pill {{
-    background: {t['bg_active']};
+    background: {t["bg_active"]};
     border-radius: {px(RADIUS_MD)};
 }}
 QLabel#muted {{
-    color: {t['text_2']};
+    color: {t["text_2"]};
 }}
 QLabel#dim {{
-    color: {t['text_3']};
+    color: {t["text_3"]};
 }}
 QLabel#statValue {{
     font-weight: 650;
 }}
 QFrame#toast {{
-    background: {t['text_1']};
+    background: {t["text_1"]};
     border-radius: {px(20)};
 }}
 QLabel#toastText {{
-    color: {t['bg_app']};
+    color: {t["bg_app"]};
     font-weight: 500;
     padding: {px(8)} {px(16)};
 }}
 QToolTip {{
-    background: {t['bg_elevated']};
-    color: {t['text_1']};
-    border: 1px solid {t['border_strong']};
+    background: {t["bg_elevated"]};
+    color: {t["text_1"]};
+    border: 1px solid {t["border_strong"]};
 }}
 """

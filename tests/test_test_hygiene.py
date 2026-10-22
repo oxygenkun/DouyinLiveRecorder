@@ -980,7 +980,7 @@ def _r7_drop_main_guard(source: str) -> str:
 # 变异验证 ④ 的锚点与替换体：5 个真机脚本的清理段一律是「4 空格 for + 8 空格起的循环体」，
 # 整块换成 S-2 修复前的无差别清空写法（正则匹配次数即锚点是否仍然存在的自检）。
 _R7_CLEANUP_BLOCK_RE = re.compile(r"^    for f in os\.listdir\(base_dir\):\n(?: {8}.*\n)+", re.MULTILINE)
-_R7_BLIND_CLEANUP_BLOCK = "    for f in os.listdir(base_dir):\n" "        os.remove(os.path.join(base_dir, f))\n" "\n"
+_R7_BLIND_CLEANUP_BLOCK = "    for f in os.listdir(base_dir):\n        os.remove(os.path.join(base_dir, f))\n\n"
 # 变异验证 ③ 的锚点：5 个真机脚本共用的两步式取值段（第一步判非选项、第二步判数值性；默认秒数各文件不同）。
 _R7_TWO_STEP_SECONDS_RE = re.compile(
     r'^_SECONDS_RAW = sys\.argv\[2\] if len\(sys\.argv\) > 2 and not sys\.argv\[2\]\.startswith\("-"\) else ""\n'
@@ -1051,7 +1051,7 @@ def test_guard_r7_actually_catches_template_violations() -> None:
         "            stale = os.path.join(base_dir, entry)\n"
         "            if os.path.isfile(stale):\n"
         "                os.remove(stale)\n",
-        "    for entry in os.listdir(base_dir):\n" "        os.remove(os.path.join(base_dir, entry))\n",
+        "    for entry in os.listdir(base_dir):\n        os.remove(os.path.join(base_dir, entry))\n",
     )
     violations = _r7_violations(ast.parse(blind_delete))
     assert violations["R7④"], "R7④ 失效：无差别清空输出目录没被发现"
@@ -1067,14 +1067,14 @@ def test_guard_r7_actually_catches_template_violations() -> None:
     assert not any(violations[key] for key in ("R7①", "R7②", "R7③")), f"R7④ 的坏样本连累了别的判据: {violations}"
     no_kind_check = blind_delete.replace(
         "        os.remove(os.path.join(base_dir, entry))\n",
-        "        if entry.startswith(_PREFIX):\n" "            os.remove(os.path.join(base_dir, entry))\n",
+        "        if entry.startswith(_PREFIX):\n            os.remove(os.path.join(base_dir, entry))\n",
     )
     violations = _r7_violations(ast.parse(no_kind_check))
     assert violations["R7④"], "R7④ 失效：有前缀过滤但不判类型/存在性的清空没被发现（要求是「且」不是「或」）"
     assert not any(violations[key] for key in ("R7①", "R7②", "R7③")), f"R7④ 的坏样本连累了别的判据: {violations}"
     always_true_prefix = blind_delete.replace(
         "        os.remove(os.path.join(base_dir, entry))\n",
-        '        if entry.startswith(""):\n' "            os.remove(os.path.join(base_dir, entry))\n",
+        '        if entry.startswith(""):\n            os.remove(os.path.join(base_dir, entry))\n',
     )
     assert _r7_violations(ast.parse(always_true_prefix))["R7④"], 'R7④ 失效：startswith("") 恒真过滤被当成前缀过滤'
 
@@ -1101,9 +1101,9 @@ def test_guard_r7_accepts_equivalent_compliant_spellings() -> None:
     # 阴性对照：证明上面「不报」是因为认出了守卫，而不是因为没认出这是遍历目录的删除形态
     # （少一层判据的话，④ 会对所有写法都沉默，照样全绿——那是最隐蔽的假绿形态）。
     escaping_blind = escaping.replace("        if not entry.startswith(_PREFIX):\n", "        if not entry:\n")
-    assert _r7_violations(ast.parse(escaping_blind))[
-        "R7④"
-    ], "R7④ 假绿：卫语句形态根本没进判定范围（前缀过滤被拿掉仍不报）"
+    assert _r7_violations(ast.parse(escaping_blind))["R7④"], (
+        "R7④ 假绿：卫语句形态根本没进判定范围（前缀过滤被拿掉仍不报）"
+    )
     escaping_no_kind = escaping.replace("        if not os.path.isfile(stale):\n", "        if not stale:\n")
     assert _r7_violations(ast.parse(escaping_no_kind))["R7④"], "R7④ 假绿：卫语句形态的类型判定没被识别（拿掉仍不报）"
     comprehension = _r7_good_template_source().replace(
@@ -1162,8 +1162,7 @@ def test_guard_r7_accepts_equivalent_compliant_spellings() -> None:
     assert not _r7_offenders(_r7_violations(ast.parse(swapped_guard))), "R7 误报：左右互换写法的 __main__ 守卫被拦"
     unguarded_derived = _r7_good_template_source().replace(
         _R7_TWO_STEP_SECONDS,
-        'RAW_SECONDS = sys.argv[2] if len(sys.argv) > 2 else ""\n'
-        "SECONDS = int(RAW_SECONDS) if RAW_SECONDS else 20\n",
+        'RAW_SECONDS = sys.argv[2] if len(sys.argv) > 2 else ""\nSECONDS = int(RAW_SECONDS) if RAW_SECONDS else 20\n',
     )
     assert _r7_violations(ast.parse(unguarded_derived))["R7③"], "R7③ 失效：派生名无守卫时 int() 没被发现"
 
@@ -1179,9 +1178,9 @@ def test_guard_r7_red_when_real_script_body_moves_to_module_level() -> None:
         violations = _r7_violations(ast.parse(mutated))
         assert violations["R7①"], f"{path.name}: 守卫被拆掉却未被 R7① 发现（假绿）"
         assert violations["R7②"], f"{path.name}: 执行体挪回模块级却未被 R7② 发现（假绿）"
-        assert (
-            not violations["R7③"] and not violations["R7④"]
-        ), f"{path.name}: 只破坏守卫结构，③④ 不应连坐（独立敏感性）: {violations}"
+        assert not violations["R7③"] and not violations["R7④"], (
+            f"{path.name}: 只破坏守卫结构，③④ 不应连坐（独立敏感性）: {violations}"
+        )
 
 
 def test_guard_r7_red_when_real_script_numeric_guard_is_removed() -> None:
@@ -1194,9 +1193,9 @@ def test_guard_r7_red_when_real_script_numeric_guard_is_removed() -> None:
         assert hits == 1, f"{path.name} 两步式取值段匹配到 {hits} 处（应为 1），变异锚点失效（须同步更新本用例）"
         violations = _r7_violations(ast.parse(mutated))
         assert violations["R7③"], f"{path.name}: 摘掉 isdigit 的退回形态未被 R7③ 发现（假绿）"
-        assert not any(
-            violations[key] for key in ("R7①", "R7②", "R7④")
-        ), f"{path.name}: 只破坏 ③，另三条不应连坐: {violations}"
+        assert not any(violations[key] for key in ("R7①", "R7②", "R7④")), (
+            f"{path.name}: 只破坏 ③，另三条不应连坐: {violations}"
+        )
 
 
 def test_guard_r7_red_when_real_script_cleanup_is_blind() -> None:
@@ -1207,12 +1206,12 @@ def test_guard_r7_red_when_real_script_cleanup_is_blind() -> None:
         mutated, hits = _R7_CLEANUP_BLOCK_RE.subn(_R7_BLIND_CLEANUP_BLOCK, text)
         assert hits == 1, f"{path.name} 清理段匹配到 {hits} 处（应为 1），变异锚点失效（须同步更新本用例）"
         violations = _r7_violations(ast.parse(mutated))
-        assert (
-            len(violations["R7④"]) == 2
-        ), f"{path.name}: 无差别清空应同时报「缺前缀过滤」与「缺类型判定」: {violations}"
-        assert not any(
-            violations[key] for key in ("R7①", "R7②", "R7③")
-        ), f"{path.name}: 只破坏 ④，另三条不应连坐: {violations}"
+        assert len(violations["R7④"]) == 2, (
+            f"{path.name}: 无差别清空应同时报「缺前缀过滤」与「缺类型判定」: {violations}"
+        )
+        assert not any(violations[key] for key in ("R7①", "R7②", "R7③")), (
+            f"{path.name}: 只破坏 ④，另三条不应连坐: {violations}"
+        )
 
 
 # ─── R8（2026-09-30 新增）：变异验证的一次性改动不得留在盘上 ────────────────
@@ -1225,7 +1224,7 @@ def test_guard_r7_red_when_real_script_cleanup_is_blind() -> None:
 # 消失；忘了还原即由本条点名。判据只认标记本身，不猜改动内容。
 # 标记字面量刻意拆成两段拼接：本文件若含完整字面量会被自己判红（自指门禁的通用做法）。
 _R8_MUTATION_MARKER = "MUT" + "ATION-"
-_R8_SOURCE_SUFFIXES = (".py", ".js", ".mjs", ".yml", ".yaml", ".sh", ".vbs", ".html", ".css")
+_R8_SOURCE_SUFFIXES = (".py", ".js", ".mjs", ".yml", ".yaml", ".sh", ".html", ".css")
 # 与 pyproject/black 排除集同源：第三方与运行期产物目录不参与本判据。
 _R8_SKIP_DIRS = frozenset(
     {
@@ -1288,8 +1287,7 @@ def _r8_scan_repo(paths: list[Path] | None = None) -> list[tuple[str, int, str]]
         try:
             body = path.read_text(encoding="utf-8")
         except OSError, UnicodeDecodeError:
-            # 读不动的文件不作判据：StopRecording.vbs 按 AGENTS 规定存 UTF-16 LE，
-            # 它既不在扫描根内、后缀也不在集合内，这里只是兜底而非放宽。
+            # 无法按 UTF-8 读取的文件跳过，扫描根与后缀白名单仍限制判定范围。
             continue
         offenders += _r8_marker_offenders(body, path.relative_to(_REPO_ROOT).as_posix())
     return sorted(offenders)
@@ -1301,9 +1299,9 @@ def test_no_unrestored_mutation_markers() -> None:
     # 阈值取 200 而非精确文件数——本仓源文件数随功能增长，钉精确值会把「新增文件」误报成
     # 门禁失效；但扫描根写错/目录改名会让遍历悄悄归零，那时必须由这条点名。
     paths = _r8_iter_source_files()
-    assert (
-        len(paths) > 200
-    ), f"R8 遍历面异常（{len(paths)} 个文件），判据即将空转：检查 _R8_SCAN_ROOTS / _R8_SOURCE_SUFFIXES"
+    assert len(paths) > 200, (
+        f"R8 遍历面异常（{len(paths)} 个文件），判据即将空转：检查 _R8_SCAN_ROOTS / _R8_SOURCE_SUFFIXES"
+    )
     offenders = _r8_scan_repo()
     detail = [chr(34) + "发现未还原的变异验证改动（代码被留在变异态）:" + chr(34)]
     for name, line_no, snippet in offenders:
@@ -1402,9 +1400,9 @@ def test_every_test_module_is_collectible_or_registered() -> None:
     offenders = _r9_zero_collection_modules()
     unregistered = sorted(set(offenders) - set(_R9_ZERO_COLLECTION_SANCTIONED))
     stale = sorted(set(_R9_ZERO_COLLECTION_SANCTIONED) - set(offenders))
-    assert (
-        not unregistered
-    ), f"以下 test_*.py 收集 0 条用例且未登记理由（MT-02 同形态：全绿=什么都没跑）: {unregistered}"
+    assert not unregistered, (
+        f"以下 test_*.py 收集 0 条用例且未登记理由（MT-02 同形态：全绿=什么都没跑）: {unregistered}"
+    )
     assert not stale, f"以下文件已产出可收集用例，必须从 R9 例外表删行: {stale}"
 
 
@@ -1537,11 +1535,7 @@ def test_guard_r10_red_when_join_has_no_exit_check() -> None:
     )
     assert not _r10_offenders_from_tree(good, "mem://x.py"), "R10 误报：已断言线程退出的站点被拦"
     noise = ast.parse(
-        "import queue\n"
-        "def test_strings():\n"
-        "    q = queue.Queue()\n"
-        "    q.join()\n"
-        "    return '\\n'.join(['a'])\n"
+        "import queue\ndef test_strings():\n    q = queue.Queue()\n    q.join()\n    return '\\n'.join(['a'])\n"
     )
     assert not _r10_offenders_from_tree(noise, "mem://x.py"), "R10 误报：queue.join / 字符串 join 被当成线程 join"
 

@@ -278,15 +278,15 @@ def test_ws_heartbeat_timeout_closes_connection(monkeypatch: pytest.MonkeyPatch)
     first = closes[0]
     # 归因①/②：第一次 close 必须来自 _heartbeat_loop，且当时 _stopped 仍为 False
     # （外部 client.close() 一定先置 True 再关连接）。删掉超时分支后这里必然错位。
-    assert (
-        first["source"] == "_heartbeat_loop"
-    ), f"第一次 close 的来源不是心跳超时分支（超时特性疑似被删，只剩外部停止）: {closes}"
+    assert first["source"] == "_heartbeat_loop", (
+        f"第一次 close 的来源不是心跳超时分支（超时特性疑似被删，只剩外部停止）: {closes}"
+    )
     assert first["stopped"] is False, f"第一次 close 时 _stopped 已置位，说明它来自外部停止而非超时分支: {closes}"
     # 归因③：时刻——既不能「一进来就关」（那样是别的路径），也必须早于用例请求外部停止
     assert stop_requested_at, "用例没有记录外部停止时刻，无法判定超时先于停止"
-    assert (
-        first["elapsed"] >= _TIMEOUT_FLOOR_SECONDS
-    ), f"第一次 close 早于超时阈值下界 {_TIMEOUT_FLOOR_SECONDS}s，不是超时分支的产物: {first}"
+    assert first["elapsed"] >= _TIMEOUT_FLOOR_SECONDS, (
+        f"第一次 close 早于超时阈值下界 {_TIMEOUT_FLOOR_SECONDS}s，不是超时分支的产物: {first}"
+    )
     assert first["elapsed"] < stop_requested_at[0], (
         f"第一次 close（{first['elapsed']:.3f}s）没有早于外部停止（{stop_requested_at[0]:.3f}s）"
         "——心跳超时分支未主动关连接"

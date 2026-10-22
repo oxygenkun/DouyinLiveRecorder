@@ -53,12 +53,12 @@ class TestReconnectOptionsHaveValues:
                 if index + 1 >= len(node.elts):
                     raise AssertionError(f"{path.name}: {label} 缺少取值（位于列表末尾）")
                 value_node = node.elts[index + 1]
-                assert isinstance(
-                    value_node, ast.Constant
-                ), f"{path.name}: {label} 后必须紧跟字面量取值，发现: {ast.unparse(value_node)}"
-                assert isinstance(value_node.value, str) and not value_node.value.startswith(
-                    "-"
-                ), f"{path.name}: {label} 的取值不能是选项名: {ast.unparse(value_node)}"
+                assert isinstance(value_node, ast.Constant), (
+                    f"{path.name}: {label} 后必须紧跟字面量取值，发现: {ast.unparse(value_node)}"
+                )
+                assert isinstance(value_node.value, str) and not value_node.value.startswith("-"), (
+                    f"{path.name}: {label} 的取值不能是选项名: {ast.unparse(value_node)}"
+                )
 
 
 class TestReconnectBeforeInputFlag:

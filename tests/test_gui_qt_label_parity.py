@@ -83,19 +83,17 @@ def collect_label_pairs() -> list[tuple[str, str, tuple[str, str]]]:
 def test_qt_construct_labels_and_registered_msgids_are_the_same_key() -> None:
     pairs = collect_label_pairs()
     drift = [f"{rel}.{attr}: 构造={label!r} 登记键={key!r}" for rel, attr, (label, key) in pairs if label != key]
-    assert (
-        not drift
-    ), (
+    assert not drift, (
         "Qt 控件的构造标签与 T() 键不一致，启动回填/retranslate_all() 会把构造期文本覆盖成登记键的译文"
         "（emoji 前缀因此消失）：\n" + "\n".join(drift)
     )
     emoji_pairs = [(rel, attr) for rel, attr, (label, _key) in pairs if _EMOJI.search(label)]
-    assert (
-        len(pairs) >= MIN_PAIRS
-    ), f"配对口径失效（只找到 {len(pairs)} 处，下限 {MIN_PAIRS}）：工厂写法变了就同步改本判据，别放宽成「非空」"
-    assert (
-        len(emoji_pairs) >= MIN_EMOJI_PAIRS
-    ), f"带 emoji 前缀的按钮配对少于 {MIN_EMOJI_PAIRS} 处——本轮恢复的图标又被整体剥掉了"
+    assert len(pairs) >= MIN_PAIRS, (
+        f"配对口径失效（只找到 {len(pairs)} 处，下限 {MIN_PAIRS}）：工厂写法变了就同步改本判据，别放宽成「非空」"
+    )
+    assert len(emoji_pairs) >= MIN_EMOJI_PAIRS, (
+        f"带 emoji 前缀的按钮配对少于 {MIN_EMOJI_PAIRS} 处——本轮恢复的图标又被整体剥掉了"
+    )
 
 
 def test_qt_registered_label_keys_exist_in_all_catalogs() -> None:

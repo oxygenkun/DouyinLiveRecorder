@@ -97,10 +97,8 @@ def test_agents_gate_section_includes_repo_level_gates() -> None:
 def test_agents_gate_section_includes_formatter_tools() -> None:
     # black/isort/mypy 同样不能从章节里消失——两侧同时钉住，任何一侧被「精简」都会有一头变红。
     cmds = _load_agents_gate_commands()
-    assert any("black" in c and "--check" in c for c in cmds), "AGENTS.md 章节缺 black --check 门禁"
-    assert any("isort" in c and "--check-only" in c for c in cmds), "AGENTS.md 章节缺 isort --check-only 门禁"
-    # 至少一条不带路径参数的 `mypy` 门禁（另一条 `mypy --platform linux` 属条件增跑）
-    assert any(c.strip().split()[0] == "mypy" for c in cmds), "AGENTS.md 章节缺常驻 mypy 门禁"
+    assert any("ruff format" in c and "--check" in c for c in cmds)
+    assert any("ruff check" in c and "--no-fix" in c for c in cmds)
 
 
 # ───────────────────────── 核心：pre-commit 必须覆盖上述每一条 ─────────────────────────
@@ -114,28 +112,13 @@ def test_pre_commit_local_hooks_cover_repo_level_gates() -> None:
     assert not missing, f"pre-commit 未覆盖 AGENTS.md 仓库级门禁脚本：{missing}"
 
 
-def test_pre_commit_mirror_hooks_cover_formatter_tools() -> None:
-    # black / isort 由官方 mirror hook 覆盖（id 分别为 "black"、"isort"），
-    # 参数走 pyproject；本用例只锁"存在"，不重述参数（AGENTS.md 硬约束）。
-    hook_ids = {h.get("id") for h in _iter_hooks(_load_pre_commit_config()) if h.get("__repo__") != "local"}
-    assert "black" in hook_ids, "pre-commit 缺失 black mirror hook（AGENTS.md 格式化门禁依赖）"
-    assert "isort" in hook_ids, "pre-commit 缺失 isort mirror hook（AGENTS.md 格式化门禁依赖）"
-
-
-def test_pre_commit_local_hook_covers_mypy_without_path_args() -> None:
-    # mypy 必须是 local hook 且 entry 是**裸** `mypy`：显式传路径会覆盖 [tool.mypy].files
-    # （AGENTS.md 硬约束）；「mypy src/」曾让 gui.py / main.py 等根入口长期逃逸，本用例是那道墙。
-    cfg = _load_pre_commit_config()
-    mypy_hooks = [h for h in _iter_hooks(cfg) if h.get("__repo__") == "local" and h.get("id") == "mypy"]
-    assert mypy_hooks, "pre-commit 缺失 mypy local hook"
-    for hook in mypy_hooks:
-        entry = hook.get("entry", "")
-        assert isinstance(entry, str), f"mypy hook entry 形态异常：{entry!r}"
-        tokens = entry.split()
-        assert tokens and tokens[0] == "mypy", f"mypy hook entry 首 token 应为 `mypy`：{entry!r}"
-        # 除带值 flag（如 `--platform linux`）之外不得出现目录参数
-        non_flag_args = [t for t in tokens[1:] if not t.startswith("-") and t != "linux"]
-        assert not non_flag_args, f"mypy hook entry 传了路径参数，会覆盖 [tool.mypy].files：{entry!r}"
+def test_pre_commit_local_hooks_cover_ruff_tools() -> None:
+    # 本地 hook 消费 uv.lock，不再使用独立 mirror 环境的版本。
+    hooks = {hook["id"]: hook for hook in _iter_hooks(_load_pre_commit_config())}
+    assert not hooks.keys() & {"black", "isort", "mypy", "basedpyright", "pyright"}
+    for name, tool in (("ruff-check", "ruff check --fix"), ("ruff-format", "ruff format")):
+        assert hooks[name]["__repo__"] == "local"
+        assert hooks[name]["entry"] == f"uv run --locked --extra dev {tool}"
 
 
 # ───────────────────────── 结构不变量：四个 hook 的控制位必须一致 ─────────────────────────
@@ -160,12 +143,12 @@ def test_repo_level_gate_hooks_share_system_pass_filenames_false_always_run() ->
         hook_id = hook.get("id")
         assert hook.get("language") == "system", f"hook {hook_id!r} 应为 language=system（消费 venv 已装包）"
         assert hook.get("pass_filenames") is False, f"hook {hook_id!r} 必须 pass_filenames: false"
-        assert (
-            hook.get("always_run") is True
-        ), f"hook {hook_id!r} 必须 always_run: true（跨文件比对不能被 staged 类型漏掉）"
-    assert matched == len(
-        REPO_LEVEL_GATE_SCRIPTS
-    ), f"pre-commit 应命中 {len(REPO_LEVEL_GATE_SCRIPTS)} 条仓库级门禁 hook，实际 {matched} 条"
+        assert hook.get("always_run") is True, (
+            f"hook {hook_id!r} 必须 always_run: true（跨文件比对不能被 staged 类型漏掉）"
+        )
+    assert matched == len(REPO_LEVEL_GATE_SCRIPTS), (
+        f"pre-commit 应命中 {len(REPO_LEVEL_GATE_SCRIPTS)} 条仓库级门禁 hook，实际 {matched} 条"
+    )
 
 
 # ───────────────────────── run_gates.py 作为 single hook 入口的可用性锁 ─────────────────────────
@@ -196,12 +179,11 @@ def test_run_gates_is_invocable_as_single_hook_entry() -> None:
     assert rc == 0, f"run_gates.py --list 应以 0 退出，实际 {rc}"
     # --list 输出必须覆盖四条仓库级门禁脚本 + black/isort/mypy
     for script in REPO_LEVEL_GATE_SCRIPTS:
-        assert any(
-            script in ln for ln in out_lines
-        ), f"run_gates.py --list 未列出 {script}，AGENTS.md 章节与本地入口脱钩"
-    assert any("black" in ln and "--check" in ln for ln in out_lines)
-    assert any("isort" in ln and "--check-only" in ln for ln in out_lines)
-    assert any(ln.strip().startswith("mypy") for ln in out_lines)
+        assert any(script in ln for ln in out_lines), (
+            f"run_gates.py --list 未列出 {script}，AGENTS.md 章节与本地入口脱钩"
+        )
+    assert any("ruff format" in ln and "--check" in ln for ln in out_lines)
+    assert any("ruff check" in ln and "--no-fix" in ln for ln in out_lines)
 
 
 # ───────────────────── 变异验证回归锁：故意去掉一条会红 ─────────────────────

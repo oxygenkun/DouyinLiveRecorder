@@ -103,6 +103,14 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
       # 用 tomllib（3.11+ 标准库）解析，避免正则误匹配
       - name: Extract version from pyproject.toml
         id: version
@@ -272,11 +280,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.prepare.outputs.python_build }}
-          # 无 lock 文件，缓存 key 以 requirements.txt + pyproject.toml 的 hash 为准
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       # 冒烟测试期间 JS 签名脚本可能需要 node（src/javascript/*.js 由 exejs 调起）
       - name: Setup Node.js ${{ needs.prepare.outputs.node_version }}
@@ -359,11 +370,9 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: pip 安装依赖（requirements + build extras）
+          label: uv 锁定安装（build + gui）
           command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt
-            && pip install ".[build]"
+            uv sync --locked --no-dev --extra build --extra gui
 
       # --require-pinned：显式表达「发布路径缺钉定即终止」（build_exe.py 在 CI 下本来也
       # 会因 GITHUB_ACTIONS=true 默认开启，这里写出来是为了让发布命令自解释）。

@@ -251,7 +251,7 @@ class TestGetDouyinWebStreamData:
     async def test_numeric_room_id_uses_web_enter_api(self) -> None:
         # 格式 1：数字房间号直接走 web/enter API 并返回房间数据。
         api_json = (
-            '{"status_code":0,"data":{"data":[{"status":4,"id":"745964462470"}],' '"user":{"nickname":"数字房间主播"}}}'
+            '{"status_code":0,"data":{"data":[{"status":4,"id":"745964462470"}],"user":{"nickname":"数字房间主播"}}}'
         )
         mock_req = AsyncMock(side_effect=[api_json])
         with patch("src.spider.async_req", mock_req):

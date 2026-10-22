@@ -342,7 +342,9 @@ class TestChzzkStreamData:
             }
         )
         m3u8_content = "#EXTM3U\nhttps://live.chzzk.com/stream1.m3u8"
-        with (patch("src.spider.async_req", new_callable=AsyncMock, side_effect=[api_response, m3u8_content]),):
+        with (
+            patch("src.spider.async_req", new_callable=AsyncMock, side_effect=[api_response, m3u8_content]),
+        ):
             result = await get_chzzk_stream_data("https://chzzk.naver.com/live/abc123")
             assert result["is_live"] is True
             assert "m3u8_url" in result

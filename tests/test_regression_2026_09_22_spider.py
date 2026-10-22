@@ -265,9 +265,9 @@ class TestXhsRedirectCredentialContainment:
 
         # 内网落地页必须被丢弃：不得对**该落地页**发起请求（凭据不外送）。
         # 丢弃后 url 回落到原始 xhslink 短链（其 host 由用户填写、可信），故 rstrip 精确匹配落地页前缀。
-        assert not any(
-            cast(str, s["url"]).startswith("https://www.xiaohongshu.com/livestream/") for s in sent
-        ), f"内网落地页被请求: {sent}"
+        assert not any(cast(str, s["url"]).startswith("https://www.xiaohongshu.com/livestream/") for s in sent), (
+            f"内网落地页被请求: {sent}"
+        )
 
     @pytest.mark.asyncio
     async def test_allowed_redirect_keeps_cookie(self) -> None:
@@ -489,7 +489,7 @@ class TestDouyuSignHardening:
             result = await sp.get_token_js("123", "did")
         assert result.get("auth"), result
         # 2 次迭代 + 结尾 1 次 = 3 次
-        assert calls["n"] == 3, f"字符串 \"2\" 必须解析成 2（实际 md5 调用 {calls['n']} 次）"
+        assert calls["n"] == 3, f'字符串 "2" 必须解析成 2（实际 md5 调用 {calls["n"]} 次）'
 
     @pytest.mark.asyncio
     async def test_enc_time_huge_clamped_to_32(self) -> None:

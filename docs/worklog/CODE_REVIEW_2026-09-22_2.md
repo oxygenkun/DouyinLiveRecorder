@@ -145,7 +145,7 @@
 | MID-2261 | `tests/test_check_coverage.py` | 已修复 | 新建该门禁的回归锁（rc=0/1/2 三类 + 新鲜度）；**本会话另派修其「同一用例两次 `_main()`」竞态**（首轮假失败 4 条） |
 | MID-2262 | `tests/test_decorator_contract.py` | 已修复 | 加命中数见证（`n_decorated >= 40` / `len(files) > 100`），`except` 改为记入 `unscanned` 后断言为空 |
 | MID-2263 | `tests/frontend/test_quality_ui.mjs` | 已修复 | 由包装层把 `TRUE_TOKENS/FALSE_TOKENS` 传给 node 与 `CONFIG_*_TOKENS` 做集合相等双向断言 + 行为级同布尔锁 |
-| MID-2264 | `.github/workflows/ci.yml` | 已修复 | `test` job 补 `setup-node@v7`（与 `node_version` 同源）+ 断言前端锁未被 skip；VBS 的 cscript 锁**明确标注为本地专属**（不新增 Windows runner，残余缺口已登记） |
+| MID-2264 | `.github/workflows/ci.yml` | 已修复 | `test` job 补 `setup-node@v7`（与 `node_version` 同源）+ 断言前端锁未被 skip |
 | MID-2265 | `src/ab_sign.py` | 已按决定落地 | 维护者选定「模块头标注无生产调用点 + 保留 95% 阈值」，`tests/test_ab_sign.py:44-46` 失效注释一并改正 |
 
 > 状态汇总：已修复 57 · 已按决定落地 1 · 部分修复 3（SEV 侧同步的 MID-2235/2253/2259）· 待复核 2（MID-2235/2244）。

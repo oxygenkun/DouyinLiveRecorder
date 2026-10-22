@@ -688,10 +688,10 @@ class TestRemoveDuplicateLinesByteFidelity:
             keywords = {kw.arg: kw.value for kw in call.keywords if kw.arg}
             assert "encoding" in keywords, "读侧未显式指定编码"
             encoding_node = keywords["encoding"]
-            assert not (
-                isinstance(encoding_node, ast.Constant) and encoding_node.value is None
-            ), "encoding=None 即宿主 locale"
+            assert not (isinstance(encoding_node, ast.Constant) and encoding_node.value is None), (
+                "encoding=None 即宿主 locale"
+            )
             newline_node = keywords.get("newline")
-            assert (
-                isinstance(newline_node, ast.Constant) and newline_node.value == ""
-            ), '缺少 newline=""（行尾会被改写）'
+            assert isinstance(newline_node, ast.Constant) and newline_node.value == "", (
+                '缺少 newline=""（行尾会被改写）'
+            )

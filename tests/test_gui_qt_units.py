@@ -710,9 +710,9 @@ def test_running_status_text_survives_retranslate_and_follows_language(
     # 判据一：单纯回填不得动运行态文案——旧实现把 status_title 登记进表，这一步就会把它
     # 打回「待机」（与侧栏/托盘矛盾的确切形态）。
     ui_i18n.retranslate_all()
-    assert (
-        win.dashboard.status_title.text() == title_zh
-    ), "运行态状态标题被登记进了重译表：retranslate_all() 会把「录制中」打回登记初值「待机」（M-13）"
+    assert win.dashboard.status_title.text() == title_zh, (
+        "运行态状态标题被登记进了重译表：retranslate_all() 会把「录制中」打回登记初值「待机」（M-13）"
+    )
     # 判据二：切语言后运行态按当前 recorder 状态重驱（recorder 未真起进程，但 _running
     # 由 _set_running_ui 的入参驱动，这里保持「录制中」投影不变即可取证）。
     _switch_to_en_us(win)
@@ -758,9 +758,7 @@ def test_static_labels_and_derived_title_follow_language_switch(qt_app: QApplica
     assert win.brand_sub.text() == i18n.tr("直播录制 · 控制台") != before["brand"]
     assert win.import_font_btn.text() == i18n.tr("导入字体…") != before["import_font"]
     # 顶栏页标题是派生面（不进登记表）：必须等于「当前激活导航项」去掉 emoji 前缀后的形态。
-    assert (
-        win.page_title.text() == win._nav_buttons["dashboard"].text().split("  ")[-1] != before["page_title"]
-    )  # noqa: SLF001
+    assert win.page_title.text() == win._nav_buttons["dashboard"].text().split("  ")[-1] != before["page_title"]  # noqa: SLF001
     assert win.quality_page.stat_total.title.text() == i18n.tr("录制直播间") != before["stat_total"]
     assert win.quality_page.stat_ok.title.text() == i18n.tr("画质正常") != before["stat_ok"]
     assert win.quality_page.stat_down.title.text() == i18n.tr("画质降级") != before["stat_down"]

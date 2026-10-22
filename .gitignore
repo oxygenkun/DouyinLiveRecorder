@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # 原则：忽略字节码 / 构建产物 / 虚拟环境 / 测试与覆盖率 / 敏感配置 / 运行期产物
 #   （录制文件、日志、备份）与本地工具目录；保留源码、编译好的 .mo（gettext 运行时必需）、
-#   StopRecording.vbs 等分发脚本。
+#   项目维护的分发脚本。
 # 运行时资源 config/、ffmpeg/、node/ 与 exe 同级，但 config/*.ini 含凭据信息需忽略。
 # =============================================================================
 
@@ -175,6 +175,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+.ruff_cache/
 .dmypy.json
 dmypy.json
 
@@ -248,9 +249,6 @@ desktop.ini
 *.dll
 *.cmd
 *.bat
-*.vbs
-# StopRecording.vbs 是项目自带的停止录制脚本，需要随仓库分发（否定上面的 *.vbs）
-!StopRecording.vbs
 
 # macOS 特定文件
 .DS_Store

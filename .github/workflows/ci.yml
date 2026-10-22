@@ -14,16 +14,14 @@
 #     故 pip 缓存 key 以这两个文件的 hash 为准。
 #   · 打包由根目录 build_exe.py（PyInstaller）承担，本地与 CI 行为一致。
 #
-# Job 拓扑（lint / audit / type / test / build 七路并行 + Windows VBS 行为锁，收尾串行汇总）：
+# Job 拓扑（lint / audit / type / test / build 七路并行，收尾串行汇总）：
 #
 #   setup ──┬── static             格式 / 导入序 / 版本一致性 / 派生元数据一致性 / 运行时钉定表结构 / i18n po-mo 同步
 #           ├── deps-audit         pip-audit 按 OSV 审计 requirements.txt（补-05）
-#           ├── typecheck          mypy（最低支持版本 3.14；范围取 pyproject [tool.mypy].files）
 #           ├── test               pytest 矩阵（3.14）+ 全局与逐模块覆盖率门禁 + Web 面板 HTTP 冒烟
 #           ├── concurrency-test   线程安全 / 跨事件循环锁 / 速率限制专项
 #           ├── integration-verify ffmpeg / node 真实环境探测验证
 #           └── build-verify       PyInstaller lite 打包 + CLI/Web/GUI 三入口冒烟
-#   StopRecording.vbs ──── vbs-behavior-test  Windows runner，仅 VBS 变更时触发
 #                            └────► ci-summary（唯一 required check，汇总上游结果）
 #
 #   职责边界：**本工作流止于验证，不含部署 / 发布**——Release 产出由
@@ -45,15 +43,6 @@
 #   · apt 强化参数（与 build-release.yml 的 Linux 构建一致）：
 #     DEBIAN_FRONTEND=noninteractive（防交互卡死）+ Acquire::Retries=3
 #     （apt 自身网络重试）+ --no-install-recommends（免装推荐包，更快更省盘）。
-#
-# ---------------------------------------------------------------------------
-# 已关闭的残余缺口
-# ---------------------------------------------------------------------------
-#   · tests/test_stop_recording_vbs.py 的 4 条 cscript 行为锁（:167/:178/:192/:201）
-#     现已由 vbs-behavior-test job 覆盖：仅当 StopRecording.vbs 变更时在 windows-latest
-#     触发，用 cscript 驱动真函数原文验证进程匹配判据（按映像名/命令行/父进程三层匹配、
-#     先杀主进程后清孤儿 ffmpeg）。同一文件里的静态/AST 类断言（编码 UTF-16 LE、进程名
-#     清单与 build_exe.py 对齐等）在 ubuntu 的 test job 中照常执行。
 #
 # ---------------------------------------------------------------------------
 # 环境变量与 Secrets 说明
@@ -117,11 +106,6 @@ jobs:
       python_matrix: ${{ steps.consts.outputs.python_matrix }}
       python_build: ${{ steps.consts.outputs.python_build }}
       node_version: ${{ steps.consts.outputs.node_version }}
-      # —— 静态检查工具固定版本（见 consts 步骤内注释）——
-      black_version: ${{ steps.consts.outputs.black_version }}
-      isort_version: ${{ steps.consts.outputs.isort_version }}
-      mypy_version: ${{ steps.consts.outputs.mypy_version }}
-      pytest_version: ${{ steps.consts.outputs.pytest_version }}
       # [2026-10-17] 原「—— 路径过滤结果 —— filters: ${{ steps.filter.outputs.changes }}」
       # 输出随 dorny/paths-filter 一并移除：手动触发场景下该过滤只会制造假绿，理由见下方历史注。
     steps:
@@ -133,8 +117,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # python_min     : 最低支持版本，用作 mypy 目标与覆盖率门禁基准版本
-          # python_latest  : 最高支持版本，用作格式化检查（与 black target-version 上界对齐）
+          # python_min     : 最低支持版本，用作类型检查目标与覆盖率门禁基准版本
+          # python_latest  : 最高支持版本，用作格式化检查（与 Ruff target-version 对齐）
           # python_matrix  : 测试矩阵固定 3.14 —— requires-python = ">=3.14" 且全库使用
           #                  PEP 758 无括号多异常语法（except A, B:），3.13 及以下连
           #                  解析都过不了，加入低版本矩阵只会常红；未来扩展新版本时
@@ -150,25 +134,6 @@ jobs:
             echo "node_version=24"
           } >> "$GITHUB_OUTPUT"
 
-          # 静态检查工具**固定版本**：black / isort 的新大版本会改变格式化结果，
-          # 不固定会导致「代码未改动却突然 CI 变红」。此处集中声明便于统一升级
-          # （dependabot 不会更新 workflow 内联的 pip 版本，需人工随 pyproject 一起 bump）。
-          # pytest 同属此类：typecheck job 靠它把 tests/ 里的 pytest.* 按真实类型检查，
-          # 版本漂移会直接改变类型结论（与 black / isort 同一「代码未改动却 CI 变红」形态）。
-          # 四个值须与本地 .venv 实装版本**逐一同值**（AGENTS.md「格式化命令」的可外推前提），
-          # 否则「本地门禁全绿」不等于「CI 会绿」。isort 现 9.0.2 = 本机实装（2026-10-04 抬，
-          # 原 9.0.1 与本地差一个补丁位）；black 现 26.10.1 = 本机实装（2026-10-17 抬，原 26.5.1）——
-          # 抬之前已用 26.5.1 与 26.10.1 两个版本各自全量跑过一次 --check，两版结论逐字相同
-          # （当时 239 files unchanged，本轮收尾复跑 242），即这次抬值不改变判定，只消除「本地≠CI 版本」的外推缺口。
-          # 同一组版本还写进 .pre-commit-config.yaml 的两个 mirror rev（三面收敛为一面）：
-          # 三处任一处单独抬，就会造出「pre-commit 用 A 版本格式化、CI 用 B 版本判定」的互擦。
-          {
-            echo "black_version=26.10.1"
-            echo "isort_version=9.0.2"
-            echo "mypy_version=2.4.0"
-            echo "pytest_version=9.1.1"
-          } >> "$GITHUB_OUTPUT"
-
       # [2026-10-17 修订] 原「Detect path changes」步骤（dorny/paths-filter@v4）已整体移除。
       # 理由：workflow_dispatch 事件没有 push/PR 的 before/after 基线，该动作只能退化为
       # 「对比上一次成功运行的 SHA」——这个基线与用户点击时手上的代码无关，一旦把 python 组
@@ -179,15 +144,13 @@ jobs:
       # [历史注] 原过滤口径（2026-09-20 定稿）为：src/**、tests/**、scripts/**、i18n/**、
       # web/**、根五个入口（main/gui/web/i18n/msg_push.py）、requirements.txt、pyproject.toml、
       # uv.lock、DouyinLiveRecorder.egg-info/**、.coveragerc-concurrency、Dockerfile、
-      # docker-compose.yaml、.github/workflows/**、.github/actions/**、StopRecording.vbs
-      # 归入 python 组；StopRecording.vbs + tests/test_stop_recording_vbs.py 另归 vbs 组，
-      # 单独驱动 windows-latest 上的 cscript 行为锁 job。纯 *.md 文档变更不触发。
+      # docker-compose.yaml、.github/workflows/**、.github/actions/** 归入 python 组。
 
   # ── 1. 静态检查（格式 / 导入序 / 版本一致性 / 钉定表结构 / 翻译同步 / 注释规范）─
   # 各项检查都是「秒级、零运行时依赖」，合并进同一 job 可省去多次 runner 冷启动
   # （约 30~60s），同时用独立 step 名保留清晰的失败归因。
   static:
-    name: Static Checks (black / isort / version / pins / i18n / annotations)
+    name: Static Checks (Ruff / version / pins / i18n / annotations)
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -199,54 +162,33 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.setup.outputs.python_latest }}
-          # 内置 pip 缓存：无 lock 文件，故以 requirements.txt + pyproject.toml 为 key
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       # 版本号在调用处的 with 里展开为字面量，再进入 retry 动作执行（无隐式 env 依赖）
       - name: Install lint tools
         uses: ./.github/actions/retry
         with:
-          label: pip 安装 lint 工具（black / isort）
+          label: uv 安装 Ruff
           command: >-
-            python -m pip install --upgrade pip
-            && pip install "black==${{ needs.setup.outputs.black_version }}" "isort==${{ needs.setup.outputs.isort_version }}"
+            uv sync --locked --no-dev --extra dev --no-install-project
 
-      # 门禁显式传参（AGENTS.md 约定）：line-length / target-version / profile 不经
-      # 配置文件隐式继承，必须写全；排除目录仍由 pyproject [tool.black].exclude /
-      # [tool.isort].extend_skip 声明，此处无需重复传参。
-      # PYTHONUTF8=1（MID-63）：非 UTF-8 locale 下 isort 会对含中文注释的文件抛
-      # 'gbk' codec 编码错误并**静默跳过**、同时返回 rc=0（Windows 中文环境实测 17 个
-      # 自有文件被跳过，含 main.py / src/spider.py），门禁查了个空气。Linux runner 默认
-      # UTF-8 不受影响，但仍与 AGENTS.md「格式化命令」块逐字对齐，避免「本地过、CI 红」
-      # 的反向漂移。
-      - name: Run black --check
+      # 格式参数与 AGENTS.md 唯一清单一致；排除范围由 tool.ruff 统一定义。
+      - name: Run Ruff format check
         env:
           PYTHONUTF8: "1"
-        run: python -m black --check --diff --line-length 120 --target-version py314 .
+        run: python -m ruff format --check --diff .
 
-      - name: Run isort --check
+      - name: Run Ruff import check
         env:
           PYTHONUTF8: "1"
-        run: python -m isort --check-only --diff --profile black --line-length 120 .
-
-      # 「有告警即失败」（MID-63 第二条）：isort/black 的 Unable to parse file 走的是
-      # UserWarning 通道，rc 仍为 0，故必须在命令层把它转成硬失败。PYTHONUTF8 已消除
-      # 根因，这一层是防回归网（换机器/换 locale 也不会静默漏文件）。
-      - name: Gate isort/black silent-skip warnings
-        env:
-          PYTHONUTF8: "1"
-        shell: bash
-        run: |
-          set -euo pipefail
-          out=$(python -m isort --check-only --profile black --line-length 120 . 2>&1 >/dev/null || true)
-          if printf '%s' "$out" | grep -q "Unable to parse file"; then
-            printf '::error::isort 静默跳过文件（门禁假绿）：\n%s\n' "$out"
-            exit 1
-          fi
-          echo "isort 未跳过任何文件"
+        run: python -m ruff check .
 
       # 校验「版本号单一事实源」：pyproject.toml 为准，
       # main.py / src/web_api.py 动态读取、Dockerfile 经 APP_VERSION 注入
@@ -314,20 +256,23 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.setup.outputs.python_min }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install pip-audit
         uses: ./.github/actions/retry
         with:
-          label: pip 安装 pip-audit
+          label: uv 安装 pip-audit
           command: >-
-            python -m pip install --upgrade pip
-            && pip install pip-audit
+            uv pip install pip-audit
 
-      # 审计对象 = 镜像与 CI 实际消费的那份清单（requirements.txt），
+      # 审计对象 = 从 uv.lock 导出的基础依赖闭包，与默认镜像实际安装的版本相同。
       # 而非 pyproject 的 dev/gui/build extras：那些不进运行时。
       # --strict 无需额外传：发现漏洞时 pip-audit 本身即以非 0 退出。
       #
@@ -339,7 +284,9 @@ jobs:
       - name: Audit runtime requirements against OSV
         env:
           PYTHONUTF8: "1"
-        run: pip-audit -r requirements.txt --progress-spinner off --timeout 120
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-hashes --output-file /tmp/dlr-runtime-requirements.txt
+          pip-audit -r /tmp/dlr-runtime-requirements.txt --progress-spinner off --timeout 120
 
       # 下限复核（2026-09-21 补-05 的实测延伸，**不可删**）：上一步是「解析模式」，
       # 只会把每条 >=X 解析到区间内**最新**版本再审计，因此对「下限自身落在受影响段」
@@ -357,76 +304,21 @@ jobs:
           floors=$(mktemp)
           trap 'rm -f "$floors"' EXIT
           python - "$floors" <<'PY'
-          import re, sys
+          import re, sys, tomllib
+          project = tomllib.load(open("pyproject.toml", "rb"))["project"]
+          specs = project["dependencies"] + project["optional-dependencies"]["gui"]
           out = []
-          for line in open("requirements.txt", encoding="utf-8"):
-              spec = line.split("#", 1)[0].strip()
+          for spec in specs:
               m = re.match(r"^([A-Za-z0-9_.\[\]-]+)\s*>?=\s*([0-9][0-9a-zA-Z.]*)", spec)
-              if m:
-                  out.append(f"{m.group(1)}=={m.group(2)}")
-          assert len(out) >= 20, f"下限条数异常（{len(out)}），清单形态可能已变更"
+              assert m, f"无法读取依赖下限: {spec}"
+              out.append(f"{m.group(1)}=={m.group(2)}")
+          assert len(out) == len(specs), "下限审计遗漏依赖"
           open(sys.argv[1], "w", encoding="utf-8").write("\n".join(out) + "\n")
           print(f"复核 {len(out)} 条声明下限")
           PY
           pip-audit -r "$floors" --no-deps --progress-spinner off --timeout 120
 
   # ── 2. 静态类型检查 ──────────────────────────────────────────────────────
-  # 按 pyproject [tool.mypy] python_version = "3.14" 使用最低支持版本运行，
-  # 保证类型结论对最老解释器成立。
-  # 平台符号门控双跑（AGENTS.md 约定）已补齐到合并边界：ubuntu runner 裸跑 `mypy` 默认即
-  # linux 目标，本 job 再对称增跑一次 `mypy --platform win32`，使 CI 同时覆盖 sys.platform
-  # 两侧门控分支——此前 win32 侧只在 Windows 开发机上被顺带检查、合并边界从不验证。
-  # 两条命令均不带路径参数、共用同一 [tool.mypy].files 范围（见下方 Run mypy 两步）。
-  #
-  # 检查范围**不再写在命令行**：pyproject [tool.mypy].files 是唯一事实源
-  # （src/ + 根入口 main.py/gui.py/web.py/i18n.py/msg_push.py + build_exe.py +
-  # scripts/ + tests/），CI 与本地都直接跑 `mypy` 消费它，避免覆盖面漂移。
-  # 早前只跑 `mypy src/` 时，根目录入口的漏 import（如 gui.py 的 logger /
-  # session_id 未定义 —— 均为运行时 NameError）完全逃逸，故此处扩到全量代码；
-  # tests/ 同步纳入是因为「声明了 `mypy tests/` 门禁却只靠自觉执行」已被证明会漂移。
-  typecheck:
-    name: Type Check (mypy, py${{ needs.setup.outputs.python_min }})
-    needs: setup
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Python ${{ needs.setup.outputs.python_min }}
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ needs.setup.outputs.python_min }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
-
-      # pytest 必须一并装：[tool.mypy].files 含 tests/，缺 pytest 时 `import pytest` 解析为
-      # Any——tests/ 里的 pytest.* 全部免检不说，连 pytest.fail() 的 NoReturn 都会丢失，
-      # mypy 会把「声明了非 None 返回类型、却以 pytest.fail() 收尾」的辅助函数判成 [return]
-      # （2026-09-26 实测：tests/test_proto_runtime_compat.py:33 只在 CI 红、本机装了 pytest 恒绿）。
-      # 固定版本而非跟随最新版：pytest 的类型标注变化会让 tests/ 在代码未改动时突然转红。
-      - name: Install dependencies
-        uses: ./.github/actions/retry
-        with:
-          label: pip 安装依赖（requirements + mypy + pytest）
-          command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt "mypy==${{ needs.setup.outputs.mypy_version }}" "pytest==${{ needs.setup.outputs.pytest_version }}"
-
-      # 平台双跑第一步：不带路径参数，范围由 pyproject [tool.mypy].files 定义（本地同款命令）；
-      # ubuntu runner 上即 linux 目标。
-      - name: Run mypy (linux target)
-        run: mypy
-
-      # 平台双跑第二步：与上一条对称增跑 win32 目标。win32 专属符号（ctypes.windll、
-      # subprocess.STARTUPINFO 等）与 `if sys.platform == "win32":` 门控分支只在 win32 目标下
-      # 参与类型检查；同范围、同样不带路径参数。2026-10-02 本机实测 win32 与 linux 判定面逐行一致，
-      # 不与既有 `# type: ignore` 冲突。
-      - name: Run mypy (win32 target)
-        run: mypy --platform win32
-
   # ── 3. 单元测试 + 覆盖率门禁 ─────────────────────────────────────────────
   test:
     name: Test (pytest, py${{ matrix.python-version }})
@@ -451,10 +343,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       # MID-2264：前端用例（tests/frontend/*.mjs）由 tests/test_frontend_quality_ui.py
       # 以子进程 `node --test` 驱动，Node 缺失时该模块整体 skip。而 ci-summary 只区分
@@ -510,26 +406,14 @@ jobs:
       # pytest-asyncio 由 pyproject [tool.pytest.ini_options] asyncio_mode = "auto" 驱动；
       # pytest-cov 必装：scripts/check_coverage.py 依赖其产出的 .coverage 数据文件。
       #
-      # black / isort / mypy 同装（版本取 setup job 常量，与 static / typecheck 两个 job 同值）：
-      # 门禁脚本的两条回归锁**真起子进程**调用它们——
-      #   · tests/test_regression_2026_09_22_gates.py::test_run_gates_fatal_patterns_reach_stderr_channel
-      #     要用真实 isort 复现「非 UTF-8 源文件 → Unable to parse file 走 UserWarning、rc 仍为 0」；
-      #   · tests/test_run_gates.py::test_check_executables_accepts_module_fallback_without_path_scripts
-      #     要求 black / mypy 在当前解释器里 importable（验证裸 console-script 不在 PATH 时
-      #     run_gates 的 `python -m` 兜底不误报 rc=3）。
-      # 缺装时的症状是 `No module named isort` → rc=1 → 用例红（2026-09-26 CI 实测两条红）。
-      # 刻意**不**改成「工具缺失就 skip」：那与 MID-2264 同形——skipped 与 passed 在汇总里
-      # 不可区分，两条锁会在 ubuntu 上静默消失；装工具才能让它们真的在 CI 上执行。
+      # 测试会实际调用 Ruff 验证坏文件退出码。
+      # 工具和运行时依赖均由同一锁文件安装，不能把缺工具改成 skip。
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: pip 安装依赖（requirements + pytest + 门禁工具）
+          label: uv 锁定安装（dev + gui）
           command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt pytest pytest-asyncio pytest-cov
-            "black==${{ needs.setup.outputs.black_version }}"
-            "isort==${{ needs.setup.outputs.isort_version }}"
-            "mypy==${{ needs.setup.outputs.mypy_version }}"
+            uv sync --locked --no-dev --extra dev --extra gui
 
       # MID-2264 同款反 skip 兜底：xvfb 装完即验「Tk 真能开显示」——若 xvfb 失效，
       # 真窗用例会以 TclError 走 skip 通道（skipped 与 passed 在 ci-summary 里不可区分），
@@ -737,18 +621,21 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.setup.outputs.python_min }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: pip 安装依赖（requirements + pytest）
+          label: uv 锁定安装（dev）
           command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt pytest pytest-asyncio pytest-cov
+            uv sync --locked --no-dev --extra dev
 
       - name: Run concurrency tests
         env:
@@ -793,10 +680,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.setup.outputs.python_min }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Setup Node.js ${{ needs.setup.outputs.node_version }}
         uses: actions/setup-node@v7
@@ -821,10 +712,9 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: pip 安装依赖（requirements）
+          label: uv 锁定安装（基础依赖）
           command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt
+            uv sync --locked --no-dev
 
       - name: Verify src/ffmpeg_install.py detection
         run: |
@@ -855,10 +745,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ needs.setup.outputs.python_build }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.10.9"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Setup Node.js ${{ needs.setup.outputs.node_version }}
         uses: actions/setup-node@v7
@@ -886,70 +780,14 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: pip 安装依赖（requirements + build extras）
+          label: uv 锁定安装（build + gui）
           command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt
-            && pip install ".[build]"
+            uv sync --locked --no-dev --extra build --extra gui
 
       - name: Build (lite) + smoke test CLI/Web/GUI
         run: xvfb-run -a python build_exe.py --smoke --no-runtime --no-zip
 
-  # ── 7. VBS 行为锁（Windows runner，仅 StopRecording.vbs 变更时触发）──────
-  # StopRecording.vbs 的 4 条 cscript 行为用例需要真 Windows cscript 解释器，
-  # ubuntu runner 上永远 skip。用 paths 过滤只在 VBS 文件变更时启动 Windows runner，
-  # 避免每次 PR 付出 Windows 分钟额度（该脚本变更频率极低，通常只在功能迭代时改动）。
-  # 静态/AST 类断言（编码、映像名清单、杀进程顺序等）已在 ubuntu test job 覆盖。
-  # [2026-10-17 补] 原「用 paths 过滤只在 VBS 文件变更时启动 Windows runner」的节流手段随
-  # 仅手动触发一并取消：现在每次手动触发都起 windows-latest（约 10 分钟）。该节流的前提是
-  # [2026-10-18 补] 本 job 原先只装 pytest（`pip install pytest`），2026-10-18 手动触发实测
-  #   11 条用例在 setup 阶段全数 ERROR：`ModuleNotFoundError: No module named 'distro'`。
-  #   被测文件 tests/test_stop_recording_vbs.py 本身只 import 标准库 + pytest，但
-  #   tests/conftest.py 的三个 **autouse** fixture 会在每条用例前 import 被测面：
-  #     · _clean_credential_caches → `from src import spider` → src/__init__.py →
-  #       src/node_install.py 顶层 `import distro`；
-  #     · _hermetic_danmaku_hub → `import src.danmaku_monitor`（同一条 src 导入链）；
-  #     · _pin_identity_translation → `import i18n` → i18n.py 顶层 `from loguru import logger`。
-  #   即「跑仓库里任何一条 pytest」的门槛是**整份运行时依赖**，而不是被测文件自己的 import。
-  #   两条可选修法里选「装齐依赖」而非「给 fixture 加 skip 通道」：后者正是 MIN-2264 反复
-  #   拦过的形态（fixture 静默不生效，污染类用例退化成「单独跑通过、整包跑失败」）。
-  #   体积代价可接受：本工作流已改为仅手动触发，且 build-release.yml 的 Windows 构建 job
-  #   本来就在同一个 runner 镜像上装同一份 requirements.txt。
-  vbs-behavior-test:
-    name: VBS Behavior Test (Windows cscript)
-    needs: setup
-    runs-on: windows-latest
-    # 10 → 20：装整份 requirements（含 PySide6 这种大 wheel）比只装 pytest 多出数分钟，
-    # 超时太紧会把「依赖装到一半」伪装成本 job 的失败。
-    timeout-minutes: 20
-    # [2026-10-17 修订] 原条件为「github.event_name == 'workflow_dispatch' || vbs 路径命中」。
-    # 改为仅手动触发后前半式恒真、后半式引用的 filters 输出已不存在，故整条 if 删除：
-    # 现在每次手动触发都会执行这 4 条 cscript 行为锁。
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Python 3.14
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.14'
-
-      # 与其它 job 同一口径：装 requirements.txt（conftest 的 autouse fixture 会 import src / i18n，
-      #   详见本 job 头部注释）。pytest-asyncio 同装：pyproject 的 asyncio_mode = "auto" 由它提供，
-      #   缺装时每次 pytest 启动都会打 PytestConfigWarning: Unknown config option: asyncio_mode
-      #   （2026-10-18 实测该 job 的 warnings summary 里就有这一条）。
-      - name: Install dependencies
-        uses: ./.github/actions/retry
-        with:
-          label: pip 安装依赖（requirements + pytest）
-          command: >-
-            python -m pip install --upgrade pip
-            && pip install -r requirements.txt pytest pytest-asyncio
-
-      - name: Run VBS behavior tests (cscript)
-        run: python -m pytest tests/test_stop_recording_vbs.py -v
-
-  # ── 8. 汇总门禁 ─────────────────────────────────────────────────────────
+  # ── 7. 汇总门禁 ─────────────────────────────────────────────────────────
   # [2026-10-17 修订] 路径过滤移除后已无 job 会被跳过，「skipped → 通过」通道实际空转；
   # 判定口径保留，以免将来恢复过滤时本 job 反过来把合法跳过判成失败。
   # [历史注] 原注「上游 job 会被路径过滤跳过，分支保护若直接勾选它们会『永久 pending』」
@@ -963,12 +801,10 @@ jobs:
       - setup
       - static
       - deps-audit
-      - typecheck
       - test
       - concurrency-test
       - integration-verify
       - build-verify
-      - vbs-behavior-test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

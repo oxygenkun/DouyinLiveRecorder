@@ -70,6 +70,7 @@ EXCLUDE_DIRS = (
     ".git",
     ".venv",
     ".mypy_cache",
+    ".ruff_cache",
     ".pytest_cache",
     ".ruff_cache",
     ".workbuddy",

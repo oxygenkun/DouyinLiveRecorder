@@ -465,9 +465,9 @@ def test_twin_agrees_on_every_criterion_combination(
     from_main = main_mod.should_prepend_bundled_ffmpeg_dir(bundled_dir, "some/path")
     from_standalone = standalone.should_prepend_bundled_ffmpeg_dir(bundled_dir, "some/path")
     assert from_main == from_standalone, f"两份实现漂移：main={from_main} standalone={from_standalone}"
-    assert (
-        from_main is expected
-    ), f"判据本身变了：{sys_platform}/{machine}/{which_kind} 期望 {expected} 实得 {from_main}"
+    assert from_main is expected, (
+        f"判据本身变了：{sys_platform}/{machine}/{which_kind} 期望 {expected} 实得 {from_main}"
+    )
     assert native_dir.is_dir() and bundle.is_dir()
 
 
@@ -495,9 +495,9 @@ def test_twin_agrees_on_the_self_shadow_form(monkeypatch: pytest.MonkeyPatch, tm
 
     from_main = main_mod.should_prepend_bundled_ffmpeg_dir(str(bundle), "some/path")
     from_standalone = standalone.should_prepend_bundled_ffmpeg_dir(str(bundle), "some/path")
-    assert (
-        from_main is True and from_standalone is True
-    ), f"自我遮蔽分支不一致：main={from_main} standalone={from_standalone}"
+    assert from_main is True and from_standalone is True, (
+        f"自我遮蔽分支不一致：main={from_main} standalone={from_standalone}"
+    )
 
 
 def test_standalone_resolves_ffmpeg_through_the_twin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

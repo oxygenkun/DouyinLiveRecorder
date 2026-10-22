@@ -38,7 +38,7 @@
 | Web 服务层 | `src/web_api.py`、`web_config.py`、`web_models.py`、`web_tray.py` | 4 | ~3,420 |
 | 桌面 GUI | `src/gui_qt/`（含 `pages/`）、`src/ui_kit.py`、`ui_theme.py`、`ui_scale.py`、`ui_motion.py`、`ui_fonts.py`、`ui_i18n.py` | 22 | ~7,450 |
 | 前端与自研 JS | `web/app.js`、`motion.js`、`index.html`、`style.css`、`src/javascript/`（4 个自研签名脚本） | 8 | ~4,950 |
-| 脚本与构建 | `scripts/`（15 个 `.py` + 2 个 `.sh`）、`StopRecording.vbs` | 18 | ~8,000 |
+| 脚本与构建 | `scripts/`（15 个 `.py` + 2 个 `.sh`） | 18 | ~8,000 |
 | 测试 | `tests/`（含 `frontend/` 的 `.mjs`） | 164 | ~68,000 |
 | **合计** | | **~263** | **~131,000** |
 
@@ -458,7 +458,6 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 | 原编号 | 原问题摘要 | 现状 |
 |---|---|---|
 | **S-01** | Qt GUI `linesReceived` 从未 emit，录制输出断路 | **已修复**：改为 `outputReady = Signal()`，`_push()` 入队后 emit（`recorder.py:430`），`main_window._pump_recorder_queue`（`:678-694`）为生产消费方；修复方式为重构而非打补丁 |
-| M-02 | `StopRecording.vbs` 双 BOM | **已修复**：实测文件头为 `fffe27002a00`（单个 UTF-16LE BOM） |
 | M-03 | `sync_http` 400 分支未走上限 | **已修复**：`sync_http.py:411` 走 `_read_capped` |
 | M-04 | `async_req` 响应体无上限 | **已收口**（残余见 M-16/M-17）：`_bounded_response_read` 挂在唯一客户端构造点 `_build_client:88` |
 | M-05 | cookie_cache 失败日志未脱敏 | **已修复**：`cookie_cache.py:468-475` |

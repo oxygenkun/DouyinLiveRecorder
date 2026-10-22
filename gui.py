@@ -156,9 +156,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from tkinter import filedialog
+from tkinter import filedialog, messagebox, ttk
 from tkinter import font as tkfont
-from tkinter import messagebox, ttk
 from typing import Any, Literal, cast, final
 
 # GUI 父进程标记：必须先于任何 src 导入设置——src.logger 在导入期读取该标记决定文件 sink
@@ -787,7 +786,6 @@ def _config_change_verdict(
 
 @final
 class AdvancedSettingsWindow:
-
     # 磁盘基线核对间隔（毫秒）：与 URL 配置页的 mtime 监听同量级（主窗口刷新为 3~10s），
     # 取 5s 兼顾「窗口长时间打开」场景下的及时提醒与主线程开销。
     _CONFIG_WATCH_INTERVAL_MS = 5000
@@ -1210,8 +1208,7 @@ def _as_int(value: object, default: int = 0) -> int:
 _STATUS_TPL_RECORDING = "{recording_live}[{qa}] 正在录制中 {have_record_time}"
 _STATUS_TPL_IDLE = "\r没有正在录制的直播 循环监测间隔时间：{delay_default}秒"
 _STATUS_TPL_DOWNGRADE = (
-    "{record_name} 画质降级：设置 {record_quality_zh}({record_quality})"
-    " 实际 {actual_quality_zh}({actual_quality_code})"
+    "{record_name} 画质降级：设置 {record_quality_zh}({record_quality}) 实际 {actual_quality_zh}({actual_quality_code})"
 )
 # 刻意不对称的一条：该串生产侧**未过 tr()**（src/recorder_status.py::display_info 裸写
 # print("\r没有正在监测和录制的直播")），是否被翻译取决于 main.py 的
@@ -1396,7 +1393,6 @@ def _status_patterns() -> _StatusPatterns:
 # 直播录制 GUI 主类：整合界面、子进程录制、日志队列与画质监控。
 @final
 class LiveRecorderGUI:
-
     ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
     # 画质降级行与录制中行的匹配串由**与生产侧同 msgid 的 tr() 结果**派生，并按语言惰性
     # 重算（定义见模块级 _status_patterns）；不得硬编码简中正则。
@@ -4737,8 +4733,8 @@ class LiveRecorderGUI:
                         )
                 # [历史注] 原此处还有一段「映像名 + PARENTPID eq GUI 自身 PID」的兜底
                 # taskkill：ffmpeg 的父进程恒为 main.py，该形态结构性无法命中。「main.py
-                # 已死、ffmpeg 孤儿残留」需按命令行锚定程序目录（同 StopRecording.vbs 的三层
-                # 匹配），为避免误杀其它项目的 ffmpeg，本函数不做该形态，由 VBS 承担。
+                # 已死、ffmpeg 孤儿残留」需按命令行锚定程序目录；为避免误杀其它项目的
+                # ffmpeg，本函数不做该形态。
             else:
                 if target_pid is not None:
                     try:

@@ -1,13 +1,12 @@
 # =============================================================================
-# DouyinLiveRecorder Python 运行时依赖清单
+# DouyinLiveRecorder 基础依赖兼容清单（pip 用户；标准安装使用 uv sync --locked）
 # -----------------------------------------------------------------------------
 # 与 pyproject.toml [project.dependencies] 严格同步（「单源双写」），两侧包名集合的一致性由
-#   tests/test_regression_2026_09_22_gates.py 锁死（单侧遗漏直接判红）。本文件是 Docker builder
-#   阶段、CI 各 job（typecheck / test / concurrency-test / integration-verify / build-verify 等）
-#   与本地 `pip install -r` 的实际输入；static job 只装固定版本 lint 工具，不经本文件。
+#   tests/test_regression_2026_09_22_gates.py 锁死（单侧遗漏直接判红）。Docker / CI 使用
+#   pyproject.toml + uv.lock；本文件仅兼容本地 `pip install -r` 与依赖下限审计。
 # 构建期 / 开发期依赖不入本清单：PyInstaller 见 [project.optional-dependencies].build（>=6.10.0），
-#   pytest / black / isort / mypy / pre-commit 见 .dev（`pip install .[build]` / `.[dev]`），
-#   GUI 依赖在 .gui（本清单已含同名包）。前端用例（tests/frontend/*.mjs）用 Node 内置 node:test，
+#   pytest / Ruff / pre-commit 见 .dev（`pip install .[build]` / `.[dev]`），
+#   GUI 依赖仅在 .gui（`uv sync --extra gui`），不在基础清单中。前端用例（tests/frontend/*.mjs）用 Node 内置 node:test，
 #   零 npm 依赖，无需新增 Python 包。
 # 下限口径：全清单只设下限、不设上限（唯一例外 protobuf，理由见该行上方注释）。
 # =============================================================================
@@ -54,13 +53,13 @@ tqdm>=4.69.0              # 下载进度条显示（命令行录制模式）
 exejs>=1.0.1              # PyExecJS 的活跃维护继任者，优先使用（src/spider.py、src/utils.py 导入）
 PyExecJS>=1.5.1           # 回退兼容：exejs 未安装时启用（已停止维护，仅作兜底）
 
-# ---------- GUI 图形界面（headless / Web 模式下非必需，但 pip 安装仍会拉取）----------
+# ---------- GUI 图形界面（仅 gui extra；基础安装不拉取）----------
 # [2026-10-03 阶段5] customtkinter 已随 UI 现代化阶段4（tkinter.ttk 自研控件层）摘除
-PySide6>=6.12.0          # GUI 窗口层（src/gui_qt/），取代 ttk 主窗口：QSS token 能 1:1 还原
+# PySide6>=6.12.0 现仅声明在 gui extra；GUI 窗口层对应下述设计稿。
                          #   docs/gui-redesign/index.html 的圆角/投影/弹簧动效。下界 6.12 为本机实测
                          #   支持 Python 3.14.8 的最小版（Qt 6.12 wheel 提供 cp314 ABI）。2026-10-20 起
                          #   Web 入口托盘（src/web_tray.py）改走 QSystemTrayIcon，故它同时是两个入口的
-                         #   运行时依赖（Web Analysis 不再 exclude 它）。
+                         #   可选依赖（2026-10-23：Web 无托盘时不需要安装它）。
                          #   [历史注] pystray>=0.19.5 与 Pillow>=12.3.0 原列于本包之后（供遗留 tkinter 托盘
                          #   gui.py::SystemTray 使用），随该托盘退役一并摘除：两入口托盘统一由
                          #   QSystemTrayIcon 承担、图标 QPainter 现画，PIL 全仓再无调用点。

@@ -136,8 +136,7 @@
 ├── AGENTS.md                       # 编码代理约定（本文件）
 ├── CODE_REVIEW_FIX_1.md            # 代码审查遗留项清单（2026-09-14 收官：25 项全部结项）
 ├── LICENSE                         # MIT
-├── index.html                      # 独立 M3U8 播放器页面（Web 面板用 web/ 目录）
-└── StopRecording.vbs               # Windows 停止录制脚本（UTF-16 LE 带 BOM，见「已知坑」）
+└── index.html                      # 独立 M3U8 播放器页面（Web 面板用 web/ 目录）
 ```
 
 ## 与根文件的分工

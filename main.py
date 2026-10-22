@@ -4734,22 +4734,182 @@ def main(non_interactive: bool = False) -> None:
     global bark_level_overrides
     follow_monitor.start()
     douyin_dm_monitor.start()
-    global a, acfun_cookie, args, auto_update_anchor_name, baidu_cookie, bark_msg_api, bark_msg_level, bark_msg_ring, begin_push_message_text, begin_show_push, bigo_cookie, bili_cookie, blued_cookie
-    global changliao_cookie, chzzk_cookie, clean_emoji, converts_to_h264, converts_to_mp4, create_time_file, custom_script, delay_default, delete_origin_file, dingtalk_api_url, danmaku_platforms, danmaku_split_time, enable_danmaku, enable_danmaku_monitor
-    global dingtalk_is_atall, dingtalk_phone_num, disable_record, disk_limited, disk_space_limit, douyu_cookie, dy_cookie, email_host, email_password, enable_https_recording, enable_proxy_platform, enable_proxy_platform_list, exit_recording
-    global extra_enable_proxy, extra_enable_proxy_platform_list, faceit_cookie, filename_by_title, first_run, first_start, flextv_cookie, flextv_password, flextv_username, folder_by_author, folder_by_time, folder_by_title
-    global haixiu_cookie, hls_collection_enabled, hls_collection_exclude_platforms, host_id, huajiao_cookie, huamao_cookie, hy_cookie, ini_URL_content, input_url, is_comment_line, is_run_script, jd_cookie, ks_cookie, kugou_cookie
-    global laixiu_cookie, langlive_cookie, language, lehaitv_cookie, lianjie_cookie, line, line_spilt, liuxing_cookie, live_status_push, liveme_cookie, local_delay_default, login_email
-    global look_cookie, loop_time, maoerfm_cookie, max_request, middle, migu_cookie, monitoring, name, netease_cookie, new_line, new_url, new_word
-    global ntfy_api, ntfy_email, ntfy_tags, open_smtp_ssl, origin_line, over_push_message_text, over_show_push, pandatv_cookie, picarto_cookie, popkontv_access_token, popkontv_partner_code, popkontv_password
-    global popkontv_username, pplive_cookie, proxy_addr, proxy_addr_bak, push_check_seconds, push_message_title, pushplus_token, qiandurebo_cookie, quality, replace_words, running_snapshot, running_url
-    global semaphore, sender_email, sender_name, shopee_cookie, show_url, showroom_cookie, six_room_cookie, smtp_port, sooplive_cookie, sooplive_password, sooplive_username
+    global \
+        a, \
+        acfun_cookie, \
+        args, \
+        auto_update_anchor_name, \
+        baidu_cookie, \
+        bark_msg_api, \
+        bark_msg_level, \
+        bark_msg_ring, \
+        begin_push_message_text, \
+        begin_show_push, \
+        bigo_cookie, \
+        bili_cookie, \
+        blued_cookie
+    global \
+        changliao_cookie, \
+        chzzk_cookie, \
+        clean_emoji, \
+        converts_to_h264, \
+        converts_to_mp4, \
+        create_time_file, \
+        custom_script, \
+        delay_default, \
+        delete_origin_file, \
+        dingtalk_api_url, \
+        danmaku_platforms, \
+        danmaku_split_time, \
+        enable_danmaku, \
+        enable_danmaku_monitor
+    global \
+        dingtalk_is_atall, \
+        dingtalk_phone_num, \
+        disable_record, \
+        disk_limited, \
+        disk_space_limit, \
+        douyu_cookie, \
+        dy_cookie, \
+        email_host, \
+        email_password, \
+        enable_https_recording, \
+        enable_proxy_platform, \
+        enable_proxy_platform_list, \
+        exit_recording
+    global \
+        extra_enable_proxy, \
+        extra_enable_proxy_platform_list, \
+        faceit_cookie, \
+        filename_by_title, \
+        first_run, \
+        first_start, \
+        flextv_cookie, \
+        flextv_password, \
+        flextv_username, \
+        folder_by_author, \
+        folder_by_time, \
+        folder_by_title
+    global \
+        haixiu_cookie, \
+        hls_collection_enabled, \
+        hls_collection_exclude_platforms, \
+        host_id, \
+        huajiao_cookie, \
+        huamao_cookie, \
+        hy_cookie, \
+        ini_URL_content, \
+        input_url, \
+        is_comment_line, \
+        is_run_script, \
+        jd_cookie, \
+        ks_cookie, \
+        kugou_cookie
+    global \
+        laixiu_cookie, \
+        langlive_cookie, \
+        language, \
+        lehaitv_cookie, \
+        lianjie_cookie, \
+        line, \
+        line_spilt, \
+        liuxing_cookie, \
+        live_status_push, \
+        liveme_cookie, \
+        local_delay_default, \
+        login_email
+    global \
+        look_cookie, \
+        loop_time, \
+        maoerfm_cookie, \
+        max_request, \
+        middle, \
+        migu_cookie, \
+        monitoring, \
+        name, \
+        netease_cookie, \
+        new_line, \
+        new_url, \
+        new_word
+    global \
+        ntfy_api, \
+        ntfy_email, \
+        ntfy_tags, \
+        open_smtp_ssl, \
+        origin_line, \
+        over_push_message_text, \
+        over_show_push, \
+        pandatv_cookie, \
+        picarto_cookie, \
+        popkontv_access_token, \
+        popkontv_partner_code, \
+        popkontv_password
+    global \
+        popkontv_username, \
+        pplive_cookie, \
+        proxy_addr, \
+        proxy_addr_bak, \
+        push_check_seconds, \
+        push_message_title, \
+        pushplus_token, \
+        qiandurebo_cookie, \
+        quality, \
+        replace_words, \
+        running_snapshot, \
+        running_url
+    global \
+        semaphore, \
+        sender_email, \
+        sender_name, \
+        shopee_cookie, \
+        show_url, \
+        showroom_cookie, \
+        six_room_cookie, \
+        smtp_port, \
+        sooplive_cookie, \
+        sooplive_password, \
+        sooplive_username
     global scheduler, recording_semaphore
     # 热加载写回的两个全局：单次录制时长上限、SSL 豁免平台的上一次原始值（用于变更判定）
     global max_record_seconds, _last_ssl_disable_platforms_raw
-    global split_line, split_time, split_video_by_time, start_with, t, t2, taobao_cookie, text_no_repeat_url, tg_chat_id, tg_token, tiktok_cookie, to_email
-    global twitcasting_account_type, twitcasting_cookie, twitcasting_password, twitcasting_username, twitch_cookie, url, url_comments, url_host, url_tuple, url_tuples_list, use_proxy
-    global video_record_quality, video_save_path, video_save_type, video_save_type_list, vvxqiu_cookie, weibo_cookie, winktv_cookie, xhs_cookie, xizhi_api_url, yinbo_cookie, yingke_cookie, yiqilive_cookie
+    global \
+        split_line, \
+        split_time, \
+        split_video_by_time, \
+        start_with, \
+        t, \
+        t2, \
+        taobao_cookie, \
+        text_no_repeat_url, \
+        tg_chat_id, \
+        tg_token, \
+        tiktok_cookie, \
+        to_email
+    global \
+        twitcasting_account_type, \
+        twitcasting_cookie, \
+        twitcasting_password, \
+        twitcasting_username, \
+        twitch_cookie, \
+        url, \
+        url_comments, \
+        url_host, \
+        url_tuple, \
+        url_tuples_list, \
+        use_proxy
+    global \
+        video_record_quality, \
+        video_save_path, \
+        video_save_type, \
+        video_save_type_list, \
+        vvxqiu_cookie, \
+        weibo_cookie, \
+        winktv_cookie, \
+        xhs_cookie, \
+        xizhi_api_url, \
+        yinbo_cookie, \
+        yingke_cookie, \
+        yiqilive_cookie
     global youtube_cookie, yy_cookie, zhihu_cookie
 
     # FFmpeg 网关放在 main() 入口：模块级 sys.exit(1) 会在 import main 时杀死 uvicorn。
@@ -4783,7 +4943,6 @@ def main(non_interactive: bool = False) -> None:
         recording_semaphore = scheduler.recording_semaphore
 
     while True:
-
         try:
             if not os.path.isfile(config_file):
                 with open(config_file, "w", encoding=text_encoding) as file:

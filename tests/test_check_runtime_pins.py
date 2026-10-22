@@ -121,9 +121,9 @@ def test_real_matrix_parser_rejects_unregistered_runner_tag(tmp_path: Path, monk
     # 已随 linux-arm64 接入矩阵被登记，拿它当反例会让用例退化成「验证接受已知标签」）。
     # 先行断言样本确实不在映射里：将来有人登记了它，本用例以明确信息变红而非静默失去拦截面。
     _restore_real_matrix(monkeypatch)
-    assert (
-        "ubuntu-24.04-arm64" not in checker.RUNNER_TO_RUNTIME_KEY
-    ), "样本标签已被登记进映射，请更换一个真正未登记的 runner 标签"
+    assert "ubuntu-24.04-arm64" not in checker.RUNNER_TO_RUNTIME_KEY, (
+        "样本标签已被登记进映射，请更换一个真正未登记的 runner 标签"
+    )
     workflow = tmp_path / "build-release.yml"
     workflow.write_text(
         "        include:\n          - os: windows-latest\n          - os: ubuntu-24.04-arm64\n",
@@ -161,9 +161,9 @@ def test_strict_blocks_all_placeholder_table_with_real_matrix(monkeypatch: pytes
     # MID-2260 的正主：真矩阵 + 全占位表 + --strict 必须 rc=1。
     # 把 `_runtime_matrix_keys` 改成 `return []`（或桩成空列表且无人见证）→ 这里必红。
     _restore_real_matrix(monkeypatch)
-    assert (
-        _run(monkeypatch, _unpinned_everywhere(), strict=True) == 1
-    ), "全占位表在 --strict 下放行：矩阵解析被旁路 = 发布链无校验（SEV-10 形态）"
+    assert _run(monkeypatch, _unpinned_everywhere(), strict=True) == 1, (
+        "全占位表在 --strict 下放行：矩阵解析被旁路 = 发布链无校验（SEV-10 形态）"
+    )
     # 结构模式仍只报结构问题（rc=0），两种模式的语义不得混用。
     assert _run(monkeypatch, _unpinned_everywhere(), strict=False) == 0
 
@@ -197,14 +197,14 @@ def test_real_slot_inventory_is_wired_into_the_coverage_check(monkeypatch: pytes
     assert _run(monkeypatch, table, strict=False, slots_for=build_exe.runtime_slots_for) == 0
     broken = {key: dict(value) for key, value in table.items()}
     del broken["macos-arm64"]["ffprobe"]
-    assert (
-        _run(monkeypatch, broken, strict=False, slots_for=build_exe.runtime_slots_for) == 2
-    ), "macOS 缺 ffprobe 钉定项却没报结构缺陷：槽位覆盖面又被退回成全局 RUNTIME_SLOTS"
+    assert _run(monkeypatch, broken, strict=False, slots_for=build_exe.runtime_slots_for) == 2, (
+        "macOS 缺 ffprobe 钉定项却没报结构缺陷：槽位覆盖面又被退回成全局 RUNTIME_SLOTS"
+    )
     drifted = {key: dict(value) for key, value in table.items()}
     drifted["windows-x64"]["ffprobe"] = _HEX64
-    assert (
-        _run(monkeypatch, drifted, strict=False, slots_for=build_exe.runtime_slots_for) == 2
-    ), "表里多出该平台没有的下载槽位却被当成没看见"
+    assert _run(monkeypatch, drifted, strict=False, slots_for=build_exe.runtime_slots_for) == 2, (
+        "表里多出该平台没有的下载槽位却被当成没看见"
+    )
 
 
 def test_repository_pin_table_passes_the_real_inventory(monkeypatch: pytest.MonkeyPatch) -> None:

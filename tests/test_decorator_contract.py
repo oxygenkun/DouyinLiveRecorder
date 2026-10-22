@@ -177,7 +177,7 @@ def test_decorator_names_are_still_defined_and_used() -> None:
     utils_src = (ROOT / "src" / "utils.py").read_text(encoding="utf-8-sig")
     corpus = chr(10).join(path.read_text(encoding="utf-8-sig", errors="replace") for path in _iter_py_files())
     for name in sorted(_DEC_NAMES):
-        assert (
-            f"def {name}" in utils_src
-        ), f"src/utils.py 里已无 {name} 的定义：判定名需同步更新（并同步 AGENTS.md CR-12 条目）"
+        assert f"def {name}" in utils_src, (
+            f"src/utils.py 里已无 {name} 的定义：判定名需同步更新（并同步 AGENTS.md CR-12 条目）"
+        )
         assert f"@{name}" in corpus, f"仓库里已无 @{name} 挂点：要么平台函数全删了，要么装饰器改了名"

@@ -376,7 +376,7 @@ def test_hls_empty_media_playlist_conservative_pass() -> None:
 #   ① `_validate_stream_url` 的 last_resort 分支（末位候选「仍交由 ffmpeg 尝试」）；
 #   ② `select_source_url` 的 record_url 同址复用分支（只要探过就交付，不看结论）。
 # 修法是把安全拒绝改成内部控制流异常 + 单独的 security_rejected 集合，两条用例各锁一条。
-_INTERNAL_SEGMENT_BODY = "#EXTM3U\n" "#EXT-X-VERSION:3\n" "#EXTINF:4.000,\n" "http://127.0.0.1:6379/x.ts\n"
+_INTERNAL_SEGMENT_BODY = "#EXTM3U\n#EXT-X-VERSION:3\n#EXTINF:4.000,\nhttp://127.0.0.1:6379/x.ts\n"
 
 
 def test_internal_segment_rejects_even_at_last_resort() -> None:
@@ -1757,14 +1757,7 @@ def test_stream_select_all_url_logger_kwargs_masked() -> None:
 def test_mask_gate_predicate_sees_bare_url_kwarg() -> None:
     # ② 判据自检（防门禁假绿）：把 _bare_url_kwarg_linenos 退回「只扫 logger 顶层
     # keywords」会让本用例变红——违规必须真的抓得到
-    bare_nested = (
-        "logger.debug(\n"
-        "    i18n.tr(\n"
-        "        '探测解析异常: {url}',\n"
-        "        url=playlist_url,\n"
-        "    )\n"
-        ")\n"
-    )
+    bare_nested = "logger.debug(\n    i18n.tr(\n        '探测解析异常: {url}',\n        url=playlist_url,\n    )\n)\n"
     assert _bare_url_kwarg_linenos(bare_nested) == [4], "门禁漏抓：嵌套在 tr() 里的裸传 url= 必须命中"
     assert _bare_url_kwarg_linenos("logger.warning(i18n.tr('回退: {url}', url=same_origin))\n") == [1]
     # 反向：已包掩码与常量样例地址不得误报（否则全文件扫描会被文件里既有的合法写法整体打成红）
@@ -2114,9 +2107,9 @@ def test_all_probe_client_constructions_normalize_proxy_addr() -> None:
     src = _STREAM_SELECT_PATH.read_text(encoding="utf-8-sig")
     offenders, total, probe_calls = _unnormalized_proxy_constructions(src)
     detail = ", ".join(f"src/stream_select.py:{ln}" for ln in offenders)
-    assert (
-        not offenders
-    ), f"以下 httpx.Client 构造点 / _probe_client 调用点的 proxy 未经 utils.handle_proxy_addr 归一（SEV-N05 回归）：{detail}"
+    assert not offenders, (
+        f"以下 httpx.Client 构造点 / _probe_client 调用点的 proxy 未经 utils.handle_proxy_addr 归一（SEV-N05 回归）：{detail}"
+    )
     # 扫描面非空自检：总数为 0 说明判据失效（或构造被搬去别处），绿灯不能是「什么都没查」
     # WP-J：httpx.Client 构造收敛为 _probe_client 内唯一一处；调用点必须是两处（选源共用 + 校验自建），
     # 少一处即「另一处又变回裸构造」的静默漏接形态。
@@ -2147,9 +2140,9 @@ def test_probe_client_wiring_and_gate_coverage() -> None:
     assert isinstance(response_hooks, ast.List) and len(response_hooks.elts) == 1
     guard_call = response_hooks.elts[0]
     assert isinstance(guard_call, ast.Call) and isinstance(guard_call.func, ast.Name)
-    assert (
-        guard_call.func.id == "build_sync_hop_guard"
-    ), "response 钩子必须出自 async_http 的同步工厂 build_sync_hop_guard（判定只有一份事实源）"
+    assert guard_call.func.id == "build_sync_hop_guard", (
+        "response 钩子必须出自 async_http 的同步工厂 build_sync_hop_guard（判定只有一份事实源）"
+    )
 
     # (b) 两处使用 client 的路径都在**发出第一个请求之前**过了初始 URL 内网判定：
     #     · 自建分支（_validate_stream_url）：判定早于本函数内的第一次探针发出
@@ -2172,15 +2165,15 @@ def test_probe_client_wiring_and_gate_coverage() -> None:
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_validate_stream_url"
         ]
         assert emitted, f"{name} 内找不到探针发出点，判据（判定必须早于探针）失效"
-        assert min(n.lineno for n in judged) < min(
-            n.lineno for n in emitted
-        ), f"{name}: 内网判定排在探针之后——被拒的地址已经发出去了"
+        assert min(n.lineno for n in judged) < min(n.lineno for n in emitted), (
+            f"{name}: 内网判定排在探针之后——被拒的地址已经发出去了"
+        )
 
     # (c) 判定与钩子都来自 async_http 的同一份实现，且一律走**函数内 import**
     #     （模块级出边会改变 stream_select↔main 这条既有导入环的初始化顺序，见 async_http.py:518-521）
-    assert not any(
-        isinstance(n, ast.ImportFrom) and (n.module or "").endswith("async_http") for n in tree.body
-    ), "stream_select 不得在模块级 import async_http（本仓存在 stream_select↔main 导入环）"
+    assert not any(isinstance(n, ast.ImportFrom) and (n.module or "").endswith("async_http") for n in tree.body), (
+        "stream_select 不得在模块级 import async_http（本仓存在 stream_select↔main 导入环）"
+    )
     for name in ("_probe_client", "_validate_stream_url", "select_source_url", "_confirm_get_ok", "_probe_hls_segment"):
         imports = [
             n
@@ -2205,9 +2198,9 @@ def test_probe_client_wiring_and_gate_coverage() -> None:
             hop_at = next((i for i, k in enumerate(kinds) if k == "RedirectHopRejected"), None)
             if emits and broad_at is not None:
                 guarded += 1
-                assert (
-                    hop_at is not None
-                ), f"{name}: 有一段既发探针又用 except Exception 吞异常的 try 没有 except RedirectHopRejected 分支"
+                assert hop_at is not None, (
+                    f"{name}: 有一段既发探针又用 except Exception 吞异常的 try 没有 except RedirectHopRejected 分支"
+                )
                 assert hop_at < broad_at, f"{name}: except RedirectHopRejected 写在 except Exception 之后（永不命中）"
         assert guarded >= 1, f"{name}: 判据没扫到任何「发探针且吞异常」的 try，本条锁已失效"
 
@@ -2235,9 +2228,9 @@ def test_proxy_normalization_gate_predicate_sees_unnormalized_construction() -> 
     assert _unnormalized_proxy_constructions(no_proxy) == ([], 1, 0)
     # WP-J 新增：_probe_client 调用点的 proxy 同样必须归一，位置实参与关键字实参两种传法都要抓得到；
     # 「漏写 proxy 实参」必须变红，而「显式传字面量 None」= 直连、属合法形态（不得误报）
-    factory_bare_positional = "def f(url, proxy_addr):\n" "    c = _probe_client(5, proxy_addr, True)\n"
+    factory_bare_positional = "def f(url, proxy_addr):\n    c = _probe_client(5, proxy_addr, True)\n"
     assert _unnormalized_proxy_constructions(factory_bare_positional) == ([2], 0, 1)
-    factory_bare_keyword = "def f(url, proxy_addr):\n" "    c = _probe_client(5, proxy_addr=proxy_addr, verify=True)\n"
+    factory_bare_keyword = "def f(url, proxy_addr):\n    c = _probe_client(5, proxy_addr=proxy_addr, verify=True)\n"
     assert _unnormalized_proxy_constructions(factory_bare_keyword) == ([2], 0, 1)
     factory_missing_proxy = "def f(url, timeout, verify):\n    c = _probe_client(timeout, verify=verify)\n"
     assert _unnormalized_proxy_constructions(factory_missing_proxy) == ([2], 0, 1)

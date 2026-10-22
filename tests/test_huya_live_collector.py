@@ -33,7 +33,7 @@ def main() -> None:
     if not isinstance(info, dict) or not info.get("is_live"):
         print(f"[FAIL] 房间未开播或信息获取失败: {info!r}")
         print(
-            f'VERIFICATION_RESULT: {json.dumps({"platform": "huya", "script": "test_huya_live_collector.py", "url": URL, "status": "SKIP" if isinstance(info, dict) and not info.get("is_live") else "FAIL", "reason": "room_offline" if isinstance(info, dict) and not info.get("is_live") else "fetch_failed", "messages": 0})}'
+            f"VERIFICATION_RESULT: {json.dumps({'platform': 'huya', 'script': 'test_huya_live_collector.py', 'url': URL, 'status': 'SKIP' if isinstance(info, dict) and not info.get('is_live') else 'FAIL', 'reason': 'room_offline' if isinstance(info, dict) and not info.get('is_live') else 'fetch_failed', 'messages': 0})}"
         )
         sys.exit(1)
     # 虎牙 app 弹幕三参数：ayyuid=用户yyid、topSid=频道id(lChannelId)、subSid=子频道id
@@ -87,12 +87,12 @@ def main() -> None:
     else:
         print(f"[FAIL] SRT 未生成: {srt_file}")
         print(
-            f'VERIFICATION_RESULT: {json.dumps({"platform": "huya", "script": "test_huya_live_collector.py", "url": URL, "status": "FAIL", "messages": 0})}'
+            f"VERIFICATION_RESULT: {json.dumps({'platform': 'huya', 'script': 'test_huya_live_collector.py', 'url': URL, 'status': 'FAIL', 'messages': 0})}"
         )
         sys.exit(1)
     _srt_sz = os.path.getsize(srt_file)
     print(
-        f'VERIFICATION_RESULT: {json.dumps({"platform": "huya", "script": "test_huya_live_collector.py", "url": URL, "status": "PASS" if count > 0 else "WARN", "messages": count, "srt_bytes": _srt_sz})}'
+        f"VERIFICATION_RESULT: {json.dumps({'platform': 'huya', 'script': 'test_huya_live_collector.py', 'url': URL, 'status': 'PASS' if count > 0 else 'WARN', 'messages': count, 'srt_bytes': _srt_sz})}"
     )
 
 

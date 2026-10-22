@@ -616,9 +616,9 @@ class TestHopGuardWiringLocks:
             hop, broad = _hop_handler_linenos(defs[name])
             assert len(hop) == len(broad), f"{name}: 每条吞异常的 except Exception 都要配一条在前的 RedirectHopRejected"
             for hop_line, broad_line in zip(sorted(hop), sorted(broad)):
-                assert (
-                    hop_line < broad_line
-                ), f"{name}: except RedirectHopRejected 写在 except Exception 之后（永不命中）"
+                assert hop_line < broad_line, (
+                    f"{name}: except RedirectHopRejected 写在 except Exception 之后（永不命中）"
+                )
         hop, broad = _hop_handler_linenos(defs["_validate_stream_url"])
         assert hop and broad, "_validate_stream_url 缺少 RedirectHopRejected / Exception 出口"
         assert min(hop) < min(broad), "_validate_stream_url: 内网落地异常被宽 except 抢先吞掉"

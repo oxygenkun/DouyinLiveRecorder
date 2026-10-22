@@ -2065,7 +2065,7 @@ def main() -> None:
     version = read_version()
     print(f"[build] 项目版本：v{version}，平台：{sys.platform}/{platform.machine()}")
     strict = "是（缺钉定即终止构建）" if require_pinned_hashes() else "否（仅本地构建，产物不得发布）"
-    print(f"[build] 运行时二进制钉定：槽位 {runtime_slot_key()}，要求钉定={strict}，" f"在线来源={pin_source_mode()}")
+    print(f"[build] 运行时二进制钉定：槽位 {runtime_slot_key()}，要求钉定={strict}，在线来源={pin_source_mode()}")
 
     if dual:
         # --dual：PyInstaller 只跑一次，先产 lite 再产 full，避免重复打包。

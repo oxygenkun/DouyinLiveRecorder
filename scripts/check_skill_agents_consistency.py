@@ -208,9 +208,7 @@ def main() -> int:
         # 检查 2: frontmatter name 必须与目录名一致
         fm_name = fm.get("name", "")
         if fm_name and fm_name != dir_name:
-            errors.append(
-                f"[FAIL] {rel_path_clean}/SKILL.md frontmatter name='{fm_name}' " f"与目录名 '{dir_name}' 不一致"
-            )
+            errors.append(f"[FAIL] {rel_path_clean}/SKILL.md frontmatter name='{fm_name}' 与目录名 '{dir_name}' 不一致")
         elif not fm_name:
             errors.append(f"[FAIL] {rel_path_clean}/SKILL.md 缺少 frontmatter name 字段")
 
@@ -244,7 +242,7 @@ def main() -> int:
                 child_text = child_skill_md.read_text(encoding="utf-8")
                 # 如果 SKILL.md 内引用了 AGENTS.md 作为事实源，说明它是项目级 Skill
                 if "约束事实源" in child_text and "AGENTS.md" in child_text:
-                    warnings.append(f"[WARN] 项目级 Skill 目录存在但未在 AGENTS.md 表格登记: " f"{child_rel}")
+                    warnings.append(f"[WARN] 项目级 Skill 目录存在但未在 AGENTS.md 表格登记: {child_rel}")
 
     # 输出结果
     for w in warnings:

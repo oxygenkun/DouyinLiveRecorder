@@ -29,9 +29,9 @@ DouyinLiveRecorder 是一个支持 60+ 直播平台的录制工具，包含命�
 | 基础设施（src/） | async_http.py、sync_http.py、http_config.py、utils.py、config_io.py、config_bool.py、cookie_cache.py、ttwid.py、ab_sign.py、proxy.py、log_archive.py、logger.py、ffmpeg_install.py、ffmpeg_master_download.py、node_install.py、__init__.py、base.py |
 | Web 面板 | web_api.py、web_config.py、web_tray.py；web/app.js、web/index.html、web/style.css；根目录 index.html |
 | 平台与弹幕协议 | platforms/ 下 bilibili.py、douyin.py、douyu.py、huya.py、twitch.py、_tars.py、_xbogus.py；ws_client.py；javascript/ 下 haixiu.js、liveme.js、migu.js、x-bogus.js |
-| 构建/运维/脚本 | Dockerfile、docker-compose.yaml、StopRecording.vbs、.github/workflows/ 全部 yml；scripts/ 下全部 15 个 .py/.sh（含 douyin_live_recorder_standalone.py） |
+| 构建/运维/脚本 | Dockerfile、docker-compose.yaml、.github/workflows/ 全部 yml；scripts/ 下全部 15 个 .py/.sh（含 douyin_live_recorder_standalone.py） |
 
-合计约 3.5 万行产品代码，Python / JavaScript / HTML / CSS / VBS / Shell / YAML / Dockerfile 均在覆盖内。
+合计约 3.5 万行产品代码，Python / JavaScript / HTML / CSS / Shell / YAML / Dockerfile 均在覆盖内。
 
 ### 2.2 明确排除项
 
@@ -346,7 +346,7 @@ DouyinLiveRecorder 的整体代码质量与安全水位在同类开源工具中�
 
 ## 附录：审查覆盖与核查记录
 
-- 全部产品源码逐行通读：main.py、gui.py、web.py、msg_push.py、i18n.py、build_exe.py、src/ 全部 35 个产品模块、web/ 前端 3 文件、根 index.html、scripts/ 全部脚本、Dockerfile/compose/workflows/VBS。
+- 全部产品源码逐行通读：main.py、gui.py、web.py、msg_push.py、i18n.py、build_exe.py、src/ 全部 35 个产品模块、web/ 前端 3 文件、根 index.html、scripts/ 全部脚本、Dockerfile/compose/workflows。
 - 关键发现复核方式：S-1（含 `_shopee_host_suffix` 实参推演 + 小红书对照实现双向核实）、M-1（派生跳防护边界与五个探针调用点逐一核实）、M-2（spider 1297-1323 对照）、M-3（百度/淘宝两处现场核实）、M-4/M-5（含 `src/__init__.py` 导入期调用链）、M-8/M-9（含同文件对照分支）均已回源读到原始代码行。
 - 全仓危险模式检索结论：产品 Python 代码中无 `shell=True / os.system / pickle.load / yaml.load(` 命中；`verify=False` 无命中（仅注释文字）；JS 中的 `eval` 仅作用于 haixiu.js/x-bogus.js 内硬编码常量字符串与 `require()` 字面量，无外部输入流入。
 - 未覆盖：tests/ 逐行评审、运行时动态 PoC、第三方库内部审计（依赖侧由 requirements 下限审计与 CI deps-audit 承担）。

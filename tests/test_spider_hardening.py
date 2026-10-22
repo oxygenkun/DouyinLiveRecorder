@@ -1595,7 +1595,7 @@ class TestPopkontvSearchHardening(_GuardCase):
     async def test_view_page_truncated_leaves_clue(self) -> None:
         # __NEXT_DATA__ 命中但内联 JSON 被截断：与「未开播」区分（原实现抛 JSONDecodeError）。
         # 必须保留 </script> 闭合，否则测的是「正则未命中」分支而不是解析分支。
-        view = '<script id="__NEXT_DATA__" type="application/json">{"props": {"pageProps": {"mcData": ' "</script>"
+        view = '<script id="__NEXT_DATA__" type="application/json">{"props": {"pageProps": {"mcData": </script>'
         logger = _fake_logger()
         with (
             patch.object(sp, "async_req", new=_fake_req({"search/all": self._SEARCH, "live/view": view})),

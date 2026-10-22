@@ -21,7 +21,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
 
 ### 1.2 审查目标
 
-按要求覆盖工作区全部**自有**源文件（Python / JavaScript / HTML / CSS / VBScript / YAML / TOML / Dockerfile / GitHub Actions），逐文件记录问题、所在路径与修复建议，排查五类缺陷：代码质量、潜在缺陷（空值/越界/竞态/资源泄漏）、安全漏洞（注入/穿越/凭据泄露/SSRF/XSS/鉴权/供应链）、逻辑错误（分支绑定错误、默认值漂移、判定口径错误）、可靠性与可观测性。
+按要求覆盖工作区全部**自有**源文件（Python / JavaScript / HTML / CSS / Shell / YAML / TOML / Dockerfile / GitHub Actions），逐文件记录问题、所在路径与修复建议，排查五类缺陷：代码质量、潜在缺陷（空值/越界/竞态/资源泄漏）、安全漏洞（注入/穿越/凭据泄露/SSRF/XSS/鉴权/供应链）、逻辑错误（分支绑定错误、默认值漂移、判定口径错误）、可靠性与可观测性。
 
 ### 1.3 审查方法
 
@@ -86,7 +86,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
 | 11 | 安装器 | `src/ffmpeg_install.py`、`node_install.py` | 2 | 775 | 全文 |
 | 12 | 维护脚本 | `scripts/*.py`（10 个） | 10 | 3,919 | 全文（standalone 2,027 行按历史产物口径抽样核对本仓一致性） |
 | 13 | 测试 | `tests/*.py`（62）+ `tests/frontend/*.mjs`（1） | 64 | 16,906 | 可信度专项（第七章） |
-| 14 | 构建·CI·容器 | `Dockerfile`、`docker-compose.yaml`、`pyproject.toml`、`requirements.txt`、`.github/workflows/*`（4）、`.github/actions/retry/action.yml`、`StopRecording.vbs`、`.gitignore`、`.dockerignore` | 11 | 3,070 | 全文 |
+| 14 | 构建·CI·容器 | `Dockerfile`、`docker-compose.yaml`、`pyproject.toml`、`requirements.txt`、`.github/workflows/*`（4）、`.github/actions/retry/action.yml`、`.gitignore`、`.dockerignore` | 11 | 3,070 | 全文 |
 | | **合计** | | **146** | **56,543** | |
 
 ### 2.2 明确排除项
@@ -380,7 +380,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 - **MID-29 `replace_url` / `remove_duplicate_lines` 非原子、未持 `file_update_lock` 重写 `URL_config.ini`**（`src/utils.py:548-560`、`:482-497`；调用点 `src/spider.py:3910`（花椒地址失效自动注释）、`main.py:3979`，实测核对）。H-6/WD-15 已把该文件的读-改-写收敛到 `config_io`（持锁 + 同目录 tmp + `os.replace`），但花椒这条路径走 `utils.replace_url`：既无锁也非原子。与主循环热加载 / Web 原子写并发时：① truncate 窗口内主循环读到空/半写文件 → 房间被误判为「配置里已删除」；② Windows 上目标被 `open("w")` 持句柄会让对端 `os.replace` 抛 PermissionError → 原子写降级为「已保留原文件」，该次注释/画质变更丢失；③ 两写方交错时后写者整体回退先写者改动。另 `remove_duplicate_lines` 的 `UnicodeDecodeError` 回退分支未清空首轮已读的 `unique_lines`，两种解码结果混在同一 OrderedDict，可把误解码出的乱码键写回文件。**建议**：两处改走 `atomic_write_text` 并包 `main.file_update_lock`（或下沉 `config_io`，与 `update_anchor_name` 同型）；回退分支先 `clear()`。**置信度：高**。
 - **MID-30 `room_stopped` 位于 `while True` 之内，每轮检测都弹出监控房间并写假 `stopped` 事件**（`main.py:3065`/`:3752-3764`、`src/danmaku_monitor.py:119-138`，实测核对缩进层级）。`finally` 与其 `try` 同为 8 空格缩进、位于 `:3065` 的 `while True:` **体内**，即每轮执行，而注释与 AGENTS 都把它描述为「房间线程退出时移除」的钩子。后果：GUI `_danmaku_dispatch` 收 `state=="stopped"` 即 pop 房间行、Web 快照随房间消失 → 监控页只在「正在录制这段时间」显示房间，轮询间隙行被移除，下轮开播才由 `room_started` 重新注册并**清零统计**；「开播→下播→再开播」每个循环都向 JSONL 边车写一条假「房间已停止监控」。删掉该清理会回归「已失效房间永久残留」，故不能简单移除。**建议**：把该清理移到 `_room_thread_target` 的 finally（该处已在做 `create_var.pop` / `remove_room_from_running`，语义正是线程退出），或把 try 包在整个 `while True` 外层、finally 只挂一次。**置信度：高**。
 - **MID-31 `display_info` 异常路径无 sleep：无控制台环境下守护线程 100% CPU 忙等并刷满日志**（`src/recorder_status.py:135-207`，实测核对）。整个循环唯一的 `time.sleep(5)` 位于 `sys.stdout.flush()` **之后**、try 内部，`except Exception` 分支只 `logger.error` 无退避。AGENTS「无控制台环境」条目明确 `pythonw.exe` 与 `console=False` 冻结 exe 下 `sys.stdout is None`，而 `main.py:4470` **无条件**启动该线程 → 每轮 `AttributeError` → 立即重来 → 单核跑满 + `streamget.log` 秒级灌满，并与录制线程抢 GIL。第二形态：Web 后台模式下 `sys.stdout` 指向 `logs/web_console.log`，日志归档改名/关句柄窗口内 `flush()` 抛 `ValueError: I/O operation on closed file`，同样紧循环。**建议**：`sleep` 移到 try 之外（或 `finally`）；开头补 `if sys.stdout is None: time.sleep(5); continue`；except 内按连续失败次数退避。**置信度：高**。
-- **MID-32 `cleanup_all_ffmpeg_processes` 的 `f.result(timeout=10)` 是空操作，一个卡死即可永久挂住退出链路**（`src/ffmpeg_proc.py:133-140`，实测核对）。`as_completed(futures)` 未传 `timeout`，它本身无限阻塞直到某 future 完成；能进循环体的 future 必然已完成，故那 10 秒上限永不触发——是死代码。真正的无界点在 worker 内：Windows 分支 `proc.stdin.write(b"q")` / `flush()` 无任何超时（ffmpeg 已卡死且不读 stdin、管道缓冲满时永久阻塞）；三段 `proc.wait(timeout=timeout//3)` 尚可，但 `timeout < 3` 时算出 0，等于跳过优雅退出直接 `terminate()`，MP4 会丢 moov。外层 `with ThreadPoolExecutor` 退出即 `shutdown(wait=True)`，而本函数由 atexit / Web「停止录制」调用 → 进程退出或停止请求永久挂住（`StopRecording.vbs` 在 AGENTS 中被定性为「仅进程卡死时的最后手段」，正是为这类形态准备）。**建议**：改 `concurrent.futures.wait(futures, timeout=总预算)`（或 `as_completed(..., timeout=)`）并把 `TimeoutError` 记为「未确认清理」；stdin 写完立即 close 且不假定回音；按剩余预算收敛三段均分。**置信度：高**。
+- **MID-32 `cleanup_all_ffmpeg_processes` 的 `f.result(timeout=10)` 是空操作，一个卡死即可永久挂住退出链路**（`src/ffmpeg_proc.py:133-140`，实测核对）。`as_completed(futures)` 未传 `timeout`，它本身无限阻塞直到某 future 完成；能进循环体的 future 必然已完成，故那 10 秒上限永不触发——是死代码。真正的无界点在 worker 内：Windows 分支 `proc.stdin.write(b"q")` / `flush()` 无任何超时（ffmpeg 已卡死且不读 stdin、管道缓冲满时永久阻塞）；三段 `proc.wait(timeout=timeout//3)` 尚可，但 `timeout < 3` 时算出 0，等于跳过优雅退出直接 `terminate()`，MP4 会丢 moov。**建议**：改 `concurrent.futures.wait(futures, timeout=总预算)`（或 `as_completed(..., timeout=)`）并把 `TimeoutError` 记为「未确认清理」；stdin 写完立即 close 且不假定回音；按剩余预算收敛三段均分。**置信度：高**。
 
 ---
 ### 4.4 凭据生命周期与 Web 面板安全面 — MID-33 … MID-39
@@ -419,7 +419,6 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 - **MID-57 原子写只 `os.replace` 不 fsync：掉电/内核崩溃后 `URL_config.ini` 仍可被替换成 0 字节**（`src/config_io.py:112` → `src/utils.py:413-420`，同类 `src/web_config.py:402`）。WD-15 的立论是「进程被杀/掉电/磁盘满时不再把配置截成空文件」，但 `close()` 只把数据交给内核页缓存，随后 `os.replace` 修改目录项，两者落盘顺序无保证（ext4 ordered-mode 只是常见情况，XFS/NTFS 不保证），可出现「新目录项 + 空/半截数据页」，恰是本次修复要消灭的形态；也没有 `os.sync()`/目录 fsync，rename 自身亦非耐久。**建议**：`f.flush(); os.fsync(f.fileno())` 后再 replace，replace 后对父目录 fsync（Windows 不可得则跳过）。**置信度：中**。
 - **MID-58 推送失败日志把自建 Bark 服务器的 device key 原样写进轮转日志**（`msg_push.py:56`，实测核对）。Bark 密钥是路径末段，短于 12 字符时**只能靠 `day.app` 主机名白名单**命中：实测 `https://api.day.app/MyKey124/` → `https://api.day.app/****`，而 `https://bark.example.com/AbCdEfGh` → **原样保留**。自建/反代 Bark 用户一旦推送失败，含明文 key 的地址进 `logs/streamget.log`（300KB 轮转留多份、求助时通常整包上传）；拿到该 key 即可向用户手机无限推送通知。同函数其余渠道（钉钉/Server酱/TG/PushPlus）均已脱敏。**建议**：把「密钥即路径末段」作为通则——对 push/bark 类渠道无条件遮蔽最后一段（或引入渠道枚举），不按主机名白名单；补用例断言 `bark.example.com/<8字符>` 必须被遮蔽。**置信度：高**。
 - **MID-59 ffmpeg 官方源 ToFU 旁路文件不随版本轮转 → 上游换构建后自动安装永久死路**（`src/ffmpeg_install.py:69`、`:125`、`:306-315`）。gyan.dev 的 `ffmpeg-release-essentials.zip` 是滚动 URL，构建一变 SHA 即变，而旁路文件（`_ffmpeg_official.zip.sha256`）与 zip 名都固定 → 首次记录后**第二次自动安装必然不等** → `download_ffmpeg_official` 返 False → 转蓝奏云 → 蓝奏云在既无 `FFMPEG_LANZOU_SHA256` 也无 `FFMPEG_LANZOU_ALLOW_UNVERIFIED` 时同样默认拒绝 → 用户只剩「Please manually install ffmpeg」，而排查线索只在 `logger.error` 一行里。模块注释承认 ToFU，但未承认这条**组合死路**。附带：TOFU 基线与 zip 同目录（`execute_dir`），能写该目录者可同时替换产物与旁路文件，校验强度实际等同目录权限。**建议**：旁路文件按构建标识命名（附 Last-Modified/Content-Length 或 gzip 内版本串），或「不一致时降级为 warning + 询问式重记录」；蓝奏云拒绝时明确提示「官方源哈希过期，请删除 <path>」。**置信度：中高**。
-- **MID-60 `StopRecording.vbs` 对 pip 启动器形态双向失准，且静默模式判据过松**（`StopRecording.vbs:152`（WMI 映像名枚举）、`:210`（`InStr(1, s, ENTRY_SHIM_KEY)`）、`:51`（`silentMode = Arguments.Count > 0`））。① **漏杀**：`[project.scripts]` 入口实测为 `douyin-recorder.exe`/`-gui.exe`/`-web.exe`（独立映像名，launcher 内嵌解释器、无同名 python.exe 子进程），不在 `Name=` 枚举内 → 录制主进程完全不被匹配；其 ffmpeg 孙进程因 `recorderList.Exists(parentPid)` 为假，只能靠 `IsPathAnchored(exePath)` 命中 → 结果「ffmpeg 被杀、主进程存活并下一轮重新拉起」，正是文件头第 3 点声称已消除的竞态窗口。② **误杀**：`ENTRY_SHIM_KEY` 为裸子串匹配，整条命令行（含解释器路径）出现 `douyin-recorder` 即定罪——venv 目录恰叫该名时，其中任意 python 进程（编辑器 LSP、pytest）都会被 `taskkill /f /t` 整树杀掉；这与同函数 2026-09-12 对 `APP_DIR_KEY` 改用 `ContainsAtWordBoundary` 的严格度自相矛盾，也违反本仓「刻意不按项目目录匹配以免误杀编辑器进程」的既定约定。③ 静默模式不看取值，`cscript //nologo StopRecording.vbs /?` 之类误调用即跳过确认框直接强杀。（注：实测该文件确为 **UTF-16 LE + `FF FE` BOM + 全 CRLF**，与约定一致，编码不是问题。）**建议**：查询串补三个 `douyin-recorder*.exe` 映像名；shim 判定走 `ContainsAtWordBoundary` 且限定为命令行首个 token 的 basename；静默改为遍历比对 `-y` 取值。**置信度：高**。
 
 ### 4.7 客户端 JS、门禁、测试可信度与 CI — MID-61 … MID-69
 
@@ -478,7 +477,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 | **P1-b 并发时序与生命周期** | 消除丢信号/串号/无 TTL | MID-22、MID-23、MID-26、MID-30、MID-31、MID-32、MID-33、MID-35 | `async_http.py`、`collector.py`、`stream_select.py`、`ttwid.py`、`web_api.py` | 并发用例（多房间同 key）、SSL 策略一致性断言、面板响应性冒烟 |
 | **P1-c 数据耐久与写回** | 防丢失更新与半写 | MID-55、MID-56、MID-57、MID-29、MID-11 | `gui.py`、`utils.py`、`config_io.py`、`sync_http.py` | CRLF/并发写夹具；掉电语义按 fsync 断言（可用 mock 校验调用序列） |
 | **P1-d 平台解析批量加固** | 收敛 CR-12 范式 | MID-41、MID-42、MID-43、MID-44、MID-46、MID-47、MID-48、MID-49、MID-50 | `spider.py`（约 20 个函数） | 按平台分批；每批以 `_loads_dict` 迁移 + fixture 化返回体 |
-| **P1-e 安装与运维链路** | 消除死路与误杀 | MID-58、MID-59、MID-60、MID-61、MID-62 | `msg_push.py`、`ffmpeg_install.py`、`StopRecording.vbs`、`migu.js` | 哈希过期场景手工回归；VBS 可用「ping.exe 改名伪装」的既有静默模式实弹验证 |
+| **P1-e 安装与运维链路** | 消除死路与误杀 | MID-58、MID-59、MID-60、MID-61、MID-62 | `msg_push.py`、`ffmpeg_install.py`、`migu.js` | 哈希过期场景手工回归 |
 | **P2** | 文案/口径/纵深 | 第 5 节全部 24 项 + MIN-24 文档纠正 | 零散 | 纯文档/注释改动按 AGENTS「完成定义」豁免条款执行 |
 
 ### 6.2 需要「先改文档/约定」再改代码的两处
@@ -540,7 +539,6 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 | `build_exe.py` / `Dockerfile` / `docker-compose.yaml` | SEV-10, MID-63 ／ MIN-14 ／ MIN-18 |
 | `src/ffmpeg_install.py` / `src/node_install.py` | SEV-10, MID-59, MIN-24 ／ SEV-10, MID-59 |
 | `msg_push.py` / `i18n.py` | MID-58 ／ MID-52 |
-| `StopRecording.vbs` | MID-60（编码 UTF-16 LE/BOM/CRLF 实测合规） |
 | `.github/workflows/ci.yml` / `build-release.yml` / `trivy.yml` / `issue-translator.yml` | MIN-15, MID-63 ／ SEV-10, MIN-16 ／ MIN-16 ／ MIN-17 |
 | `scripts/check_annotations.py` / `extract_i18n_strings.py` / `check_version.py` / `check_coverage.py` | MIN-15 ／ MIN-10, MIN-15 ／ MIN-14 ／ MIN-19 |
 | `tests/`（可信度专项） | MID-64 … MID-69（涉及 `test_frontend_quality_ui.py`、`test_bilibili_danmaku_info.py`、`test_record_failure_feedback.py`、`test_start_record_command_golden.py`、`test_ab_sign.py`、`test_i18n_migration.py`、`test_scheduler.py`） |
@@ -626,7 +624,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 
 ### D.1 补扫方法与覆盖面
 
-- 工具：一次性脚本置于 `%TEMP%`（不入库），扫描自有源码 `.py/.js/.mjs/.css/.html/.vbs/.yml/.yaml/.toml/.json` 共 **195 个文件**，显式排除 `.venv/`、`node/`、`ffmpeg/`、`logs/`、`downloads/`、本地工具目录，**并排除 `config/`**（运行时凭据文件，不属源码审查范围）。
+- 工具：一次性脚本置于 `%TEMP%`（不入库），扫描自有源码 `.py/.js/.mjs/.css/.html/.yml/.yaml/.toml/.json` 共 **195 个文件**，显式排除 `.venv/`、`node/`、`ffmpeg/`、`logs/`、`downloads/`、本地工具目录，**并排除 `config/`**（运行时凭据文件，不属源码审查范围）。
 - 判据三条：① 变量名含 `secret|token|key|pwd|password|salt|appid|client_id|api_key|auth|bearer|cookie|aes|des|iv` 且赋值为字符串字面量；② 香农熵 ≥ 3.2 或长度 ≥ 24 的字符串字面量；③ 已知凭据签名形态（`AKIA…`、`-----BEGIN PRIVATE KEY-----`、`ghp_…`、`xox…-`、JWT 头 `eyJ…\.`）。
 
 **结果：14 处候选，逐条定伪后无新增真实凭据泄漏。** 两条重点候选判定如下（记为已核实不构成问题）：

@@ -51,16 +51,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SECTION_PREFIX = "## 格式化命令"
 FENCE_LANG = "```bash"
 
-# 写型格式化命令兜底拦截（AGENTS.md 约定：black/isort 不带检查开关会改写文件，
-# 不得进入门禁回路）。按「模块词 + 缺检查开关」判定，而不是匹配整条命令字面量，
-# 避免将来给命令加公共参数（如 --extend-exclude）时判定失效。
-# 开关集合必须按各工具实际 CLI 写全：isort 的检查开关是 `--check-only`，没有 `--check`
-# （首版只写 --check 导致门禁自带的 isort 行被自己拦下，rc=2）。black 只认 `--check`：
-# --check-ast / --check-lines 不参与「是否写盘」判定，列入会抬高拦截阈值造成漏拦。
-WRITE_GUARD: dict[str, tuple[str, ...]] = {
-    "black": ("--check",),
-    "isort": ("--check-only",),
-}
+# Ruff 的 format 默认写盘，check 仅显式修复时写盘；门禁只接收只读调用。
 
 # 子进程环境的硬默认（MID-63，2026-09-20 定稿）。
 # isort 用**平台默认编码**读源文件：GBK locale 下含中文注释的文件会抛
@@ -78,6 +69,8 @@ GATE_CHILD_ENV: dict[str, str] = {"PYTHONUTF8": "1"}
 # 该兜底回路自己也接管 pytest 的 stderr 并按本清单判定（rc=0 命中即失败）。
 #   [历史注] 2026-09-23 SEV-2219 之前，本处写的是「pytest 兜底不并入本清单的扫描回路」。
 FATAL_STDERR_PATTERNS: tuple[str, ...] = (
+    "Failed to lint",  # Ruff 读文件失败不得静默跳过
+    "Failed to format",
     "Unable to parse file",  # isort/black：编码或解析失败的静默跳过（UserWarning，rc=0）
 )
 
@@ -219,28 +212,26 @@ def _first_fenced_block(section: list[str]) -> list[str]:
 
 
 def is_write_command(cmd: str) -> bool:
-    # 判定 black / isort 是否处于写模式（未显式传 --check / --check-only）。
-    # 模块名只从两种位置识别：`python -m <module>` 的 <module>，或脚本名（argv[0] 的 basename）。
-    # 不能扫描全部 token 判同名：isort 的门禁写法 `--profile black` 里的参数值 black
-    # 会被误判成「裸 black 调用」（首版实测即此坑），故只认结构位置，不认任意 token。
+    # 只识别命令入口和 Ruff 子命令，不能把参数里的工具名称当成另一个命令。
     try:
         argv = shlex.split(cmd.replace("\\", "/"))
     except ValueError:
         return False
-    targets = set(WRITE_GUARD)
     module_pos: int | None = None
     if argv:
         script = Path(argv[0]).name
         if script in ("python", "python3", "py") and len(argv) >= 2 and argv[1] == "-m":
             module_pos = 2
-        elif script in targets:
+        elif script == "ruff":
             module_pos = 0
-    if module_pos is None or module_pos >= len(argv) or argv[module_pos] not in targets:
+    if module_pos is None or module_pos >= len(argv) or argv[module_pos] != "ruff":
         return False
-    check_flags = WRITE_GUARD[argv[module_pos]]
     rest = argv[module_pos + 1 :]
-    # 精确匹配：`--check` 或 `--check=...`（工具未来改带值开关时不至于漏判）
-    return not any(any(tok == f or tok.startswith(f + "=") for f in check_flags) for tok in rest)
+    if not rest:
+        return False
+    if rest[0] == "format":
+        return not any(tok.split("=", 1)[0] in {"--check", "--diff"} for tok in rest)
+    return rest[0] == "check" and any(tok.split("=", 1)[0] in {"--fix", "--fix-only"} for tok in rest)
 
 
 def run_command(cmd: str, extra_env: dict[str, str] | None = None) -> tuple[int, float, list[str]]:
@@ -504,7 +495,7 @@ def main(argv: list[str] | None = None) -> int:
     # 兜底拦截：写型格式化命令绝不允许进入回路，宁可拒绝执行也不改动工作区
     unsafe = [c for c in cmds if is_write_command(c)]
     if unsafe:
-        print("ERROR: 门禁清单中出现写型格式化命令（black/isort 未带 --check）:", file=sys.stderr)
+        print("ERROR: 门禁清单中出现写型格式化命令（格式器处于写入模式）:", file=sys.stderr)
         for c in unsafe:
             print(f"  {c}", file=sys.stderr)
         return 2
@@ -551,7 +542,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"门禁全绿：{len(cmds)} 条全部通过（耗时 {total:.1f}s）")
     print("=" * 72)
-    # DoD 第 1 步还包含 pytest（0 警告）+ check_coverage.py + basedpyright。
+    # DoD 第 1 步还包含 pytest（0 警告）+ check_coverage.py。
     # warnings summary 兜底在此直接执行、但不进上方命令清单：那一章只声明格式化门禁，
     # 把测试门禁写进去就又造出一处并行事实源。
     print("\n[pytest warnings summary 兜底]")
@@ -563,7 +554,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  有告警被吞掉，请先修根因，不得加 filterwarnings 压制。")
         print("=" * 72)
         return 1
-    print("提醒：完成定义第 1 步还需 scripts/check_coverage.py + basedpyright。")
+    print("提醒：完成定义第 1 步还需 scripts/check_coverage.py。")
     print("=" * 72)
     return 0
 

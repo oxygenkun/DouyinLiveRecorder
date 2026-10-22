@@ -712,9 +712,9 @@ def test_unconfirmed_entry_is_never_dropped_by_the_second_fact(monkeypatch: pyte
         assert self_exited.poll() is not None, "样本未按预期自行退出"
         assert any("未在" in m and "总预算内全部确认" in m for m in captured), captured
         with fp._processes_lock:
-            assert list(fp._ffmpeg_processes) == [
-                cast(Any, self_exited)
-            ], "未确认的条目被第二套判据（poll()）移出了注册表"
+            assert list(fp._ffmpeg_processes) == [cast(Any, self_exited)], (
+                "未确认的条目被第二套判据（poll()）移出了注册表"
+            )
     finally:
         logger.remove(handler_id)
 

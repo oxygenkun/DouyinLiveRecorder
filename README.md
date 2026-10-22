@@ -67,15 +67,18 @@ git clone https://github.com/y123ao6/DouyinLiveRecorder.git
 cd DouyinLiveRecorder
 
 # 安装依赖（推荐使用 uv）
-uv sync
+uv sync --locked
 
-# 或者使用 pip
+# 或者使用 pip（仅基础依赖；桌面端用 pip install ".[gui]"）
 pip install -r requirements.txt
 
-# 运行程序
-python main.py        # 命令行模式
-python gui.py         # GUI 图形界面模式
-python web.py         # Web 管理面板模式
+# 运行程序（uv 自动使用项目虚拟环境）
+uv run --locked python main.py        # 命令行模式
+uv run --locked python web.py         # Web 管理面板模式
+
+# GUI / Windows Web 托盘需要显式安装可选依赖
+uv sync --locked --extra gui
+uv run --locked --extra gui python gui.py
 ```
 
 ### 方式三：Docker 运行
@@ -249,10 +252,9 @@ DouyinLiveRecorder/
 ├── requirements.txt            # Python 依赖
 ├── pyproject.toml             # Python 项目配置
 ├── Dockerfile                  # Docker 构建文件（多阶段）
-├── docker-compose.yaml         # Docker Compose（recorder/web/gui 三服务）
+├── docker-compose.yaml         # Docker Compose（recorder/web 两服务）
 ├── .dockerignore               # Docker 构建上下文排除
 ├── .gitignore                  # Git 排除
-├── StopRecording.vbs          # Windows 停止录制脚本
 ├── CODE_WIKI.md               # 项目架构文档
 └── README.md                   # 项目说明文档
 ```
@@ -690,7 +692,7 @@ Windows 下控制台默认「最小化到系统托盘」（`web_minimize_to_tray
 
 ### 停止录制
 
-- **Windows**：执行 `StopRecording.vbs` 或在命令行按 `Ctrl+C`
+- **Windows**：在命令行按 `Ctrl+C`
 - **Linux/macOS**：在命令行按 `Ctrl+C`
 - **Docker**：执行 `docker-compose stop`
 
@@ -744,7 +746,7 @@ docker run -d -v ./config:/app/config -v ./downloads:/app/downloads \
 - 标签形态：`latest` 与 `vX.Y.Z`；`latest` 只随 `v*` tag 产出，不开放手动触发覆盖。
   两个分架构 tag（`:vX.Y.Z-amd64` / `-arm64`）属合成前的中间产物，当前不会自动清理。
 - 匿名拉取要求该 GHCR 包的可见性为 **public**——那是仓库设置层面的一次性人工动作。
-- 与 `docker-compose.yaml` 里的 `image: y123ao6/douyin-live-recorder:latest` **刻意不同源**（`gui` 服务另用 `:latest-gui`，见下方「切换运行模式」）：compose 走
+- 与 `docker-compose.yaml` 里的 `image: y123ao6/douyin-live-recorder:latest` **刻意不同源**：compose 走
   `pull_policy: build` 就地构建（不拉 registry 上的同名镜像），上面「快速启动」的说明保持不变；
   要用 GHCR 预构建镜像请按上面的 `docker run`，arm64 主机走 compose 就地构建同样可行。
 
@@ -759,14 +761,9 @@ docker compose up -d
 # Web 管理面板模式（映射 8000 端口，浏览器访问 http://localhost:8000）
 docker compose --profile web up -d
 
-# GUI 模式（需 X11 显示环境，先在宿主机执行 xhost +local:）
-docker compose --profile gui up -d
 ```
 
-> ℹ️ 镜像分两种依赖形态：`recorder` / `web` 用的默认镜像**不装** GUI 窗口层依赖（PySide6 解压后
-> 本机实测 647.56MB，而这两个服务在屏蔽它后导入链完整，装进来也用不上）；`--profile gui` 会按
-> `--build-arg INSTALL_GUI=true` **单独构建另一枚 tag**（`...:latest-gui`）并同时补装 Qt 运行库，
-> 因此首次启用 GUI 模式会多一次构建，也不会覆盖 recorder / web 正在使用的镜像。
+> Docker 仅支持 CLI / Web，不提供 GUI 镜像或 X11 profile。桌面 GUI 请在宿主机使用 `uv sync --locked --extra gui`。
 
 > ⚠️ Web 模式注意：`web.py` 默认监听 `127.0.0.1`，容器内必须在 `config/config.ini`
 > 的 `[Web]` 节设置 `web_host = 0.0.0.0` 才能从宿主机访问；同时建议开启
@@ -784,7 +781,7 @@ volumes:
 
 ### 端口映射
 
-仅 `web` 服务（Web 管理面板模式）映射端口，`recorder` / `gui` 服务不监听任何端口：
+仅 `web` 服务（Web 管理面板模式）映射端口，`recorder` 服务不监听任何端口：
 
 ```yaml
 ports:
@@ -818,29 +815,20 @@ ports:
 
 ```bash
 # 使用 uv（推荐）
-uv sync --dev
+uv sync --locked --extra dev --extra gui
 
-# 或使用 pip
-pip install -r requirements.txt
-pip install .[dev]
+# 或使用 pip（兼容入口）
+pip install ".[dev,gui]"
 ```
 
 ### 代码规范
 
 ```bash
 # 格式化代码（line-length = 120）
-black .
+ruff format .
 
 # 排序导入
-isort .
-
-# 类型检查（CI 以 mypy 为准；不带路径，范围由 pyproject.toml [tool.mypy].files 定义）
-mypy
-
-# 类型检查（本地增强，可选）：basedpyright
-# 已在 pyproject.toml 配置 [tool.basedpyright]，venvPath 指向工作区 .venv（相对路径，可移植）
-# 首次需创建并安装依赖：python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-basedpyright
+ruff check --fix .
 
 # 运行测试
 pytest
@@ -848,7 +836,7 @@ pytest
 
 > **注释规范**：模块/函数说明统一使用 `#` 行注释，不使用三引号 `"""` 文档字符串；功能性多行字符串字面量（模板/SQL）改用单引号 + 换行拼接而非 `"""`。
 
-> **五工具质量门禁**：本项目以 `mypy`（src + tests）/ `basedpyright`（tests）/ `pytest`（0 warnings）/ `black --check .` / `isort --check-only .` 五工具联合作为质量门禁，CI 全绿为合入前提。当前基线：**974 passed / 2 skipped / 0 warnings**。
+> **质量门禁**：Ruff 负责格式化和导入排序，pytest 要求 0 warnings；不配置常驻类型检查器。统一入口见 AGENTS.md 的「格式化命令」。
 
 > **测试说明**：`tests/test_web_api.py` 的符号链接相关用例（`TestListFiles::test_broken_symlink_skipped` / `test_symlink_outside_skipped`）在无法创建真实符号链接的环境（未开启开发者模式的 Windows、部分沙箱）会自动 `pytest.skip`，属正常现象，不代表代码缺陷。
 

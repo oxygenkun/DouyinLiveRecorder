@@ -1378,7 +1378,7 @@ C 改 `test_node_install.py`/`test_web_tray.py`/`test_ffmpeg_install.py` 等）�
 
 ### v4.3.0-dev (2026-09-21) — CODE_REVIEW_2026-09-20 全轮修复落地：严重 10 项 + 中等/轻微按主题成批 + 五类新门禁
 
-**变更摘要**：本轮把 `CODE_REVIEW_2026-09-20.md` 登记的 **106 项**（严重 10 / 中等 70 / 轻微 26）按「模块组并行深修」落地：**SEV-01 … SEV-10 全部修复**，MID/MIN 按报告 4.1 … 4.7 的七个主题成批改，并补齐**此轮之前完全不存在**的五类门禁（见第四节）。改动面：`main.py`、`src/` 23 个模块（另含 `src/javascript/migu.js`）、根入口 `gui.py` / `web.py` / `msg_push.py` / `build_exe.py` / `i18n.py`、`scripts/` 6 份维护脚本 + 新增 `scripts/check_runtime_pins.py`、4 份 workflow、两份依赖清单（`requirements.txt` / `pyproject.toml`，运行时依赖 20 → **21** 条）、`Dockerfile` / `docker-compose.yaml` / `.dockerignore` / `.gitignore`、`StopRecording.vbs`、`web/` 三件套；测试侧**新增 17 个用例文件**、改动 29 个（含 1 个 `.mjs`）。删除项 3 个：`src/javascript/laixiu.js`、`src/javascript/taobao-sign.js`（补-03/04：无调用方的死脚本，随 `_JS_SHA256_EXPECTED` 同批移除）、`tests/_exc.log`（MIN-64/66 排查期残留，现由测试卫生门禁 R4 拦住）。`AGENTS.md` 同步新增/更正 22 处长期约定（含就地纠正被证伪的旧结论）。
+**变更摘要**：本轮把 `CODE_REVIEW_2026-09-20.md` 登记的 **106 项**（严重 10 / 中等 70 / 轻微 26）按「模块组并行深修」落地：**SEV-01 … SEV-10 全部修复**，MID/MIN 按报告 4.1 … 4.7 的七个主题成批改，并补齐**此轮之前完全不存在**的五类门禁（见第四节）。改动面：`main.py`、`src/` 23 个模块（另含 `src/javascript/migu.js`）、根入口 `gui.py` / `web.py` / `msg_push.py` / `build_exe.py` / `i18n.py`、`scripts/` 6 份维护脚本 + 新增 `scripts/check_runtime_pins.py`、4 份 workflow、两份依赖清单（`requirements.txt` / `pyproject.toml`，运行时依赖 20 → **21** 条）、`Dockerfile` / `docker-compose.yaml` / `.dockerignore` / `.gitignore`、`web/` 三件套；测试侧**新增 17 个用例文件**、改动 29 个（含 1 个 `.mjs`）。删除项 3 个：`src/javascript/laixiu.js`、`src/javascript/taobao-sign.js`（补-03/04：无调用方的死脚本，随 `_JS_SHA256_EXPECTED` 同批移除）、`tests/_exc.log`（MIN-64/66 排查期残留，现由测试卫生门禁 R4 拦住）。`AGENTS.md` 同步新增/更正 22 处长期约定（含就地纠正被证伪的旧结论）。
 
 > **⚠ 真机验证欠账（本轮未闭环，必须在下一轮补）**：涉及**录制链路 / 选源 / ffmpeg 参数 / 平台解析**的改动（SEV-06、SEV-08、SEV-09，MID-01 … MID-20，MID-40 … MID-50，MIN-02 … MIN-06 等）**只做到「离线可验证部分全绿 + 回归锁落地」**，未用真实 URL 增量跑过（AGENTS.md 完成定义第 2 步）。回归锁能证明「不再退回已知坏形态」，**不能**证明「该平台的真实流地址现在可录」。待具备活房间的环境按下表「遗留」列逐条补跑。
 
@@ -1404,7 +1404,7 @@ C 改 `test_node_install.py`/`test_web_tray.py`/`test_ffmpeg_install.py` 等）�
 - **并发、网络、弹幕与资源治理**（MID-21 … MID-32）：`async_http` 客户端/锁随循环重建、`collector` 停止握手与 `_shutdown` 任务取消、`ws_client` 悬挂引用与发送任务引用（MIN-12/13 同族）、`danmaku_monitor` 边车句柄、`PlatformBreaker` 探针代数标记（MIN-22）。
 - **凭据生命周期与 Web 面板安全面**（MID-33 … MID-39）：`ttwid` / 快手 `did` / Twitch `client_id` 三层缓存补 TTL 与**显式失效入口** `invalidate_ttwid()`、`cookie_cache` 世代比对、Host 允许名单（MID-36）、面板阻塞 IO 走线程池（MID-34）、登录限流全局失败预算与 XFF 只信直连对端（MID-35）、内部异常不回显（MID-39）。
 - **平台解析与签名**（MID-40 … MID-50）：B 站兜底 buvid 失效链、抖音 APP 路径 ORIGIN 候选来源、花椒/淘宝/斗鱼/小红书/Twitch 等具体平台字段与参数错配、裸 `json.loads` 迁移到 `_loads_dict`、手工拼接请求体改 `urlencode`。
-- **GUI / i18n / 推送 / 安装器**（MID-51 … MID-60）：`URL_config.ini` 改 `utf-8-sig` 读（CR-01 挂死守卫重新生效）、**`set_language()` 返回实际生效语言码**（MID-52，GUI 与 Web 两端同步）、语言下拉重名折叠（MID-53，`unique_display_names()`）、画质降级标志按时间戳复位、高级设置快照基线校验、`_stopping` 复位入 `finally`、Bark device key 脱敏通则、ffmpeg ToFU 旁路文件按构建命名、`StopRecording.vbs` 进程匹配三层修正。
+- **GUI / i18n / 推送 / 安装器**（MID-51 … MID-60）：`URL_config.ini` 改 `utf-8-sig` 读（CR-01 挂死守卫重新生效）、**`set_language()` 返回实际生效语言码**（MID-52，GUI 与 Web 两端同步）、语言下拉重名折叠（MID-53，`unique_display_names()`）、画质降级标志按时间戳复位、高级设置快照基线校验、`_stopping` 复位入 `finally`、Bark device key 脱敏通则、ffmpeg ToFU 旁路文件按构建命名。
 - **客户端 JS / 门禁 / 测试可信度 / CI**（MID-61 … MID-69）：`migu.js` WASM 视图在 malloc 后重取、远程 wasm 信任边界注明（三类钉定互不冒充，见 AGENTS）、isort 静默跳文件（MID-63）、前端包装用例挂死与超时上界（MID-64）、宽泛 `filterwarnings` 移除（MID-65）、跨模块改写 stdlib（MID-66）、KAT 断言字面值（MID-67）、形参日志门禁判据收紧为「首参子树」（MID-68）、上一轮修复缺回归锁（MID-69）。
 - **补-05（安全下限）**：`starlette` 下限 `>=0.49.1` → **`>=1.0.1`**，新增显式 `urllib3>=2.7.0`（本仓全部同步出站 HTTP 穿过它），并新增 CI `deps-audit` job 跑 `pip-audit -r requirements.txt`。
 
@@ -2315,7 +2315,7 @@ black 全仓 134 文件全绿、isort 全绿、`check_annotations` 全通过、`
 
 - `pyproject.toml`：`[tool.setuptools].packages` 由 `["src"]` 改为 `["src", "src.platforms", "src.proto"]`。显式 `packages` **不递归发现子包**，漏列会让 `pip install .` 的发行包缺失 `src/platforms`（各平台弹幕采集器）与 `src/proto`（抖音弹幕 protobuf），运行时以 `ModuleNotFoundError` 炸在导入链上（`DouyinLiveRecorder.egg-info/SOURCES.txt` 仅 102 行、两子包均未收录，可据此核对）。版本 `4.0.9.4` 与 20 条依赖经脚本比对无漂移。
 - `AGENTS.md`：
-  - 项目结构树补 `tests/`（含 `frontend/`）、`src/proto/__init__.py`、`.github/ISSUE_TEMPLATE/` + `PULL_REQUEST_TEMPLATE.md` + `issue-translator.yml`，并补根目录文档组（`README.md` / `README_EN.md` / `CODE_WIKI.md` / `CODE_WIKI_EN.md` / `AGENTS.md` / `LICENSE` / `index.html` / `StopRecording.vbs`）；
+  - 项目结构树补 `tests/`（含 `frontend/`）、`src/proto/__init__.py`、`.github/ISSUE_TEMPLATE/` + `PULL_REQUEST_TEMPLATE.md` + `issue-translator.yml`，并补根目录文档组（`README.md` / `README_EN.md` / `CODE_WIKI.md` / `CODE_WIKI_EN.md` / `AGENTS.md` / `LICENSE` / `index.html`）；
   - 「关键约定」模块计数 41 → 42（新增 `src/proto/__init__.py`）；
   - 测试节新增前端用例约定（`tests/frontend/*.mjs` 用 Node 内置 `node:test`，零 npm 依赖；由同名 Python 包装用例以子进程 `node --test` 调用，Node 缺失时 skip），并移除指向 `.qoder/skills/test-creator/SKILL.md` 的失效引用（该目录在本工作区不存在）；
   - 依赖管理节补「开发依赖在 `[project.optional-dependencies].dev`、不进 `requirements.txt`」与「前端测试零 npm 依赖」两条口径；
@@ -4341,7 +4341,7 @@ black 全仓 134 文件全绿、isort 全绿、`check_annotations` 全通过、`
 
 **工程配置文件（六文件 + 双文档同步）**：
 
-- `.gitignore`：修复三处自相矛盾——移除 `i18n/**/*.mo` 忽略（.mo 随仓库分发，gettext 运行时必需）；`*.vbs` 后加 `!StopRecording.vbs` 例外；不再忽略 CODE_WIKI.md。新增忽略 `.workbuddy/`、`.codebuddy/`、`.trae/`
+- `.gitignore`：修复两处自相矛盾——移除 `i18n/**/*.mo` 忽略（.mo 随仓库分发，gettext 运行时必需）；不再忽略 CODE_WIKI.md。新增忽略 `.workbuddy/`、`.codebuddy/`、`.trae/`
 - `.dockerignore`：重写。保留 `i18n/**/*.mo`（Dockerfile 不会重新编译，旧规则导致容器内翻译失效）；仅排除 `.po` 源与编译脚本。新增排除 typings/、build_exe.py、gui_legacy.py、AI 工具目录
 - `Dockerfile`：builder 阶段移除无用的 Node.js 安装（Node 仅运行时需要，阶段2已装 Node 22）；EXPOSE 处补充 web_host=0.0.0.0 说明
 - `docker-compose.yaml`：重构为三服务——recorder（默认，main.py，无端口）、web（profile，8000:8000）、gui（profile）。修复原设计中 recorder 占用 8000 端口的问题
@@ -4801,7 +4801,7 @@ black 全仓 134 文件全绿、isort 全绿、`check_annotations` 全通过、`
 ### v4.4.0 (2026-09-29) — 全量审查报告 CODE_REVIEW_2026-09-29_2 修复批次（P0+P1+P2 共 31 个编号）
 
 > 依据 `docs/worklog/CODE_REVIEW_2026-09-29_2.md`，按用户批准范围 P0+P1+P2 落地（31 个编号 / 33 个独立问题）。
-> 同批未纳入：轻微项 43-47（前端 a11y）、P3 的 M-6（VBS 匹配面收紧）/ M-7（migu wasm SRI）/ M-20（冻结环境 i18n 实测），
+> 同批未纳入：轻微项 43-47（前端 a11y）、P3 的 M-7（migu wasm SRI）/ M-20（冻结环境 i18n 实测），
 > 及各标「待核实」条目。所有修复均附回归锁，安全不变量类另做变异验证。
 
 **一、安全收口（S-1、M-1 ~ M-5）**

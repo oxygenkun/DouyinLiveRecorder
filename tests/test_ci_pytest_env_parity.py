@@ -1,7 +1,6 @@
 # ci.yml「跑 pytest 的 job 必须装齐运行时依赖」与「Qt 窗口层 job 必须装 Qt 运行库」的回归锁。
 #
-# 事故一（2026-10-18 手动触发 CI 实测）：vbs-behavior-test job 只装了 pytest，
-#   tests/test_stop_recording_vbs.py 的 11 条用例在 setup 阶段全数 ERROR——
+# 事故一（2026-10-18 手动触发 CI 实测）：只装 pytest 的 job 在 setup 阶段报错——
 #   `ModuleNotFoundError: No module named 'distro'`。被测文件本身只 import 标准库 + pytest，
 #   故障来自 tests/conftest.py 的三个 **autouse** fixture：
 #     · _clean_credential_caches → `from src import spider` → src/node_install.py 顶层 `import distro`；
@@ -9,7 +8,7 @@
 #     · _pin_identity_translation → `import i18n` → i18n.py 顶层 `from loguru import logger`。
 #   即「跑仓库里任何一条 pytest」的真实门槛是**整份 requirements.txt**，与被测文件自己的 import 无关。
 #
-# 判据：任何出现 pytest（执行或安装）的 job，其步骤里必须另有 `pip install -r requirements.txt`。
+# 判据：任何出现 pytest（执行或安装）的 job，其步骤里必须通过 uv sync --locked 安装基础依赖。
 #   新增「轻量 job」时会被当场拦下，而不是等一次手动触发 CI 才在 ERROR 里发现。
 #
 # 事故二（同日）：test job 的 apt 只装了 ffmpeg + xvfb，而 GUI 窗口层已迁 PySide6：ubuntu runner 缺
@@ -27,7 +26,7 @@
 #   反向——检测器必须**认得出**已知的 pytest job、且**认不出** setup job（后者只 echo 版本
 #         常量字符串 `pytest_version=9.1.1`；认错说明正则退化成子串匹配，正向判据随即失真）。
 #
-# 变异验证（2026-10-18 实跑，均已当轮还原）：① vbs-behavior-test 改回 `pip install pytest` →
+# 变异验证（2026-10-18 实跑，均已当轮还原）：① 测试 job 改回 `pip install pytest` →
 #   正向判据红；② 检测器放宽成裸子串 `pytest` → 反向判据红；③ 摘掉 `libegl1` → Qt 运行库判据红
 #   （点名 test / build-verify）；④ 去掉收集闸门的 `--co` → collect-only 判据红。
 
@@ -49,14 +48,14 @@ CI_FILE = ROOT / ".github" / "workflows" / "ci.yml"
 # 那条 job 也是靠 requirements.txt 兜底的，纳入判定面只会让锁更紧而非更松。
 _PYTEST_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_.\-])pytest(?![A-Za-z0-9_\-])")
 
-# 运行时依赖安装锚点：必须落到 requirements.txt（唯一事实源，见 requirements.txt 文件头）。
-# 不认 `pip install .[dev]` 之类旁支——它们不含运行时依赖，替代不了本判据。
-_REQUIREMENTS_INSTALL_RE = re.compile(r"pip install\b[^\n|&;]*-r requirements\.txt")
+# 运行时依赖安装锚点：uv sync --locked 必须安装项目及基础依赖，不能只装工具组。
+# [历史注 2026-10-23] 从 pip requirements 迁移；extra 同步会连同基础依赖一起安装。
+_REQUIREMENTS_INSTALL_RE = re.compile(r"uv sync --locked\b(?![^\n|&;]*--(?:only|no-install)-)")
 
 # 已知「真跑 pytest」的 job。用「必须是检测结果的子集」而不是相等：
 # 新增 pytest job 属放宽，不该弄红；**减少**（把某条 job 改成不再跑 pytest，或检测器退化）
 # 会让覆盖面悄悄缩水，必须拦。
-_KNOWN_PYTEST_JOBS = ("test", "concurrency-test", "vbs-behavior-test")
+_KNOWN_PYTEST_JOBS = ("test", "concurrency-test")
 
 # 检测器精度守卫：这些 job 不得被认成 pytest job。`setup` 是最关键的一格——它只 echo 版本常量
 # （`pytest_version=9.1.1`），裸子串匹配会命中它，于是正向判据会被一个从不跑 pytest 的 job 稀释。
@@ -127,10 +126,10 @@ def test_every_pytest_job_installs_runtime_requirements() -> None:
     assert found, "未检测到任何 pytest job（ci.yml 结构漂移或检测器失效，不得静默放行）"
     offenders = [name for name, texts in found.items() if not any(_REQUIREMENTS_INSTALL_RE.search(t) for t in texts)]
     assert not offenders, (
-        "以下 job 会执行/安装 pytest，却没装 requirements.txt："
+        "以下 job 会执行/安装 pytest，却没通过 uv 锁定安装基础依赖："
         f"{sorted(offenders)}。tests/conftest.py 的 autouse fixture 会 import src 与 i18n"
         "（分别拉起 distro / loguru 等运行时依赖），只装 pytest 会让全部用例在 setup 阶段"
-        " ModuleNotFoundError（2026-10-18 vbs-behavior-test 实测形态）"
+        " ModuleNotFoundError（缺少运行时依赖的实测形态）"
     )
 
 

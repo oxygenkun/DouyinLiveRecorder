@@ -62,7 +62,7 @@ compose 拉取名不同源是分工，compose 用户走 `pull_policy: build` 就
 
 ### 2. 并行工作流仍在写同一仓库
 
-期间观察到 `main.py`、`src/spider.py`、`StopRecording.vbs`、5 个 i18n 目录被改写，并新增未跟踪
+期间观察到 `main.py`、`src/spider.py`、5 个 i18n 目录被改写，并新增未跟踪
 `tests/test_douyu_url_resolution.py`；`.po` 在 03:56 被追加虎牙/斗鱼 msgid 而未重编 `.mo`
 （我按其 prescribed 命令跑了 `compile_po.py`，`.mo` 属可再生派生产物）。
 **影响**：并发 pytest 会放大本文 §三 的环境噪声归因难度。
@@ -116,9 +116,8 @@ GHCR 首推与多架构 `docker manifest inspect` 读数。**交回动作**：�
 
 **21 条失败的归因**（这是本批最需要自证清白的一处）：全部落在 6 个会真起子进程的测试文件——
 `test_build_exe`、`test_ci_retry_action`、`test_notify`、`test_notify_script_guard`、
-`test_regression_2026_09_22_standalone`、`test_stop_recording_vbs`。逐族串行/单跑复验全部转绿
+逐族串行/单跑复验全部转绿
 （105 / 71 / 41 / 17 passed），实测失败原因统一是 `OSError: [WinError 6] 句柄无效`；
-本批未改动其中任何被测对象（`StopRecording.vbs` 的 `M` 属并行工作流）。
 两轮全量运行的失败数与集合漂移（30 → 21），本身即环境噪声的签名而非确定性代码失败。
 `AGENTS.md` 已登记同族判据（「探测子进程输出一律按字节比较」「本机全量 pytest 偶发段错误属环境噪声」）。
 

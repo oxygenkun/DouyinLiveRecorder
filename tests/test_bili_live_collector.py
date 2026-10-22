@@ -88,12 +88,12 @@ def main() -> None:
     else:
         print(f"[FAIL] SRT 未生成: {srt_file}")
         print(
-            f'VERIFICATION_RESULT: {json.dumps({"platform": "bilibili", "script": "test_bili_live_collector.py", "url": URL, "status": "FAIL", "messages": 0})}'
+            f"VERIFICATION_RESULT: {json.dumps({'platform': 'bilibili', 'script': 'test_bili_live_collector.py', 'url': URL, 'status': 'FAIL', 'messages': 0})}"
         )
         sys.exit(1)
     _srt_sz = os.path.getsize(srt_file)
     print(
-        f'VERIFICATION_RESULT: {json.dumps({"platform": "bilibili", "script": "test_bili_live_collector.py", "url": URL, "status": "PASS" if count > 0 else "WARN", "messages": count, "srt_bytes": _srt_sz})}'
+        f"VERIFICATION_RESULT: {json.dumps({'platform': 'bilibili', 'script': 'test_bili_live_collector.py', 'url': URL, 'status': 'PASS' if count > 0 else 'WARN', 'messages': count, 'srt_bytes': _srt_sz})}"
     )
 
 

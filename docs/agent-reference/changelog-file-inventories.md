@@ -87,8 +87,6 @@
 - **依赖清单 / 构建配置（事实纠错 + 压缩）**：
   - `requirements.txt` — 修正 3 处被证伪陈述（已与代码回源核对）：(1) `requests` 用途旧注「spider / 各平台页面抓取 / Weverse 认证直连」→ 实测 `src/spider.py` 走 httpx 异步面（`async_http`）、`src/weverse_auth.py` 已于 2026-09-23 删除…
   - `pyproject.toml` — 修正与上同源的 `urllib3` 被推翻陈述（两文件口径统一）
-- **Windows 停止脚本（编码保真 + 压缩）**：
-  - `StopRecording.vbs` — 全程 UTF-16 LE + BOM + CRLF 字节级保真（该文件头明确警告须 UTF-16 LE…
 - **前端独立播放器**：
   - 保留「钉版本 ≠ 钉内容 / 不经 CSP/nosniff / fail-closed / crossorigin 前提 / sha384 双 CDN 比对 / 升级须重算」全部要点。
 - **弹幕子系统（`src/` 压缩 / 去重）**：
@@ -216,7 +214,7 @@
 （`.gitignore` / `.dockerignore`，二者基线未快照、按实际编辑计入）。合计 **修改 91 个文件、新增 19 个、删除 2 个**。
 其中 80 个由基线快照直接 diff 得出；另 11 个基线未快照（4 份翻译目录 + 2 份 README + 2 份
 `docs/agent-reference/` 外迁文档 + `.gitignore` + `.dockerignore`）按内容证据计入，其行数不在本表维护。
-表中 `+x/-y` 为 unified diff 的新增/删除行数（`StopRecording.vbs` 源文件是 UTF-16 LE，行数量级不代表语义改动量）。
+表中 `+x/-y` 为 unified diff 的新增/删除行数。
 「关联条目」列的编号指向 `CODE_REVIEW_2026-09-20.md`；`—` 表示该文件的改动是上述条目的连带同步，无独立编号。
 
 ##### 9.1 录制主编排与房间线程（CLI 入口）
@@ -307,7 +305,6 @@
 | --- | --- | --- |
 | `build_exe.py` | 修改 `+169/-34` | `_PINNED_RUNTIME_SHA256` 改按 `<os>-<arch>` 运行时键 × `ffmpeg`/`node` 槽位分列；`_is_pinned()` 以「64 位小写十六进制」形状为唯一判据；新增 `--require-pinned`/`--allow-unpinned`（CI 下自动开启）且缺钉定在**下载之前** `SystemExit`；`DLR_RUNTIME_SHA256` 环境通道；`_download_file(slot=)` 改必填关键字参数（消除 macOS/Linux 漏传导致的静默无校验下载） |
 | `src/ffmpeg_install.py` | 修改 `+87/-16` | 官方源 ToFU 旁路文件按构建标识（Last-Modified/ETag/Content-Length）命名，上游换构建不再造成「官方源 + 蓝奏云双拒」死路；拒绝时给出「删除 <path> 后重试」的具体路径；就地纠正被证伪的 yum→apt 注释并让回退真正发生 |
-| `StopRecording.vbs` | 修改 `+296/-10` | 补三个 pip 启动器映像名（此前主进程完全不被匹配 → 只杀 ffmpeg 留下复活源）；shim 判定改词边界 + 首 token basename（不再整条命令行子串定罪误杀编辑器/pytest 进程）；静默模式改为遍历比对 `-y` 取值。文件仍为 UTF-16 LE + BOM + 全 CRLF（按原始字节复核） |
 
 ##### 9.11 维护脚本与门禁
 
@@ -346,7 +343,7 @@
 | `tests/test_stream.py` / `test_stream_select.py` / `test_quality_tiers.py` | 修改 `+317/-24` / `+263/-0` / `+6/-3` | 虎牙值驱动档位与顺序无关性、TikTok 零 HLS 探针（含 record_url）、URL 形态白名单、退避键、变体选择、B 站反向表… |
 | `tests/test_collector.py` / `test_danmaku_monitor.py` / `test_ws_client.py` / `test_srt_writer.py` / `test_ffmpeg_proc.py` / `test_video_postprocess.py` / `test_cookie_cache.py` / `test_douyin_danmaku.py` / `test_ttwid.py` | 新增/修改 | 反向序握手不回归 + 丢信号窗口、锁内不落盘、重连后 `_ws` 判活、SRT 序号单调、清理总预算、超时删产物、世代比对、ttwid 失效与 TTL… |
 | `tests/test_async_http.py` / `test_sync_http.py` / `test_proxy.py` / `test_utils.py` / `test_config_io.py` / `test_weverse_auth.py` | 新增/修改 | 多循环不互相逐出且同循环复用、代理地址归一、IPv6/大写环境变量/凭据保留、脱敏九类样本与公共 URL 不误伤、fsync 调用次序、CRLF `delete_line` |
-| `tests/test_gui_monitor.py` / `test_i18n.py` / `test_msg_push.py` / `test_ffmpeg_install.py` / `test_stop_recording_vbs.py` | **新增** | BOM 判据、生效语言、Bark 自建主机遮蔽、旁路轮换、VBS 映像名/词边界/静默判据 + UTF-16 原始字节… |
+| `tests/test_gui_monitor.py` / `test_i18n.py` / `test_msg_push.py` / `test_ffmpeg_install.py` | **新增** | BOM 判据、生效语言、Bark 自建主机遮蔽、旁路轮换 |
 | `tests/test_frontend_quality_ui.py` + `tests/frontend/test_quality_ui.mjs` | 修改 `+171/-9` / `+405/-19` | 进程组超时兜杀 + 结果真解析断言；登出入口可见、掩码确认、错误 detail 解析、四语目录与 `data-i18n` 键集机械门禁（27 用例）… |
 | `tests/test_i18n_migration.py` | 修改 `+102/-27` | 门禁判据由「首参是 JoinedStr」收紧为「首参子树含 FormattedValue」，`tr()` 实参位不递归（约定②），并加自检用例防门禁自身假绿… |
 | `tests/test_test_hygiene.py` | **新增** `273L` | AST 扫描 tests/：禁止改 stdlib 模块本体、禁止宽泛 `filterwarnings` 等四类形态（R1…R4，含正负自检）… |

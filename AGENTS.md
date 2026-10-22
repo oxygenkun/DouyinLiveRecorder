@@ -32,37 +32,26 @@
 
 ## Python 版本
 
-- **最低要求 / 目标 / mypy 检查版本**: Python >= 3.14（`requires-python = ">=3.14"`）。
+- **最低要求 / 目标 / 类型检查版本**: Python >= 3.14（`requires-python = ">=3.14"`）。
 - **3.14 破坏性变更基线**: `asyncio.get_event_loop()` 不再隐式创建事件循环（后果与整改口径见「并发、事件循环与锁」，此处只登记破坏面）；`pkg_resources`、PEP 594 亡故电池模块已移除；新代码统一走 `ctypes.WinDLL`（对齐 web.py 惯例，而非 `ctypes.windll`）。
 - 语法/编译检查一律使用项目 venv 的 Python 3.14（3.13 做 `compileall`/`py_compile` 会误报 PEP 758 语法，见「已知坑」）。
 
 ## 代码风格
 
-> Black / isort / mypy 取值摘录自 `pyproject.toml [tool.*]`，配置本体才是事实源；门禁命令见「格式化命令」。
+ > Ruff 的配置事实源是 `pyproject.toml`；门禁命令仅在「格式化命令」维护。
 
-### Black
+### Ruff
 
-- **取值**: `line-length = 120`、`target-version = ['py314']`、`include = '\.pyi?$'`；排除 `.git`/`.venv`/`build`/`dist`/`__pycache__`/`.pyc`/`node`/`ffmpeg`/`downloads`/`logs`。
-- **except 多异常写法**: 本仓统一写 `except A, B:`（PEP 758 无括号形式，black 两种写法均接受）。统一无括号是**风格约定，不是门禁强制**：新增/修改代码写无括号，**存量带括号写法不要为对齐而批量改动**（会造成无意义 diff）；需要 `as` 绑定时必须回退加括号（`except (A, B) as e:`）；不要为兼容 <3.14 而加括号。
+- 格式化使用 `ruff format`，导入排序使用 `ruff check` 的 `I` / `E902` 规则（导入排序 / 文件读取错误）；替代 Black / isort，不同时运行旧格式器。
+- `line-length = 120`、`target-version = "py314"`、`lint.isort.known-first-party = ["src", "i18n"]`；排除范围统一来自 `[tool.ruff].extend-exclude`，`force-exclude = true` 让 pre-commit 显式文件参数同样遵守排除项。
+- `format.line-ending = "auto"`，必须保留每个文件已有 CRLF / LF 形态；格式迁移后用 Python 3.14 AST 比对证明未改逻辑，导入排序单独检查。
+- 本仓多异常写法统一 `except A, B:`（PEP 758）；需要 `as` 时使用 `except (A, B) as e:`。存量带括号写法不要为对齐批量改动。
 
-### isort
+### 工具范围
 
-- **取值**: `profile = "black"`、`line_length = 120`、`known_first_party = ["src", "i18n"]`；排除 `.git`/`node`/`ffmpeg`/`downloads`/`__pycache__`/`*.pyc`。
-
-### mypy
-
-- **取值**: `python_version = "3.14"`；`warn_return_any`/`warn_unused_configs`/`disallow_untyped_defs`/`ignore_missing_imports` 均为 `true`。
-- **不带路径参数**：检查范围由 `pyproject.toml [tool.mypy].files` 定义（src/ + 根入口 + build_exe.py + scripts/ + tests/）。显式传参（如 `mypy src/`）会**覆盖**该配置只查 src/；排障可收窄，但**门禁结果以无参数跑法为准**（早期只查 src/ 时，gui.py 的 `logger`/`session_id` 根入口漏 import 长期逃逸）。
-- **平台符号门控双跑同样不带路径**：本机裸跑 `mypy` + 另两个平台目标各增跑一次（`mypy --platform linux` / `mypy --platform win32`），使任一主机上都同时覆盖 linux 与 win32 两侧门控分支；CI typecheck job 已按同一 `[tool.mypy].files` 范围、同样不带路径参数补齐该双跑到合并边界（本机实测 win32 与 linux 判定面逐行一致，不与既有 `# type: ignore` 冲突）。判据见「已知坑」平台专属符号条目。
-
-#### typings/ 存根的「仅 IDE 暴露」告警处理（2026-09-24 定稿）
-
-`[tool.mypy].exclude` 含 `typings`，CLI 门禁不查；但 IDE 的 mypy 语言服务器仍实时检查单独打开的 `.pyi` 且不消费 `ignore_missing_imports = true`——「门禁全绿、IDE 单文件红」属 IDE 噪声，不得按门禁失败处理，也不得放任不管。
-
-- **唯一允许的修复方式**：文件级 `# mypy: disable-error-code="<code>"`，写在头部注释块内（先于任何 `import`），并紧跟「为什么不引入 `types-*` 依赖」的说明。
-- **不得**为此新增 `types-*` 开发依赖；**不得**在 `pyproject.toml` 加全局 `disable_error_code`；**不得**用行内 `# type: ignore[<code>]`（本项目配置下变 unused）或 `# mypy: ignore-errors` 整文件豁免。pyright/basedpyright 放宽走同目录既有的 `# pyright: ...` 指令。
-- **现存量一处**（新增第二处前先复跑枚举命令确认归因）：`typings/execjs/*` 的 `import six` 报 `[import-untyped]`。[历史注] 原② `typings/customtkinter/__init__.pyi` 的 `_CTkWidget` 混入覆盖报 `[misc]`——该存根已随 customtkinter 依赖摘除（2026-10-03 阶段5）整体删除，条目随之消失。[历史注 2026-10-20] `typings/pystray/__init__.pyi` 亦随 pystray 依赖摘除整体删除（删前全仓 `import pystray` 实测 0 处，且该存根头部自述的消费点 `src/web_tray.py` 已迁 `QSystemTrayIcon`）；`typings/` 现只剩 `execjs/` 一个目录，与本条「现存量一处」重新吻合。
-- 改完存根后须确认：`mypy`（无参）exit 0、`black --check` 对被改文件 unchanged、`python scripts/check_annotations.py` 通过。
+- 开发门禁仅保留 Ruff、pytest 与仓库专项校验，不配置常驻类型检查器。
+- 不安装 Black / isort / mypy / basedpyright / pyright，不维护它们的配置、版本常量或 CI job。
+- 后续确有类型检查需求时使用 ty；没有明确需求不加工具或配置。业务代码的类型注解不因工具迁移而批量删除。
 
 ### 注释约定
 
@@ -85,8 +74,8 @@
 - 排除项：`douyin_pb2.py`（protoc 生成）、`douyin_live_recorder_standalone.py`（历史遗留），以及 `__pycache__/node/ffmpeg/.venv/build/dist` 等目录。
 - **三个盲点（工具发现不了，须另行检查）**：
   1. `except A, B:` 与 `except (A, B):` AST 完全相同——无括号被改写成带括号不会被校验发现，`grep -c 'except [A-Za-z_][A-Za-z0-9_.]*, [A-Za-z_]' <file>` 核对。
-  2. 注释缩进错误不影响 AST，只有 `black --check` 能发现——必须与 black 配套。
-  3. **换行符形态变化对两者完全隐形**：`ast.parse` 把 `\r\n` 与 `\n` 视为同一行尾，black 按文件首个行尾为准。本仓 CRLF/LF 混存（`main.py`/`src/web_api.py`/`gui.py`/`i18n.py` 等纯 CRLF，部分 `tests/*.py` 纯 LF），整文件 `Path.write_text()` 重写会静默转 LF。判据（改任何文件前后各跑一次，两侧「原本为 0 的那项」必须仍为 0）：`python -c "import pathlib;b=pathlib.Path(f).read_bytes();print(b.count(b'\r\n'), b.count(b'\n')-b.count(b'\r\n'))"`。连带后果：按原文匹配 `\n\n` 的断言遇纯 CRLF 源文件恒不匹配（前端 MIN-2241 曾因此长期红，锚点已改 `\r?\n\r?\n`）。
+  2. 注释缩进错误不影响 AST，须由 `ruff format --check` 检查——必须与格式检查配套。
+  3. **换行符形态变化对两者完全隐形**：`ast.parse` 把 `\r\n` 与 `\n` 视为同一行尾，Ruff 的 line-ending=auto 沿用原文件行尾。本仓 CRLF/LF 混存（`main.py`/`src/web_api.py`/`gui.py`/`i18n.py` 等纯 CRLF，部分 `tests/*.py` 纯 LF），整文件 `Path.write_text()` 重写会静默转 LF。判据（改任何文件前后各跑一次，两侧「原本为 0 的那项」必须仍为 0）：`python -c "import pathlib;b=pathlib.Path(f).read_bytes();print(b.count(b'\r\n'), b.count(b'\n')-b.count(b'\r\n'))"`。连带后果：按原文匹配 `\n\n` 的断言遇纯 CRLF 源文件恒不匹配（前端 MIN-2241 曾因此长期红，锚点已改 `\r?\n\r?\n`）。
 
 ## 项目结构
 
@@ -108,7 +97,6 @@
 | ffmpeg 命令构造 | `.agents/skills/ffmpeg-command-construction/` | `ffmpeg`、`-reconnect`、`-segment_format`、`_build_ffmpeg_input_args`、`_build_ffmpeg_output_args`、`_run_ffmpeg_record`、`record_save_type` | `-reconnect*` 位置、`-segment_format` 查表、F-01 四定义点、黄金命令比对 |
 | 平台选源流程 | `.agents/skills/platform-source-selection/` | `select_source_url`、`stream_select`、探针/`probe`、`FLV-first`、`QUALITY_MAPPING`、`_PROBE_BACKOFF_PLATFORMS`、`_FLV_FIRST_PLATFORMS`、`trace_error_decorator` | 探针可达性、FLV-first/HLS 排除、画质映射、装饰器契约 |
 | 运行时钉定验证 | `.agents/skills/runtime-pin-verification/` | `_PINNED_RUNTIME_SHA256`、`--require-pinned`、`check_runtime_pins`、`_is_pinned`、`_slot_is_gated`、`DLR_RUNTIME_SHA256`、`releases/tags` | 三层防线、官方签名档、三类钉定边界、来源增删三处同改 |
-| BrowserSkill（外部工具技能，非本仓领域约定） | `.agents/skills/browser-skill/` | 操作已登录的 Chromium：读取页面、填表、抓取数据、点击流程、UI 回归、验证已部署页面 | `bsk` CLI + 浏览器扩展前置；会话前检查、任务流程、标签页借用与恢复、截图/Canvas、文件工具。借用用户标签页须显式授权，禁止提取 Cookie/token 等凭据 |
 
 ### 项目级 Hooks / Commands（生命周期资产）
 
@@ -132,10 +120,11 @@
 
 ## 依赖管理
 
-- **运行时依赖**: `pyproject.toml [project.dependencies]` 与 `requirements.txt` 保持同步（18 条，2026-10-20 复核，两侧包名集合逐项相等；`customtkinter` 已随 UI 现代化阶段5 摘除，`fastapi`/`pydantic` 已随 Web 后端阶段2 移除，`PySide6` 随 GUI 窗口层迁移于 2026-10-17 加入，`pystray`/`Pillow` 随两入口托盘统一迁 `QSystemTrayIcon` + `QPainter` 自绘于 2026-10-20 摘除，`python-multipart` 同日摘除——其声明理由「Web 接口接收配置上传」对应的接口并不存在，全仓无 `.form()`/`UploadFile` 调用点、`web/` 前端亦无 `FormData`/`<input type=file>`/`enctype`）。回归锁：`tests/test_regression_2026_09_22_gates.py`。
-- **开发 / 构建 / GUI 依赖**: `pip install .[dev]`（pytest / pytest-asyncio / pytest-cov / black / isort / mypy / pre-commit 七条，配套根目录 `.pre-commit-config.yaml`）/`.[build]`（PyInstaller>=6.10.0）/`.[gui]`（PySide6 一条）；三者均不进运行时清单。[历史注] `.[gui]` 原含 customtkinter，2026-10-03 阶段5 随 UI 现代化摘除（tkinter.ttk 自研控件层替代）；2026-10-17 阶段6 后窗口层迁 PySide6，本 extra 随之增列；2026-10-20 `pystray`/`Pillow` 随两入口托盘统一迁 Qt 摘除（与 `[project.dependencies]` 同批），本 extra 回到单条。
+- **运行时依赖**: `pyproject.toml [project.dependencies]` 与 `requirements.txt` 保持同步（17 条基础依赖，2026-10-23 将 PySide6 移至 gui extra；原 18 条于 2026-10-20 复核，两侧包名集合逐项相等；`customtkinter` 已随 UI 现代化阶段5 摘除，`fastapi`/`pydantic` 已随 Web 后端阶段2 移除，`PySide6` 随 GUI 窗口层迁移于 2026-10-17 加入，`pystray`/`Pillow` 随两入口托盘统一迁 `QSystemTrayIcon` + `QPainter` 自绘于 2026-10-20 摘除，`python-multipart` 同日摘除——其声明理由「Web 接口接收配置上传」对应的接口并不存在，全仓无 `.form()`/`UploadFile` 调用点、`web/` 前端亦无 `FormData`/`<input type=file>`/`enctype`）。回归锁：`tests/test_regression_2026_09_22_gates.py`。
+- **uv 安装入口**: `uv sync --locked` 安装基础 CLI / Web；`uv sync --locked --extra gui` 安装桌面 GUI / Windows Web 托盘；开发用 `uv sync --locked --extra dev --extra gui`，打包再加 `--extra build`。`pyproject.toml` 声明依赖，提交 `uv.lock`；CI / Docker 一律 `--locked`，不得静默重算锁文件。开发依赖继续用现有 dev extra，不能用 `uv sync --dev` 代替。`requirements.txt` 仅兼容 pip，保留基础依赖集合一致性锁。
+- **开发 / 构建 / GUI 依赖**: `uv sync --extra dev`（pytest / pytest-asyncio / pytest-cov / Ruff / pre-commit 六条，配套根目录 `.pre-commit-config.yaml`）/`--extra build`（PyInstaller>=6.10.0）/`--extra gui`（PySide6 一条）；三者均不进运行时清单。[历史注] `.[gui]` 原含 customtkinter，2026-10-03 阶段5 随 UI 现代化摘除（tkinter.ttk 自研控件层替代）；2026-10-17 阶段6 后窗口层迁 PySide6，本 extra 随之增列；2026-10-20 `pystray`/`Pillow` 随两入口托盘统一迁 Qt 摘除（与 `[project.dependencies]` 同批），本 extra 回到单条。
 - **i18n 依赖**: PyYAML（zh_TW.yaml 加载；缺失时仅损失 YAML 格式）。
-- **GUI 包版本下限（须与 `requirements.txt` 和 `pyproject.toml [project.dependencies]` 三处一致）**: `PySide6>=6.12.0`（2026-10-20 起本项只剩这一条）。[历史注] 原三包含 `customtkinter>=6.0.0`，2026-10-03 阶段5 摘除（运行时清单与 `.[gui]` 同批）；2026-10-17 随窗口层迁 PySide6 增列 `PySide6>=6.12.0`，本项由两包回到三包；2026-10-20 `pystray>=0.19.5` 与 `Pillow>=12.3.0` 随两入口托盘统一迁 `QSystemTrayIcon` + `QPainter` 自绘而摘除（取数命令登记在 `requirements.txt` 的 GUI 段注释里），三包回到一包。
+- **GUI 包版本下限（唯一声明在 `pyproject.toml [project.optional-dependencies].gui`，不得放回基础依赖）**: `PySide6>=6.12.0`（2026-10-20 起本项只剩这一条）。[历史注] 原三包含 `customtkinter>=6.0.0`，2026-10-03 阶段5 摘除（运行时清单与 `.[gui]` 同批）；2026-10-17 随窗口层迁 PySide6 增列 `PySide6>=6.12.0`，本项由两包回到三包；2026-10-20 `pystray>=0.19.5` 与 `Pillow>=12.3.0` 随两入口托盘统一迁 `QSystemTrayIcon` + `QPainter` 自绘而摘除（取数命令登记在 `requirements.txt` 的 GUI 段注释里），三包回到一包。
 - **安全下限（清单只写下限，抬下限消除「声明区间含已知受影响版本」风险）**: `starlette>=1.3.1`（CVE-2026-48710 受影响 <=1.0.0，叠加 PYSEC-2026-2280/2281/248/249 两轮抬升，2026-09-21 定稿）、`urllib3>=2.8.0`（显式声明，requests 传递依赖且同步出站 HTTP 穿过它，CVE-2026-44431 定下限 2.7.0，2026-10-01 由 `deps-audit`「下限复核」抓出 CVE-2026-97687/97688/97689 均影响 2.7.0、修复于 2.8.0 后抬升）、`h2>=4.4.1`（PYSEC-2026-3628 / GHSA-6hr6-w5qg-qmwg 重复 Host 头致请求走私，2026-09-26 由 `deps-audit`「下限复核」抓出）。`requests>=2.34.2` 已高于修复版本（[历史注] 原与本句并列的 `python-multipart>=0.0.32` 已于 2026-10-20 摘除——无消费点，判据见上「运行时依赖」条）。`pip-audit` 属 CI 审计工具，**不得**进 `requirements.txt`/`[project.dependencies]`；出现新公告优先抬下限而非 `--ignore-vuln` 白名单，新增/上调下限时跑一次 `deps-audit`。
 - **前端测试零 Python/npm 依赖**: `tests/frontend/*.mjs` 用 Node 内置 `node:test`，只需系统 Node.js（与 JS 签名脚本共用运行时）。
 - **依赖缺失排查**: venv 缺 `brotli`/`protobuf` 等表现为**测试收集期** `ModuleNotFoundError`，先核对 `pip list` 与 `requirements.txt` 差异再怀疑代码；pip 走本地代理被拒时用 `HTTP_PROXY="" HTTPS_PROXY="" pip install --proxy "" <pkg>` 绕过（装完出现「目录破损」按「CI / workflow 约定」分级处置，不要直接重试 pip）。
@@ -143,7 +132,7 @@
 ## 测试
 
 - **pytest 配置**（`pyproject [tool.pytest.ini_options]`）: `testpaths=["tests"]`、`python_files=["test_*.py"]`、`python_classes=["Test*"]`、`python_functions=["test_*"]`、`asyncio_mode="auto"`。
-- **质量门禁（须保持）**: 命令一律取「格式化命令（门禁唯一基准）」一节，**不得在此重述路径参数**——显式传参（如 black/isort/mypy 传 `tests/`）会覆盖 `[tool.mypy].files`，等于缩小覆盖面。判定口径：`pytest` 0 警告 + black/isort/mypy 全绿 + `basedpyright` 0 error/0 warning（本地补充门禁，见其专节）。
+- **质量门禁（须保持）**: 命令只取「格式化命令（门禁唯一基准）」；Ruff 检查全部 Python 源码，pytest 要求 0 警告。
 - **pytest「0 警告」口径**: warnings summary 为空（0 条）。第三方库告警一律经 `pyproject.toml [tool.pytest.ini_options].filterwarnings` 显式 ignore 并附来源注释；**禁止用 filterwarnings 掩盖项目自身告警**，禁止给用例加宽泛过滤。协程类 RuntimeWarning 由 GC 延迟触发、ignore 拦不住——必须修根因（见「已知坑」跨循环关闭 AsyncClient）。
 - 覆盖率源码 `src/`、排除 `tests/`/`__pycache__/`/`node/`/`ffmpeg/` 等（与 `.gitignore`/`.dockerignore`/pyproject 同源）；门禁：`python scripts/check_coverage.py`（阈值事实源 `MODULE_THRESHOLDS`）。
 - **前端用例（`tests/frontend/*.mjs`）**: Node 内置 `node:test` + `node:vm` 沙箱驱动 `web/app.js`，零 npm 依赖；由同名 Python 包装用例以子进程 `node --test` 调用，Node 缺失时 skip。新增前端用例沿用「`.mjs` 真用例 + `.py` 包装」双文件结构。
@@ -171,7 +160,7 @@
 
 ### 测试收尾清理临时脚本
 
-- **收尾必须删除任务中生成的一次性脚本与产物**：前缀分三类——`_tmp_`/`tmp_`（通用临时）、`mock_`（桩服务/模拟器）。残留会污染 `git status`、被 mypy 收编（`[tool.mypy].files` 含 `scripts/`/`tests/`）、误导协作者。**任务收尾一律删除**，不留「下次可能还用」。
+- **收尾必须删除任务中生成的一次性脚本与产物**：前缀分三类——`_tmp_`/`tmp_`（通用临时）、`mock_`（桩服务/模拟器）。残留会污染 `git status`、被全仓源码检查收编、误导协作者。**任务收尾一律删除**，不留「下次可能还用」。
 - **优先写在仓库之外**: 落 `%TEMP%`/`/tmp` 或 `tempfile.mkdtemp()`；确需写在仓库内者用完即删，统一前缀命名；需长期复用才进 `scripts/`。
 - **清理范围与禁区**: 只删本次任务产生的临时脚本与输出；**不要**删 `downloads/`/`logs/`/`backup_config/` 运行期产物目录、**不要**动 `scripts/` 下正式维护脚本。清理前 `git status --short` 列出未跟踪文件，对 `.workbuddy/` 等 gitignore 目录显式枚举后确认再删；被 safe-delete 拦截时逐文件重试或列出残留交回用户，**不得静默跳过**。
 
@@ -190,12 +179,12 @@ find . -type f \( -name '*_tmp_*.py' -o -name 'tmp_*.py' -o -name 'mock_*.py' \
 ## 构建命令
 
 ```bash
-pip install -r requirements.txt
-python build_exe.py              # 标准打包
-python build_exe.py --smoke      # 打包 + 冒烟测试
-python build_exe.py --no-zip     # 只打包不压缩
-python build_exe.py --no-runtime # 跳过 ffmpeg/node（减小体积）
-python build_exe.py --dual       # 同时生成 lite + full 两个 zip
+uv sync --locked --extra build --extra gui
+uv run --locked --extra build --extra gui python build_exe.py              # 标准打包
+uv run --locked --extra build --extra gui python build_exe.py --smoke      # 打包 + 冒烟测试
+uv run --locked --extra build --extra gui python build_exe.py --no-zip     # 只打包不压缩
+uv run --locked --extra build --extra gui python build_exe.py --no-runtime # 跳过 ffmpeg/node（减小体积）
+uv run --locked --extra build --extra gui python build_exe.py --dual       # 同时生成 lite + full 两个 zip
 docker build --build-arg APP_VERSION="$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" -t douyin-live-recorder .
 docker compose up -d
 ```
@@ -221,12 +210,12 @@ docker compose up -d
 - **版本常量跨 workflow 同值**: `python_build`(3.14) 与 `node_version`(24) 在 ci.yml 与 build-release.yml 各自声明，改一处须同步另一处。
 - **触发与并发策略区分**: ci.yml 限 main 的 push/PR + `cancel-in-progress: true`；build-release.yml 由 `v*` tag 触发 + `cancel-in-progress: false`。
 - **发布矩阵为四平台，runner 标签↔运行时键的映射单点登记**: `.github/workflows/build-release.yml` 的 `matrix.include` 含 `windows-latest`/`ubuntu-latest`/`ubuntu-24.04-arm`/`macos-latest`（`platform` 依次 `windows`/`linux`/`linux-arm64`/`macos`），一次发布产出 4 ×（lite+full）= **8 个 zip**，`Verify artifact completeness` 的判据随之为 `-lt 8`。**runner 标签↔运行时键映射的唯一登记点是 `scripts/check_runtime_pins.py::RUNNER_TO_RUNTIME_KEY`**，新增 runner 必须同批登记，否则该脚本按「未登记标签」走 `sys.exit(2)`（属「门禁本身失效」档，发布链在 prepare 即断、根本走不到构建）。矩阵条目的**插入位置也是契约**——`_runtime_matrix_keys()` 按 `os:` 行出现顺序返回键列表，`tests/test_check_runtime_pins.py::test_workflow_matrix_and_test_constant_stay_in_sync` 断言与 `_MATRIX_KEYS` **逐序相等**而非集合比较。Linux 两支共用家族判定 `if: startsWith(matrix.platform, 'linux')`（装 ffmpeg+xvfb 与 `xvfb-run` 冒烟两步），取反那步的标量**必须带引号**写成 `if: "!startsWith(matrix.platform, 'linux')"`：YAML 把行首 `!` 当 tag 指令，无引号实测 `ParserError`。
-- **多架构镜像只走「原生双 runner 各出一层 + imagetools 按 digest 合成」**: `.github/workflows/docker-publish.yml`（仅 `v*` tag 触发、推 GHCR）由 `docker-build-amd64`(`ubuntu-latest`) 与 `docker-build-arm64`(`ubuntu-24.04-arm`) 各推一个**分架构临时 tag**，merge job 用 `docker buildx imagetools create` 按两个构建 job **提升到 job 级 `outputs:` 的 digest** 合成 `latest` 与版本 tag——漏提升时 `needs.*.outputs.digest` 取到空串、合成步骤报无效引用而构建本身全绿。**禁止单 job QEMU 交叉双平台**：本镜像构建期含 `apt install ffmpeg/nodejs` + `pip install -r requirements.txt`，QEMU 下模拟 aarch64 是整层重活。凭据固定为自动注入的 `GITHUB_TOKEN`，发布链**不得**引用任何其它 `secrets.*`；`latest` 只能由 `v*` tag 推出，**不得**为「方便重跑」加回 `workflow_dispatch`/`schedule` 覆盖它的口子（那等于把不可变发布物变成可反复改写的别名）。结构锁 `tests/test_docker_publish_workflow.py`（12 条，含两处 `provenance: false` 承重与「`:latest` 全清单恰一次」）。GHCR 匿名 `docker pull` 另需把包可见性设为 **public**，那是仓库设置层面的一次性人工动作，`GITHUB_TOKEN` 不会代为放开。
-- **dockerignore / gitignore 同源约定**: 本地工具生成目录（`.mimosa/`/`.qoder/`/`.qoder-credits/`/`.agents/`/`.pnpm-store/`/`.npm-cache/`/`.dsh-validation/`/`.ego-browser-test/`/`.plugin-src/`/`.tmp-dps-extract/`/`.v2c/`/`.superpowers/`/`pytest-cache-files-*/`）与运行期产物目录（`downloads/`/`recordings/`/`logs/`/`backup_config/`）须在两份 ignore 文件与 pyproject 各工具排除列表（black/isort/mypy/basedpyright/coverage）同步维护，漏一处即「未跟踪目录 / 误入镜像 / 工具误扫描」。`.superpowers/`（SDD/治理式流程技能的工作区，含 brief/report/review/diff 与运行日志快照）2026-10-03 前四处均未登记，实测后果正是这三种形态的第三与第一种：被 `black`/`check_annotations.py` 扫进仓库面（Python 文件数 216→203），且 `Dockerfile` 运行阶段的 `COPY --chown=recorder:recorder . ./`（按锚点引用，行号随构建段增删漂移）会把它整体打进对外镜像。**第五处同源点**是 `scripts/check_annotations.py::EXCLUDE_DIRS`——它由 `tests/test_run_gates.py::test_check_annotations_exclude_dirs_cover_pyproject_excludes` 与 pyproject 的 black/isort/coverage 三份清单逐名比对（方向为「那边有、这里也得有」），漏登记会让该锁直接变红。
+- **多架构镜像只走「原生双 runner 各出一层 + imagetools 按 digest 合成」**: `.github/workflows/docker-publish.yml`（仅 `v*` tag 触发、推 GHCR）由 `docker-build-amd64`(`ubuntu-latest`) 与 `docker-build-arm64`(`ubuntu-24.04-arm`) 各推一个**分架构临时 tag**，merge job 用 `docker buildx imagetools create` 按两个构建 job **提升到 job 级 `outputs:` 的 digest** 合成 `latest` 与版本 tag——漏提升时 `needs.*.outputs.digest` 取到空串、合成步骤报无效引用而构建本身全绿。**禁止单 job QEMU 交叉双平台**：本镜像构建期含 `apt install ffmpeg/nodejs` + `uv sync --locked`，QEMU 下模拟 aarch64 是整层重活。凭据固定为自动注入的 `GITHUB_TOKEN`，发布链**不得**引用任何其它 `secrets.*`；`latest` 只能由 `v*` tag 推出，**不得**为「方便重跑」加回 `workflow_dispatch`/`schedule` 覆盖它的口子（那等于把不可变发布物变成可反复改写的别名）。结构锁 `tests/test_docker_publish_workflow.py`（12 条，含两处 `provenance: false` 承重与「`:latest` 全清单恰一次」）。GHCR 匿名 `docker pull` 另需把包可见性设为 **public**，那是仓库设置层面的一次性人工动作，`GITHUB_TOKEN` 不会代为放开。
+- **dockerignore / gitignore 同源约定**: 本地工具生成目录（`.mimosa/`/`.qoder/`/`.qoder-credits/`/`.agents/`/`.pnpm-store/`/`.npm-cache/`/`.dsh-validation/`/`.ego-browser-test/`/`.plugin-src/`/`.tmp-dps-extract/`/`.v2c/`/`.superpowers/`/`pytest-cache-files-*/`）与运行期产物目录（`downloads/`/`recordings/`/`logs/`/`backup_config/`）须在两份 ignore 文件与 pyproject 各工具排除列表（Ruff/coverage）同步维护，漏一处即「未跟踪目录 / 误入镜像 / 工具误扫描」。`.superpowers/`（SDD/治理式流程技能的工作区，含 brief/report/review/diff 与运行日志快照）2026-10-03 前四处均未登记，实测后果正是这三种形态的第三与第一种：被 `black`/`check_annotations.py` 扫进仓库面（Python 文件数 216→203），且 `Dockerfile` 运行阶段的 `COPY --chown=recorder:recorder . ./`（按锚点引用，行号随构建段增删漂移）会把它整体打进对外镜像。**第五处同源点**是 `scripts/check_annotations.py::EXCLUDE_DIRS`——它由 `tests/test_run_gates.py::test_check_annotations_exclude_dirs_cover_pyproject_excludes` 与 pyproject 的 Ruff/coverage 三份清单逐名比对（方向为「那边有、这里也得有」），漏登记会让该锁直接变红。
 - **配置键审计须先归一化大小写**: 核对「代码读取的键」与 `config/config.ini` 实际键时先转小写再比对（configparser 大小写不敏感，代码常量大写、配置文件小写，精确比对会误报缺失键）。仓库当前把 `config/config.ini` 作为**已跟踪的脱敏基线模板**；`.gitignore` 的同名规则只对未跟踪副本生效。模板默认值须与代码 fallback、README 配置块逐项对账；**禁止**把真实凭据写入提交或以任何形式外传（红线见「风险控制（前置）·凭据与敏感配置红线」）。
 - **venv 依赖修复分级处置**: 批量 `pip install --force-reinstall` 会被沙箱拦截且拦截在卸载之后，清空包目录（`ImportError: cannot import name 'x' from 'y' (unknown location)`，`pip check` 查不出）。三级：① **一级（代理自行）**单/少数包破损——wheel 直解绕开卸载：`pip download --no-deps -d <tmpdir> <pkg>` → `zipfile.ZipFile(wheel).extractall(<site-packages>)`；② **二级（代理可试）**常规补装单个小包 `HTTP_PROXY="" HTTPS_PROXY="" pip install --proxy "" <pkg>`，被拦立即转三级；③ **三级（交回用户）**批量重装 `pip install --ignore-installed --no-deps -r requirements.txt`。**破损检测三查法**：① 包目录递归数 `.py`/`.pyd` 为 0；② 目录整体消失逐个 import 实测；③ RECORD 对账只作辅助。
 - **覆盖率排除规则两 job 同源**: `pyproject [tool.coverage.report]` 与 `.coveragerc-concurrency` 排除条目必须一致且一律用 `exclude_also`（追加）而非 `exclude_lines`（替换，会丢三条默认排除规则）。
-- **镜像额外排除集**（仅 `.dockerignore`）：`uv.lock`/`scripts/`/`AGENTS.md`/`README_EN.md`/`CODE_WIKI_EN.md`/`.coveragerc-concurrency` 及审查记录通配 `CODE_REVIEW_*.md`/`DIAGNOSIS_*.md`/`PERF_REVIEW_*.md`/`PROPOSAL_*.md`（随仓库分发，不得加进 `.gitignore`；换用新前缀必须三处同改）。
+- **镜像额外排除集**（仅 `.dockerignore`）：`scripts/`/`AGENTS.md`/`README_EN.md`/`CODE_WIKI_EN.md`/`.coveragerc-concurrency` 及审查记录通配 `CODE_REVIEW_*.md`/`DIAGNOSIS_*.md`/`PERF_REVIEW_*.md`/`PROPOSAL_*.md`（随仓库分发，不得加进 `.gitignore`；换用新前缀必须三处同改）。
 - **门禁环境变量 `PYTHONUTF8=1`**: 见「格式化命令」MID-63 条目。
 - **`deps-audit` job**: `ci.yml` 中 `pip-audit -r requirements.txt`（按 OSV 审镜像与 CI 实际消费清单），独立成 job 且是 `ci-summary.needs` 的一部分（required check 唯一暴露面）。本地复现须自带 `PYTHONUTF8=1`（中文 Windows 下 pip-audit 读中文注释行会 `UnicodeDecodeError`）。
 - **漏洞审查双防线策略（`deps-audit` 阻断 + Trivy advisory）**: 两条覆盖面互不重叠——`deps-audit` 审 Python 依赖清单（blocking，已抓出 starlette / urllib3 / h2 / protobuf 历次 CVE 并抬下限）；`trivy.yml` 扫 Docker 镜像全层（apt / ffmpeg / node / 基础镜像 libssl 等 Python 清单之外的东西，advisory only，结果进 GitHub Security → Code scanning alerts）。**Trivy 维持 advisory-only 不升级为阻断**：镜像层漏洞多来自上游基础镜像与系统包，无法通过改 Python 依赖修复，需维护者人工判定阈值与忽略口径；cron 触发无人值守时变红会造成无意义噪声。替代审查流程：`deps-audit` 在每次 PR / push 阻断 Python 侧；Trivy 在 push / PR / 每周一 cron 把镜像层结论写入 Security 标签页，维护者定期查看 GitHub Security → Code scanning alerts 完成镜像侧审查。升级 Trivy 为阻断门禁属维护者决策（需先定 `exit-code` 阈值与 `trivyignore` 口径），不在代理权限内。
@@ -234,7 +223,7 @@ docker compose up -d
 - **发布链运行时钉定在 prepare 单点收敛（SEV-10）**: 钉定值事实源是 `build_exe.py`，不得把哈希副本写进 workflow（见「已知坑」发布钉定条目）。
 - **build 失败会留下空 Release，须由 `release-guard` 回收（2026-09-27）**: `release-create` 为消除 build 矩阵各平台的并发创建竞态（平台数见本节「发布矩阵为四平台」条目，不在此重复），在 build **之前**预建 Release 记录；任一平台 build 失败（典型：`_download_file` 的 SHA256 校验 `SystemExit` → `dist/` 无 zip → 上传步骤报 `Pattern 'dist/*-lite.zip' does not match any files`）时，收尾 `release` job 因 `needs: build` 被跳过，那条记录就以**空 Release** 留在仓库里。`release-guard`（`needs: [prepare, build]`、`if: always() && ... && needs.build.result != 'success'`）按「残缺即不发布」删除它并留 warning；`gh release delete` 默认**不删 tag**，修好后重跑工作流即可重新发布。不得为「让流水线变绿」给上传步骤关掉 `fail_on_unmatched_files`——那条红是产物缺失的唯一可见信号。
 - **维护脚本里「按名字起子进程」必须 `shutil.which` 早退或捕 `OSError`**: PATH 无该命令时 `subprocess.run(["uv", ...])` 抛 FileNotFoundError 而非回非零码，「命令不存在→友好降级」的 else 分支根本不可达，且其后**不依赖它**的步骤（egg-info 重建）被一并带走（M-32①）。降级段不得与后续独立步骤共享同一 try 作用域；`--check` 这类只读路径必须零子进程、零联网（由 tripwire 用例钉住）。
-- **跑 pytest 的 job 必须装齐 `requirements.txt`（2026-10-18 事故定型）**: `tests/conftest.py` 的三个 **autouse** fixture 会 import `src`（`_clean_credential_caches` → `from src import spider`、`_hermetic_danmaku_hub` → `import src.danmaku_monitor`）与 `i18n`（`_pin_identity_translation`），而 `src/node_install.py` 顶层 `import distro`、`i18n.py` 顶层 `from loguru import logger`——于是「跑仓库里任何一条 pytest」的门槛是**整份运行时依赖**，与被测文件自己的 import 无关（`vbs-behavior-test` job 只装 pytest 时 11 条用例在 setup 阶段全数 `ModuleNotFoundError: No module named 'distro'`，详见 CODE_WIKI 2026-10-18 条目）。新增或改造 job 时不得靠「只装 pytest」省钱，判据由 `tests/test_ci_pytest_env_parity.py` 机检（双向钉：已知 pytest job 必须被认出、`setup` 等只 echo 版本常量的 job 不得被误判）。**不得**改成「fixture 在模块未加载时静默跳过」——那是 MIN-2264 同族的假绿面（fixture 静默不生效，污染类用例退化成「单独跑通过、整包跑失败」）。
+- **跑 pytest 的 job 必须通过 `uv sync --locked --extra dev` 装齐基础依赖（2026-10-23 迁移；2026-10-18 事故定型）**: `tests/conftest.py` 的三个 **autouse** fixture 会 import `src`（`_clean_credential_caches` → `from src import spider`、`_hermetic_danmaku_hub` → `import src.danmaku_monitor`）与 `i18n`（`_pin_identity_translation`），而 `src/node_install.py` 顶层 `import distro`、`i18n.py` 顶层 `from loguru import logger`——于是「跑仓库里任何一条 pytest」的门槛是**整份运行时依赖**，与被测文件自己的 import 无关。新增或改造 job 时不得靠「只装 pytest」省钱，判据由 `tests/test_ci_pytest_env_parity.py` 机检（双向钉：已知 pytest job 必须被认出、`setup` 等只 echo 版本常量的 job 不得被误判）。**不得**改成「fixture 在模块未加载时静默跳过」——那是 MIN-2264 同族的假绿面（fixture 静默不生效，污染类用例退化成「单独跑通过、整包跑失败」）。
 - **`scripts/smoke_test.py` 的配置形态畸形一律 rc=2，校验点唯一在 `load_config`（M-32②）**: 消费方 `scripts/_ci_web_smoke.sh` 靠 rc=2 区分「配置问题」与「面板故障（可重试）」，让 `.items()`/`.get()` 抛 AttributeError 变成 rc=1 会触发无谓网络重试。显式 `null` 与「键缺失」等价放行，但取值处必须写成 `x.get("headers") or {}`——`dict.get` 的默认值只在**键缺失**时生效，放行 null 再配 `.get(..., {})` 会重开同族崩口。rc=2 现在能真的立刻停：`.github/actions/retry` 自 2026-09-30 起支持可选入参 `fail_fast_codes`（默认空串＝既有调用点行为逐字不变），仅 web smoke 调用点传 `"2"`，命中即带**原退出码**失败、不进入退避。**不得**为了「让流水线变绿」把 rc=2 退成 0 或降级成 warning——那是假绿。回归锁 `tests/test_ci_retry_action.py`（结构锁 + 真 bash 行为锁 8 格）。
 
 ## 格式化命令（门禁唯一基准）
@@ -242,35 +231,23 @@ docker compose up -d
 > 本节是全项目门禁命令唯一事实源。`ci.yml` 各 job 与之逐字一致；其它章节一律**引用本节**，不得另定一套。
 
 ```bash
-# PYTHONUTF8=1 是门禁语义的一部分，不得删（MID-63）：GBK locale 下 isort 会对含中文注释文件
-# 抛 'gbk' codec can't encode 并静默跳过、rc 仍 0——本地与 CI 都没查。
-PYTHONUTF8=1 python -m black --check --diff --line-length 120 --target-version py314 .
-PYTHONUTF8=1 python -m isort --check-only --diff --profile black --line-length 120 .
-mypy                      # 不带路径，范围取 pyproject [tool.mypy].files（本机平台目标）
-mypy --platform linux     # 平台双跑：本机非 linux 时补测 linux 目标（涉平台专属符号必查）
-mypy --platform win32     # 平台双跑：本机非 win32（含 Linux CI）时补测 win32 目标（同范围、不带路径）
+# UTF-8 口径同时覆盖工具和 run_gates 父进程，避免中文 Windows 输出编码差异。
+PYTHONUTF8=1 python -m ruff format --check --diff .
+PYTHONUTF8=1 python -m ruff check --no-fix .
 python scripts/check_annotations.py
 python scripts/compile_po.py --check
 python scripts/check_version.py
-python scripts/check_runtime_pins.py  # 只查结构；--strict（发布路径）见「CI / workflow 约定」
-python scripts/check_skill_agents_consistency.py  # Skill 目录与 AGENTS.md 表格一致性
+python scripts/check_runtime_pins.py
+python scripts/check_skill_agents_consistency.py
 ```
 
 - **`check_annotations.py` 不止查注释**: 常驻符号可达性检查，报告「引用了全仓都没有绑定的名字」（删除模块级函数/常量却留调用点的形态）。该命令在上方清单内，CI 与 `run_gates.py` 两侧都跑。
-- **本地一次性触发点**: `python scripts/run_gates.py` 按原顺序跑完全部 `--check` 型门禁（含平台双跑增跑的 `mypy --platform linux` / `mypy --platform win32`），任一失败非 0 退出；`--list`/`--only`/`--keep-going` 用于排障。脚本运行时解析本节 bash 块，**本节仍是唯一事实源**，禁止另建并行清单。给门禁写行尾注释安全，写行首注释会被整行跳过。
-- **一律显式传参**（`--line-length 120 --target-version py314`/`--profile black`）：配置会继承，但显式参数避免本地配置漂移造成「本地过、CI 挂」，也与 CI 逐字对齐。排除目录不需传（由 pyproject 生效）。
-- **本地门禁可外推的前提：工具版本与 `ci.yml` consts 钉定值逐一同值**: `run_gates.py` 以 `sys.executable -m black/-m isort` 与 venv 内 `mypy` 起子进程，故「本地全绿」只有在 black/isort/mypy/pytest 版本与 CI 的 `black_version`/`isort_version`/`mypy_version`/`pytest_version` 相等时才等于「CI 会绿」；任一项不一致时，报告必须写明「本地口径，未经 CI 同版本验证」并列出差异项。**抬常量只消除版本差，不等于 CI 实跑已验证**；**不得**为凑同值擅自改 workflow 常量或批量重装 venv 依赖（后者见「风险控制（前置）」）。2026-10-17 起四项常量与 `.pre-commit-config.yaml` 的 black / isort 两个 mirror rev 已全部对齐到本机实装——**版本面只有一个值**才是这条门禁可外推的前提，任一处单独抬都会造出「本地提交用 A 版重排、CI 用 B 版判定」的互擦。**抬版本常量前须用新旧两版各跑一次全量 `black --check`，以「两版结论逐字相同」为「抬值不改判定」的判据**；历次对齐读数、rev 存在性核实方式与未验证边界见 `docs/agent-reference/measured-evidence.md`「门禁工具版本与 exclude 锚定的历史读数」。
-- **`PYTHONUTF8=1` 必须同时覆盖子进程与转发输出的父进程，且「告警即失败」同回路判定（MID-63）**: ① isort 读文件用平台默认编码，GBK locale 下遇中文注释只发 `UserWarning: Unable to parse file …` 就**跳过该文件**、rc 仍 0。两条配套：`run_gates.py` 把行首 `NAME=value` 转子进程环境变量并对 stderr 中 `Unable to parse file` 判失败；`ci.yml` 用 step 级 `env: PYTHONUTF8: "1"` + 独立 silent-skip 兜底步骤。② `reconfigure(encoding="utf-8")` 必须显式写 `errors="replace"`（只传 `encoding` 不传 `errors` 会把错误处理器重置为 `'strict'`）；`run_gates.ensure_utf8_streams()` 修的是中文 Windows 下本进程 stdout 为 cp936、转发 black emoji 行抛 `UnicodeEncodeError` 炸门禁进程的根因——`errors="replace"` 只是兜底，**不得**改用「只判断退出码」或「过滤 emoji」绕过。③ 本仓「Windows 控制台 UTF-8 补丁」重复实现于 6 处，`build_exe._ensure_utf8_streams()` 曾漏写 `errors`，而 `tests/test_build_exe.py` 在 pytest 进程内调 `build_exe.main()`，pytest 的 fd 捕获包装器被就地翻成 strict，会话收尾读回捕获文件抛 `UnicodeDecodeError`。④ 配套约束三条：任何 `reconfigure` 显式给 `errors`；`tests/conftest.py` 的 `_guard_stdio_encoding_policy` 逐用例校对 `(encoding, errors)`，宿主进程编码策略属框架资产、用例不得改；`gui._install_crash_sink()` 仅 `__name__ == "__main__"` 时装进程级钩子。
-- **门禁「告警即失败」推广口径**: 新增门禁若存在「跳过/降级只发 warning、退出码仍 0」形态（isort `Unable to parse file`/coverage「无数据」/pytest warnings summary），必须同回路判失败，否则写明该门禁不自证覆盖。
+- **完整门禁仅按用户明确指令执行**: agent 不得在每次修改后自动运行 `scripts/run_gates.py`，也不得重复或并行启动完整门禁。日常修改只运行与改动直接相关的检查或测试；完整验收留待用户明确要求，未执行时如实说明，不以此阻止交付。此执行时机约定优先于技能中的自动收尾要求。
+- **本地一次性触发点**: `python scripts/run_gates.py` 按原顺序跑完全部只读门禁，任一失败非 0 退出；`--list`/`--only`/`--keep-going` 用于排障。脚本运行时解析本节 bash 块，**本节仍是唯一事实源**，禁止另建并行清单。给门禁写行尾注释安全，写行首注释会被整行跳过。
+- **本地 / CI 工具版本一致**: Ruff 版本仅在 dev extra 声明，由 uv.lock 派生锁定；CI 与 pre-commit 使用 `uv run --locked --extra dev` 消费同一锁文件。不得单侧升级或未经验证把本地结果声明为 CI 已实跑。
+- **门禁「告警即失败」**: 历史静默跳过告警检测继续由 `run_gates.py` 保留；Ruff 遇到非法编码或语法时必须非零退出，用真实坏文件回归锁验证。门禁不得执行 `ruff check --fix` 或不带只读开关的 `ruff format`。
 
-### basedpyright（本地补充门禁，CI 不跑）
-
-- 命令：`basedpyright`（不传路径，范围取 `pyproject [tool.basedpyright]`）；要求 0 error/0 warning。
-- 与 mypy 分工：mypy 是跨平台 CI 门禁（Linux runner）；basedpyright 是本地严格度补充，报错码不同，ignore 注释按各自 code 填写。
-- **`pyright` 与 Pylance 的定位**: `pyright` 只是 basedpyright 的引擎基座，本地增跑结论与 basedpyright 同源，**不是第三条门禁**；Pylance 无命令行入口（仅 IDE 语言服务器，且其 server bundle 带 Microsoft 许可证、只授权在 VS Code 系产品内使用，**不得**为绕过这点去 shell 驱动它），任何「Pylance 已查过」的表述都不得直接当作门禁证据。[2026-10-17 改] 本仓原先**没有** `[tool.pyright]` 配置段、裸跑 `pyright` 走自带默认范围（把 `typings/` 存根一并纳入），于是 IDE 与 CLI 的扫描面无法对齐、「IDE 看着没问题」也无出处可复核；现已新增仓库根 `pyrightconfig.json` 作为 **IDE 语言服务器与 `pyright` CLI 的共用配置**（include == `[tool.mypy].files`、exclude == mypy 与 basedpyright 两份清单的并集、typeCheckingMode/pythonVersion/venv 同 `[tool.basedpyright]`）。此后复现 IDE 结论一律**不带路径**跑 `pyright`（读这份配置），并仍在回复里写明它是本地补充证据、不替代 CI 的 mypy；同源关系由 `tests/test_pyright_config_parity.py` 机检（改配置或改 `[tool.mypy].files` 任一侧不同步即红）。
-- **裁决规则**: CI 只跑 mypy。只在 Linux 或只在 Windows 出现的基于 basedpyright 结论，以与 CI 一致的 Linux 一侧为准；不要为两侧静默而加 `# type: ignore`（会触发 `reportUnnecessaryTypeIgnoreComment`）。
-
-### isort 收尾清理 `.isorted` 备份残留
+### 历史 isort 收尾清理 `.isorted` 备份残留
 
 清理命令必须匹配 `*.isorted`（`*.py.isorted` 匹配不到 `*.pyi.isorted`）：
 
@@ -287,7 +264,7 @@ find . -name "*.isorted" -delete
 
 代码通过门禁 **不等于** 完成。改动落地后按序执行 1→6，任一条不满足即未完成：
 
-1. **门禁全绿**: `python scripts/run_gates.py` + `pytest`（0 警告）+ `scripts/check_coverage.py`；basedpyright 本地核一次。**大批量改动收尾时，被引用为「门禁全绿」证据的那次运行必须发生在整批最后一次编辑之后**——中途跑绿后又改了文件不得沿用旧结果（否则会把「改前的绿」当作「改后的绿」）。收尾须对「本次改动」记录三元组「**最终修订**（最后一次编辑落到的文件/提交点）+ **实际执行的命令** + **通过/失败**」，并确认该运行指向最后一次编辑之后而非之前。此判定与留痕走本入口（第 1 步），**不另建并行清单**；`/dlr-dod` 命令第 1 步与本步同源，冲突时以本节为准。
+1. **门禁全绿**: `python scripts/run_gates.py` + `pytest`（0 警告）+ `scripts/check_coverage.py`。**大批量改动收尾时，被引用为「门禁全绿」证据的那次运行必须发生在整批最后一次编辑之后**——中途跑绿后又改了文件不得沿用旧结果（否则会把「改前的绿」当作「改后的绿」）。收尾须对「本次改动」记录三元组「**最终修订**（最后一次编辑落到的文件/提交点）+ **实际执行的命令** + **通过/失败**」，并确认该运行指向最后一次编辑之后而非之前。此判定与留痕走本入口（第 1 步），**不另建并行清单**；`/dlr-dod` 命令第 1 步与本步同源，冲突时以本节为准。
 2. **端到端真机验证**: 涉及录制链路/选源/ffmpeg 参数/平台解析的改动必须用**真实 URL** 增量跑（至少一受影响平台）并写进回复——只有单测绿不算验证过。判定口径：回复含脚本名（`test_{bili,douyin,douyu,huya,twitch}_live_collector.py`）+ 脱敏 URL + 结果状态（PASS/WARN/FAIL）+ 可核对读数（消息数/SRT 字节数）。无法执行（无外网/无活房间）时记「未执行 + 原因 + 交回用户的动作」且**不得宣布完成**。验证结论同时写进 `CODE_WIKI.md`/`CODE_WIKI_EN.md` 更新日志。
 3. **回归锁**: 动到带「回归锁」标注的行为时确认对应用例存在且覆盖；缺则补。
 4. **文档同源**: `CODE_WIKI.md`/`CODE_WIKI_EN.md` 更新日志追加本次变更（中英双份）；新增长期约定写回本文件。
@@ -337,8 +314,8 @@ find . -name "*.isorted" -delete
 ## 关键约定
 
 1. **版本号同步**: 唯一事实源 `pyproject.toml`。`main.py`/`src/web_api.py` 经 `importlib.metadata` 动态读取；`Dockerfile` 经 `APP_VERSION` 注入；`zh_CN.po` 不写版本号；文档当前版本手工同步。`uv.lock` 与已跟踪的 `DouyinLiveRecorder.egg-info` 是**派生**消费方（生成物，不手写版本号）：改 `[project].version` / 依赖 / 包清单后运行 `python scripts/sync_metadata.py` 一键重新生成二者（`uv lock` 整文件重算、`setuptools egg_info` 重建），日常校验用 `--check`（CI `static` job 与 `tests/test_regression_2026_09_22_gates.py` 两条元数据回归锁兜底）。`scripts/check_version.py` 校验动态消费方。
-2. **行宽**: 120 字符（black + isort 统一）。
-3. **导入排序**: isort `black` profile，`known_first_party = ["src", "i18n"]`。
+2. **行宽**: 120 字符（Ruff 统一）。
+3. **导入排序**: Ruff `I` 规则，`lint.isort.known-first-party = ["src", "i18n"]`。
 4. **运行时资源**: `config/`/`ffmpeg/`/`node/` 与 exe 同级，不进入 `_internal/`。
 5. **JS 签名脚本**: 位于 `src/javascript/`，通过 `__file__` 定位，打包收入 `_internal/`。
 6. **编码与注释风格**: 源文件 UTF-8、注释中文；注释统一 `#`（见「注释约定」），禁止 docstring（多行字符串字面量如 `SPEC_TEMPLATE` 合法保留）。
@@ -486,14 +463,14 @@ find . -name "*.isorted" -delete
 
 - **PEP 758 `except A, B:` 在 3.14 合法，语法/编译检查一律用项目 venv 的 Python 3.14**: 用 3.13 做 `compileall`/`py_compile` 会把全树误报 `SyntaxError: multiple exception types must be parenthesized`。新增/修改写无括号，但不要把现有无括号写法修回加括号（与约定相反）。**不支持 `as` 绑定**：有异常对象时必须 `except (A, B) as e:`（语法强制），批量替换时务必 grep `as` 用法（与「代码风格」except 条目同口径）。**本条已有常驻门禁 `tests/test_pep758_except_form.py`（2026-10-18，CODE_REVIEW §7.11 第③条）**：① 全仓 .py 必须能被当前解释器整树解析（把「用错 Python 版本做语法检查」这个反复出现的排查坑钉住）；② 无括号多异常处理器计数**不得低于基线**（批量加括号在 AST 里与无括号完全同形、black 两种写法都接受，因此只能力学监测、无法靠 `ast.dump` 或 `black --check` 发现——即「注释检查工具」盲点①的门禁化）；③ **基线必须由本锁自己的分类器实测产出**，不得用行正则代算：首版基线取 60（正则粗扫），变异验证当场发现摘掉一处仍判绿（AST 实数 61，61→60 恒满足旧基线），棘轮与它的基线不同源就等于留一条松缝。
 - **protoc 生成模块需手写 `.pyi` 存根**（src/proto/douyin_pb2.py）: 消息类经动态注入，mypy 看不到 `PushFrame`/`Response`/`ChatMessage` 属性而报 `attr-defined`。已建 `src/proto/douyin_pb2.pyi` 声明 3 个消息类及字段（继承 `google.protobuf.message.Message`）。新增字段引用必须同步补存根。
-- **平台专属符号必须 `sys.platform` 字面量门控**（mypy 跨平台 CI 检查）: `ctypes.WinDLL`/`windll` 仅 Windows typeshed 有，CI 的 mypy 跑在 linux runner。修复模式：函数体首行早返回 `if sys.platform != "win32": return`；注解需引用平台符号时降级为 `object | None`（禁 `sys.platform` 条件类型别名）。**禁用 `# type: ignore`**（Linux 必要、Windows 多余，basedpyright 报 `reportUnnecessaryTypeIgnoreComment`）。验证双跑且均不带路径：`mypy`+`mypy --platform linux`。门控条件写反静态检查发现不了，须运行时用例锁定（`tests/test_i18n.py::TestWindowsUiLanguagePlatformGate`）。
-- **三参 `getattr` 不做字面量名解析，模块级已声明属性一律直接访问**（mypy Any 泄漏）: `getattr(obj, "attr", default)` 返回 `Any | None`，`warn_return_any` 下报 `no-any-return` 且后续属性链类型检查全部失效。凡目标属性有模块级声明（如 `main.scheduler: ConcurrencyScheduler | None`）直接 `main.scheduler` 访问；确需容错用 `cast`。
+- **Windows 专属 API 必须在正确的平台分支调用**: ctypes.WinDLL / subprocess.STARTUPINFO / winreg 等不得在 Linux 路径执行；该约束保障运行时安全，不额外建立类型检查门禁。
+
 - **protobuf 升级必须先同代重新生成再放开版本上限**（F-14）: `douyin_pb2.py` 为 protoc 25.x 产物、标注 DO NOT EDIT，本环境无 protoc。**禁止手改生成文件**；声明区间现为 `protobuf>=6.33.5,<8`——**上限 `<8` 不可删**（gencode 4.25.3 与 runtime 跨大版本存在兼容窗口外失效风险），下限 2026-09-26 由 `deps-audit`「下限复核」从 `6.31.1` 抬到 `6.33.5`（PYSEC-2026-1805 影响 6.31.1，修复于 5.29.6 / 6.33.5，旧下限自身就在受影响段内）。事实源是 `pyproject.toml [project.dependencies]` 与 `requirements.txt`，本文件不复述取值以外的规格。回归锁：`tests/test_proto_runtime_compat.py`。
 - **`main.py` 内引用模块全局量不得加 `main.` 前缀**: 本文件模块级 `main` 是入口函数而非模块对象，`main.recording_enabled` 运行期必抛 `AttributeError`。
-- **删除模块级函数/常量前必须 grep 全部调用点**: `main.py` 曾删 `_ffmpeg_reported_output_failure()` 但留调用点，mypy/basedpyright/tests 三面同时转红，且因调用点在 `and` 右侧短路、在 Linux CI 上恰不炸（典型「本地红、CI 绿」）。执行「删除符号」改动：① grep 收全调用点再删；② 删完立刻跑 mypy+完整 pytest；③ 用例输出路径必须用 `tempfile.gettempdir()`（旧 `"/tmp/out.ts"` 在 Windows 父目录不存在，两端语义相反）。`check_annotations.py` 已常驻符号可达性检查兜底。
-- **测试桩转发函数里 `*args`/`**kwargs` 一律注解 `Any`（写成 `object` 只有 basedpyright 报错）**: `monkeypatch.setattr(Path, "unlink", stub)` 类转发桩若 `*a: object, **k: object` 转发，basedpyright 会按声明类型逐个匹配形参报 `reportArgumentType`；mypy 不报故只跑 mypy 会漏。统一 `*args: Any, **kwargs: Any`（必要时 `cast` 收窄返回值）。
-- **CI 的 typecheck job 必须装 pytest，否则 `tests/` 的类型检查是半盲的**（2026-09-26 修）: 该 job 若只装 `requirements.txt + mypy`，`tests/` 里的 `pytest.*` 全按 `Any` 检查——fixture / `MonkeyPatch` 免检不说，`pytest.fail()` 的 `NoReturn` 也丢失，于是「声明了非 `None` 返回类型、却以 `pytest.fail()` 收尾」的辅助函数被判成 `[return]`（`tests/test_proto_runtime_compat.py::_declared_protobuf_specifier` 实测只在 CI 红、本机恒绿，无法本地复现）。现随 consts 补装固定版本 `pytest==9.1.1`（与 black / isort / mypy 同口径，防「代码未改动却 CI 变红」）。长期约定：辅助函数走不到终点时统一 `raise AssertionError(...)`（天然 `NoReturn`，不依赖 pytest 是否可见），**不要**依赖 `pytest.fail()` 的返回类型，**也不要**在其后补不可达语句（basedpyright 报 `reportUnreachable`）。复现「pytest 不可见」的老环境：`mypy --no-site-packages`（该模式下 `src/` 多出的 5 条 `no-any-return` 属过度剥离噪声，非真实问题）。
-- **`[tool.mypy].exclude` 的运行时二进制目录条目必须写目录段锚定形态 `(^|/)<名>/`，禁止裸名**（2026-10-03 定稿）: mypy 的 `exclude` 是 `re.search` 对「相对路径 + 正斜杠归一、目录补尾 `/`」的**子串**匹配，裸名会把模块名含该词的源码整个排除出门禁；而 black（`/( … )/` 只命中目录段）、isort（`extend_skip` 按名）、basedpyright（目录 glob）的同名排除均无此误伤。两条衍生约束：**新增排除项一律写锚定形态**；**新增源码文件也不得取这些裸名**——2026-10-17 `src/gui_qt/pages/logs.py` 撞上裸名 `logs`、被无参 mypy 静默漏查（正是本条预言的形态），由 `tests/test_run_gates.py::test_mypy_exclude_never_shadows_source_files` 抓出，日志页因此改名 `runlog.py`（改名是它期望的修法，收紧 exclude 会影响别的平台/目录形态）。其余裸名条目（`downloads`/`recordings`/`logs`/`backup_config`/`typings` 等）现无 `.py` 路径碰撞、维持原样。裸名时代的失明文件数、锚定后新暴露的 8 处存量错误形态与修复前后 source-files 读数见 `docs/agent-reference/measured-evidence.md`「门禁工具版本与 exclude 锚定的历史读数」。
+- **删除模块级函数/常量前必须 grep 全部调用点**: `main.py` 曾删 `_ffmpeg_reported_output_failure()` 但留调用点，mypy/basedpyright/tests 三面同时转红，且因调用点在 `and` 右侧短路、在 Linux CI 上恰不炸（典型「本地红、CI 绿」）。执行「删除符号」改动：① grep 收全调用点再删；② 删完立刻跑 Ruff+完整 pytest；③ 用例输出路径必须用 `tempfile.gettempdir()`（旧 `"/tmp/out.ts"` 在 Windows 父目录不存在，两端语义相反）。`check_annotations.py` 已常驻符号可达性检查兜底。
+
+
+
 
 ### 热路径性能（数据结构 / 正则）
 
@@ -504,7 +481,6 @@ find . -name "*.isorted" -delete
 
 - **Node 24 / FFmpeg 9.0 兼容基线**: 9.0 移除的 CLI 参数禁止引入。
 - **近期性能优化与修复完整变更记录见 `CODE_WIKI.md`/`CODE_WIKI_EN.md` 更新日志**: 本文件只沉淀可回归硬约定。
-- **`StopRecording.vbs` 必须保存为 UTF-16 LE（带 BOM）**: 由 wscript/cscript 消费，按系统 ANSI 解释 `.vbs`，UTF-8 保存会让中文乱码（源文件统一 UTF-8 约定不适用于该文件）。进程匹配现为三层：① 程序专属 exe 按映像名命中；② python 须命令行含入口脚本或 pip 启动器名 `douyin-recorder`（刻意不按项目目录匹配，避免误杀编辑器工具进程）；③ ffmpeg 须「父进程为已识别录制主进程」或「路径/命令行锚定程序目录」。结束顺序先录制主进程（`taskkill /f /t /pid` 连带子进程树）后残留 ffmpeg——原「先杀 ffmpeg→等 10s→再杀主进程」存在主进程重建 ffmpeg 竞态，且强杀不走 atexit 不执行日志归档（本脚本仅作最后手段）。
 - **包内 ffmpeg 的 PATH 前置在 Apple Silicon 上必须「让位」（W6）**: full 包内置 macOS ffmpeg 是 x86_64 静态构建，已装原生 arm64 用户会被遮蔽强制走 Rosetta。判据收敛到 `src/ffmpeg_install.should_prepend_bundled_ffmpeg_dir()`（唯一事实源，main.py 只保留「重复插入跳过」守卫）。五条判据：`darwin` ∧ `arm64` ∧ 包内目录存在 ∧ 注入前 PATH 快照另有 ffmpeg ∧ 那份 realpath 不在包内目录。三条不可回退：① 探测必须用调用点传进来的 pre-injection PATH 快照（直接读 `os.environ["PATH"]` 会探到自己刚前置的那份）；② 自我遮蔽形态（用户已把包内目录永久写进 PATH）须按 realpath 归一后排除；③ Windows/Linux/Intel Mac 行为逐字不变。`scripts/douyin_live_recorder_standalone.py` 有同名同语义判据（该文件不 import src），改判据必须两处同改、两边注释互相点名，行为等价性由 `tests/test_ffmpeg_path_preference.py::test_twin_agrees_on_every_criterion_combination`（9 格矩阵）锁住。
 - **主线安全/正确性修复必须核对 standalone 孪生副本（2026-09-30 定稿，S-01/S-02 事故沉淀）**: 凡涉及 `sync_http` opener 白名单、`-protocol_whitelist`、ffmpeg 终止链（`ffmpeg_proc`）、`config_bool` 布尔口径、MID-49 类签名/编码修复时，必须同步核对 `scripts/douyin_live_recorder_standalone.py`，并在提交说明写明「已核对 / 已回灌 / 刻意不回灌及原因」——该副本按设计不 import src/，主线修复不会自动生效，单边漂移会在独立发行版上重开已修防线。副本自身的探针/录制链防线（协议白名单 opener、候选内网判定、命令日志脱敏）由 `tests/test_regression_2026_09_22_standalone.py` 独立回归锁护持。
 - **`DouyinLiveRecorder.egg-info` 是构建产物、会长期腐化，改 `pyproject.toml` 后须重建**: `importlib.metadata`/`pip install -e .` 会读它；改 `[project].dependencies`/`version`/`packages`/`package-data` 后跑 `python scripts/sync_metadata.py` 重建（与 `uv lock` 一并，口径见「关键约定」#1）。
@@ -519,7 +495,7 @@ find . -name "*.isorted" -delete
 - **`Dockerfile` 的 `ARG` 必须声明在使用它的指令之前，且门禁要断言行序（MIN-14）**: `LABEL version="${APP_VERSION}"` 写在 `ARG APP_VERSION` 之前会固化空串且构建期不报错。现 `check_version.py` 另断言「`ARG APP_VERSION` 声明行 < 使用点所在指令起始行」（多行续写须回溯指令头、跳过注释行）。新增 ARG/ENV 消费点同理。
 - **`scripts/check_coverage.py` 无数据即 rc=2 硬失败，不得退回 WARN（MIN-19）**: 「数据文件不存在」「JSON 读不出」「files 为空」三类都必须走 rc=2 并打印 `pytest --cov=src` 下一步命令（与「模块查不到按失败处理」同族防线，不可互替）。CI test job 顺序固定 `pytest --cov=src` → `check_coverage.py`。
 - **不可信输入不得跑浮动 ref 的第三方动作（MIN-17）**: `issue-translator.yml` 触发源是任意外部贡献者正文，已降级为仅 `workflow_dispatch`+降权。不得凭记忆填 SHA、不得为恢复便利加回触发器；其余第三方非认证动作（`trivy-action` 已 SHA 钉定等）按同判据区分。
-- **镜像的 GUI 依赖由 `INSTALL_GUI` 单开关控制，默认 false**（2026-10-17 定稿）: GUI 窗口层迁 PySide6 后它进了运行时清单，镜像侧的 `pip install -r requirements.txt` 于是会把整只 PySide6 轮子（本机解压尺寸读数见 `docs/agent-reference/measured-evidence.md`「打包与镜像体积读数」）装进只跑 `main.py` / `web.py` 的镜像——实测两者在屏蔽 PySide6 后导入链完整，而 slim-bookworm 运行阶段没有 QtWidgets 的链接依赖（libEGL/libGL/glib/fontconfig/xkbcommon…），默认装入只会翻倍体积却仍起不动窗口。三条硬约束：① **过滤只发生在镜像侧**，`requirements.txt` 与 `pyproject [project.dependencies]` 的集合相等锁不受影响，**不得**为瘦身把 PySide6 从清单里删掉；② 「阶段1 剔除 PySide6」与「阶段2 按需装 Qt 运行库」是同一个开关的两半，`ARG` 不跨阶段、两处必须同条件同改；③ compose 的 `gui` 服务必须显式传 `INSTALL_GUI: "true"` 且**另用一枚 tag**（`:latest-gui`）——build 配置不同的服务共用同一 image 名时，后构建的一方会覆盖另一方正在使用的 tag；发布工作流（`docker-publish.yml`）**不得**传 true，对外镜像必须保持 slim。回归锁 `tests/test_dockerfile_image_gui_arg.py`（四条判据 + 判据自检，六处变异实测各自转红）。
+- **Docker 永远只支持 CLI / Web，不构建 GUI 镜像（2026-10-23 用户明确要求）**: Dockerfile 不得添加 INSTALL_GUI、gui extra、Qt / X11 系统库或 GUI 构建目标；compose 只保留 recorder / web，不提供 gui profile。`.dockerignore` 必须排除 `gui.py` 与 `src/gui_qt/`。宿主机 GUI / Windows Web 托盘通过 `uv sync --locked --extra gui` 单独安装。镜像使用固定版本与摘要的 uv、BuildKit 缓存和 `uv sync --locked --no-dev --no-install-project`；`uv.lock` 必须进入构建上下文，运行阶段不带 uv / 编译工具链，FFmpeg 使用独立构建阶段。回归锁 `tests/test_dockerfile_image_gui_arg.py`。
 - **`docker-compose.yaml` 不得保留 `:latest` 拉取回退（MIN-18）**: 锚点内已设 `pull_policy: build`，直接 `up` 就地构建而非拉 registry 同名 `:latest`。
 - **`make_zip` 的产物名一律整体 f-string 拼接，禁用 `Path.with_suffix(".zip")`（2026-09-27 CI 实红）**: `with_suffix` 按**最后一个点**切分扩展名，而版本号本身带点，实测 `DouyinLiveRecorder-v4.3.0-windows-amd64-lite` 的 `Path.suffix` 是 `.0-windows-amd64-lite` → lite 与 full 同名 `DouyinLiveRecorder-v4.3.zip`（`linux-x86_64` 同形），`--dual` 第二次以 zipfile `"w"` 原地截断第一次且不报错，dist/ 只剩一个 zip、平台/架构段消失，`Build executables + smoke test` 与「lite+full 齐全」同时落空。同族判据：① 产物命名类用例必须断言**名字本身**（正则结构锁），只断言 `is_file()` 或 `SystemExit` 文本的用例对名称漂移全盲；② `version`/`suffix` **两个入参位**含路径分隔符时拼出的都是子路径、成品落到 `DIST_DIR` 之外，故断言「父目录仍是 `DIST_DIR`」且用例两侧都测；③ `--dual` 与 `--no-zip` 互斥并 fail-fast（`--dual` 分支从不读 `no_zip`）；④ 出包后拿 `make_zip` 的**两个返回值**做事后校验（`_assert_dual_zips_are_two_files`：名字互异 + 均是文件），单次调用的守卫只能自证「这一次」；⑤ 出包前清 `DIST_DIR` 里 `{APP_NAME}-v*.zip` 形态的陈旧产物（`_clean_stale_release_zips`，打印被删清单），否则复用工作区的 runner 会把上一轮 zip 一起被 `path: dist/*.zip` 扫进附件，`--no-zip` 路径不清理。产物名示例一律写 `windows-amd64`（`platform.machine().lower()` 的实际取值），`x64` 只是 `_NODE_ARCH_MAP` 归一后的运行时键名。回归锁（均在 `tests/test_build_exe.py`）：`test_make_zip_name_keeps_dotted_version_and_variant_suffix`、`test_dual_suffixes_do_not_collide_on_one_zip`、`test_make_zip_refuses_name_containing_path_separator`、`test_dual_and_no_zip_are_mutually_exclusive`、`test_dual_build_prunes_stale_zips_before_first_zip`、`test_no_zip_build_keeps_existing_dist_zips`、`test_dual_build_aborts_when_both_variants_land_on_one_zip`、`test_dual_build_aborts_when_a_variant_zip_is_missing`、`test_clean_stale_release_zips_only_touches_own_artifacts`。
 
@@ -558,7 +534,7 @@ find . -name "*.isorted" -delete
 - **测试不得自实现被测逻辑（假绿）**: 曾存在测试里重新实现锁/凭证缓存再断言自实现——删掉 `src/` 对应实现仍全绿等于没覆盖。判据「**删掉生产实现就会失败**」：只允许打桩网络层与时间常量，去重/限流/锁逻辑走真实代码。另：不得 `monkeypatch.setattr(main.time, "sleep", ...)`（`main.time` 是 stdlib 时间模块本体，会替换全进程 sleep，应浅拷贝成 `SimpleNamespace` 覆盖单属性）；覆盖率门禁「模块查不到」按失败处理（非告警）。
 - **探测子进程输出一律按字节比较，且这类用例必须能单文件独立运行**: 凡读子进程输出做判定的探测不得用 `text=True`/`encoding=`（Windows `tasklist`/`taskkill` 按控制台码页发本地化消息，UTF-8 模式下 reader 线程解码即抛 `UnicodeDecodeError`→`TypeError`+违背 0 警告）。判据写成字节包含（`str(pid).encode() in probe.stdout`）与码页/语言解耦。`main.py` 导入期 `SetConsoleOutputCP(65001)` 会把整个 pytest 进程控制台码页切 UTF-8，只要同会话有用例先 import main，GBK 分支永不显现→「全量绿、单文件跑红」。故任何驱动子进程并断言其输出/进程状态的测试文件必须保证 `pytest tests/<该文件>` 单独运行全绿且 0 警告。
 - **本机全量 pytest 偶发段错误（exit 139）**: 属环境噪声，不要据此认定代码回归。
-- **平台专属分支的测试不得靠 `skipif` 让 CI 跳过（CI 实测定稿）**: CI 全部 job 跑在 ubuntu，Windows 专属分支（如 `src/ffmpeg_proc.py` 的「向 stdin 写 `q` 再 close」）若按 `os.name`/`sys.platform` skip，相关回归锁会在 CI 上**静默消失**。做法：把平台判定抽成模块级常量（如 `_QUIT_VIA_STDIN = os.name == "nt"`），测试用 `monkeypatch.setattr(module, "_QUIT_VIA_STDIN", True)` 强制走进该分支，让 Windows 路径在 Linux CI 上真实执行。同理，**门禁工具（black / isort / mypy）必须装进 test job**：`tests/test_run_gates.py` 与 `tests/test_regression_2026_09_22_gates.py` 有两条锁会真起子进程调用它们（复现 isort 的 `Unable to parse file` 走 UserWarning 且 rc 仍 0；验证裸 console-script 不在 PATH 时 `python -m` 兜底不误报 rc=3），缺装即 `No module named isort` → rc=1 → 红；版本取 setup job 的 `black_version` / `isort_version` / `mypy_version` 常量，与 static / typecheck 两 job 同值。
+- **平台专属分支的测试不得靠 `skipif` 让 CI 跳过（CI 实测定稿）**: CI 全部 job 跑在 ubuntu，Windows 专属分支（如 `src/ffmpeg_proc.py` 的「向 stdin 写 `q` 再 close」）若按 `os.name`/`sys.platform` skip，相关回归锁会在 CI 上**静默消失**。做法：把平台判定抽成模块级常量（如 `_QUIT_VIA_STDIN = os.name == "nt"`），测试用 `monkeypatch.setattr(module, "_QUIT_VIA_STDIN", True)` 强制走进该分支，让 Windows 路径在 Linux CI 上真实执行。test job 必须通过锁文件安装 dev extra：回归锁会真起 Ruff 子进程，验证非法编码报错和模块入口，不得把工具缺失当成 skip。
 - **并行分组代码审查分工口径**: 子任务 prompt 必须写明本项目刻意约定白名单，避免子代理误报风格为问题。
 
 ## 本机 y123 部署补丁边界（2026-10-22）

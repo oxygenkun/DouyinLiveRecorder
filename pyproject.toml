@@ -52,8 +52,8 @@ dependencies = [
     # httpx 的**可选**能力包（extra），本仓运行时真的会执行其代码，故必须显式声明——
     # requirements.txt 与本节是「单源双写」，两侧包名集合必须逐项一致（回归锁：
     # tests/test_regression_2026_09_22_gates.py 断言集合相等，防单侧遗漏）。
-    # extra 只在 pip 解析 `.[extra]` 那一刻展开，而 Docker/CI 消费的是 requirements.txt
-    #   （`pip install -r`），把 httpx 写成裸名或换索引重装即静默丢失（2026-09-23 本机实测
+    # [历史注 2026-10-23] 原 Docker/CI 经 requirements.txt 安装；现改用 uv.lock。
+    #   兼容清单里把 httpx 写成裸名或换索引重装即静默丢失（2026-09-23 本机实测
     #   `import h2` → ModuleNotFoundError）。触发点已回源到 httpx 源码：h2 来自
     #   httpx._client.Client.__init__ 的 `if http2: import h2`（本仓 http2 默认为 True）；socksio 来自
     #   httpx._transports.default 的 `socks5/socks5h` 分支 `import socksio`（本仓支持 socks5:// 写法）。
@@ -67,11 +67,11 @@ dependencies = [
     # [2026-10-03 阶段5] customtkinter 已随 UI 现代化阶段4（tkinter.ttk 自研控件层）摘除
     # GUI 主窗口迁 PySide6：QSS token 可 1:1 还原设计稿的圆角/投影/弹簧动效（ttk 无法原生实现），
     #   下界 6.12 是本机实测支持 Python 3.14.8 的最小版。2026-10-20 起 Web 入口托盘
-    #   （src/web_tray.py）改走 QSystemTrayIcon，本包同时是 GUI 与 Web 两入口的运行时依赖。
+    #   （src/web_tray.py）改走 QSystemTrayIcon；需要桌面窗口或 Web 托盘时安装 gui extra。
     #   [历史注] pystray / Pillow 已同批摘除：遗留 tkinter 托盘（gui.py::SystemTray）退役，
     #   两入口托盘统一为 Qt + QPainter 现画图标，PIL 全仓再无调用点——旧注释「保留的原因改为
     #   tkinter 版 gui.py 的托盘仍在用」的前提已失效，故两包一并移出 [project.dependencies] 与 .gui。
-    "PySide6>=6.12.0",
+    # PySide6 仅由 gui extra 安装；Web 无桌面托盘时照常运行（2026-10-23）。
     # starlette 下限 >=1.3.1：兼顾 CVE-2026-48710（受影响 <=1.0.0）与 PYSEC-2026-2280/2281
     # （修复于 1.1.0）、PYSEC-2026-248/249（修复于 1.3.0/1.3.1）——旧下限 0.49.1、乃至补-05 抬的
     # 1.0.1 都仍放行受影响段。现装 1.8.0；审计口径见 ci.yml deps-audit「下限复核」。
@@ -96,12 +96,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
+    "pytest==9.1.1",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "mypy>=1.5.0",
+    "ruff==0.17.1",
     "pre-commit>=3.6.0",
 ]
 gui = [
@@ -148,55 +146,22 @@ src = ["javascript/*.js"]
 # 注：i18n/ 翻译目录不是 Python 包（无 __init__.py），无法通过 package-data 分发；
 # .mo 文件随 git 仓库、发布 zip（build_exe.py）与 Docker 镜像分发。
 
-[tool.black]
+[tool.ruff]
+include = ["*.py", "*.pyi"]
 line-length = 120
-target-version = ['py314']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-    | \.venv
-    | build
-    | dist
-    | __pycache__
-    | \.pyc
-    | node
-    | ffmpeg
-    # 运行期产物目录（录制文件 / 日志 / 配置备份；均已在 .gitignore、.dockerignore 同源忽略）
-    | downloads
-    | recordings
-    | logs
-    | backup_config
-    # 第三方/工具生成目录（非项目代码，不纳入格式化；与 .gitignore/.dockerignore 同源维护）
-    | \.agents
-    | \.qoder
-    | \.qoder-credits
-    | \.workbuddy
-    | \.codebuddy
-    | \.trae
-    | \.plugin-src
-    | \.dsh-validation
-    | \.ego-browser-test
-    | \.npm-cache
-    | \.pnpm-store
-    | \.mimosa
-    | \.tmp-dps-extract
-    | \.v2c
-    | \.superpowers
-    | typings
-    | pytest-cache-files-[^/]*
-)/
-'''
-
-[tool.isort]
-profile = "black"
-line_length = 120
-known_first_party = ["src", "i18n"]
-# 第三方/工具生成目录（非项目代码，不纳入导入排序；与 .gitignore/.dockerignore 同源维护）
-extend_skip = [
+target-version = "py314"
+# 工具目录与运行期产物不属于项目源码；force-exclude 同时约束 pre-commit 显式传入的路径。
+force-exclude = true
+extend-exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+    "__pycache__",
+    "typings",
     "node",
     "ffmpeg",
-    # 运行期产物目录（与 .gitignore/.dockerignore 同源维护）
     "downloads",
     "recordings",
     "logs",
@@ -215,65 +180,20 @@ extend_skip = [
     ".mimosa",
     ".tmp-dps-extract",
     ".v2c",
-    # SDD/治理式流程技能在仓库内留下的工作区目录（与 .gitignore/.dockerignore 同源维护）
     ".superpowers",
+    "pytest-cache-files-*",
 ]
-extend_skip_glob = ["*.pyc", "pytest-cache-files-*"]
 
-[tool.mypy]
-python_version = "3.14"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-# 检查范围（单一事实源）：CI 与本地都直接跑 `mypy`（不带路径参数）消费此列表，避免
-# 「CI 查 A、本地查 B」的覆盖面漂移；显式传参（如 mypy src/）仍优先生效。
-# 只收产品代码与本仓测试：src/ 包 + 根入口 + 打包脚本 + 维护脚本 + tests/。tests/ 纳入的
-# 理由：门禁早已要求 `mypy tests/`，但只靠自觉会漂移（2026-09-13 新增的黄金快照用例即带着
-# 12 处缺注解混入，门禁实际已红未察）。
-files = [
-    "src",
-    "main.py",
-    "gui.py",
-    "web.py",
-    "i18n.py",
-    "msg_push.py",
-    "build_exe.py",
-    "scripts",
-    "tests",
-]
-# 排除目录（正则 re.search 按「相对路径 + 正斜杠归一 + 目录补尾 /」的子串匹配；本地工具生成目录
-# 与 .gitignore/.dockerignore 同源维护）。运行时二进制目录必须锚定成目录段形态 (^|/)<名>/：
-# 裸名字会按子串命中任何含该名字的模块路径——裸 "ffmpeg" 曾把 src/ffmpeg_*.py 与
-# tests/test_ffmpeg_*.py 共 10 个文件整个排除在无参 mypy 门禁外（2026-10-03 锚定修复），裸 "node"
-# 同理误伤 node_install 两文件。其余条目现无 .py 路径碰撞，维持裸名；新增排除项时一律写锚定形态。
-exclude = [
-    "(^|/)node/",
-    "(^|/)ffmpeg/",
-    # 运行期产物目录（与 .gitignore/.dockerignore 同源维护）
-    "downloads",
-    "recordings",
-    "logs",
-    "backup_config",
-    "typings",
-    "__pycache__",
-    "\\.mimosa",
-    "\\.qoder",
-    "\\.qoder-credits",
-    "\\.agents",
-    "\\.workbuddy",
-    "\\.codebuddy",
-    "\\.trae",
-    "\\.pnpm-store",
-    "\\.npm-cache",
-    "\\.dsh-validation",
-    "\\.ego-browser-test",
-    "\\.plugin-src",
-    "\\.tmp-dps-extract",
-    "\\.v2c",
-    "\\.superpowers",
-    "pytest-cache-files-",
-]
+[tool.ruff.format]
+# 本仓 CRLF / LF 混存，每个文件沿用其既有行尾，避免格式化时整文件翻转。
+line-ending = "auto"
+
+[tool.ruff.lint]
+# 只检查导入排序与文件读取错误，不引入额外风格或类型检查规则。
+select = ["I", "E902"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "i18n"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -344,45 +264,3 @@ exclude_also = [
 ]
 
 # 逐模块覆盖率阈值只在 scripts/check_coverage.py 的 MODULE_THRESHOLDS 维护；此处不复制数值，避免双写漂移。
-
-[tool.basedpyright]
-# basedpyright 类型检查配置（本地补充门禁，CI 裁决仍以 mypy 为准）。
-# venvPath 用工作区相对路径指向 .venv：basedpyright 不支持 ${env:...} / ~ 展开，配置里也不
-# 写死机器专属绝对路径。.venv 已被 .gitignore 忽略，各开发者自行创建：
-#   python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-pythonVersion = "3.14"
-typeCheckingMode = "standard"
-venvPath = "."
-venv = ".venv"
-exclude = [
-    "**/typings",
-    "**/node",
-    "**/ffmpeg",
-    # 运行期产物目录（与 .gitignore/.dockerignore 同源维护）
-    "**/downloads",
-    "**/recordings",
-    "**/logs",
-    "**/backup_config",
-    "**/build",
-    "**/dist",
-    "**/__pycache__",
-    # 本地工具生成目录（与 .gitignore/.dockerignore 同源维护，防误扫描）
-    ".qoder",
-    ".qoder-credits",
-    ".workbuddy",
-    ".codebuddy",
-    ".trae",
-    ".agents",
-    ".pnpm-store",
-    ".npm-cache",
-    ".dsh-validation",
-    ".ego-browser-test",
-    ".plugin-src",
-    ".tmp-dps-extract",
-    ".v2c",
-    ".superpowers",
-    "**/.mimosa",
-    "**/pytest-cache-files-*",
-]
-# 第三方库无源码属正常，不报；类型存根质量非本项目职责
-reportMissingModuleSource = "none"

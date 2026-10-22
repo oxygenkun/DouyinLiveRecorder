@@ -40,7 +40,7 @@ DouyinLiveRecorder 是 Python ≥ 3.14 的多平台直播录制工具（ffmpeg �
 | 工具与配置 | `src/utils.py`、`src/config_io.py`、`src/config_bool.py`、`src/logger.py`、`src/log_archive.py`、`src/notify.py`、`msg_push.py`、`src/recorder_status.py`、`i18n.py` | 3,524 | 中 4 / 轻 10 |
 | 安装与后处理 | `src/ffmpeg_install.py`、`src/ffmpeg_master_download.py`、`src/node_install.py`、`src/ffmpeg_proc.py`、`src/video_postprocess.py`、`src/base.py`、`src/__init__.py` | 2,600 | 中 6 / 轻 6 |
 | 前端与签名脚本 | `web/app.js`、`web/index.html`、`web/style.css`、`index.html`（根）、`src/javascript/*.js`（4 个自研） | 4,805 | 中 1 / 轻 15 |
-| 构建与门禁 | `build_exe.py`、`scripts/*.py`（12 个）、`Dockerfile`、`docker-compose.yaml`、`StopRecording.vbs`、`.github/workflows/*`、`.github/actions/retry` | 约 8,000 | 中 6 / 轻 9 |
+| 构建与门禁 | `build_exe.py`、`scripts/*.py`（12 个）、`Dockerfile`、`docker-compose.yaml`、`.github/workflows/*`、`.github/actions/retry` | 约 8,000 | 中 6 / 轻 9 |
 | 独立发行版 | `scripts/douyin_live_recorder_standalone.py` | 2,261 | **严重 2** / 中 4 / 轻 11 |
 
 另：`src/http_config.py`（63 行）审查后未发现问题；`src/ui_theme.py` 审查后未发现问题。

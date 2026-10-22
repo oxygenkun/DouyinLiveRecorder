@@ -16,7 +16,7 @@
 
 | 模块 | 位置 | 文件数 | 约行数 |
 |---|---|---:|---:|
-| 根目录入口与构建 | `main.py`、`web.py`、`gui.py`、`i18n.py`、`msg_push.py`、`build_exe.py`、`StopRecording.vbs` | 7 | ~15,800 |
+| 根目录入口与构建 | `main.py`、`web.py`、`gui.py`、`i18n.py`、`msg_push.py`、`build_exe.py` | 6 | ~15,800 |
 | 网络与流处理 | `src/async_http.py`、`sync_http.py`、`proxy.py`、`http_config.py`、`cookie_cache.py`、`ttwid.py`、`ab_sign.py`、`spider.py`、`stream.py`、`stream_select.py`、`ws_client.py` | 11 | ~15,000 |
 | 录制与调度 | `src/ffmpeg_install.py`、`ffmpeg_linux_download.py`、`ffmpeg_master_download.py`、`ffmpeg_proc.py`、`video_postprocess.py`、`srt_writer.py`、`recorder_status.py`、`room.py`、`scheduler.py`、`collector.py`、`base.py`、`startup_cleanup.py` | 12 | ~10,000 |
 | 基础设施 | `src/config_bool.py`、`config_io.py`、`config_read.py`、`utils.py`、`logger.py`、`log_archive.py`、`notify.py`、`node_install.py`、`danmaku_monitor.py` | 9 | ~6,000 |
@@ -73,12 +73,6 @@
 - 说明：Web 模式退出路径仅清理 ffmpeg 与 HTTP 连接池，未调用 `main._shutdown_postprocess_executor()`；后处理线程池 worker 为非 daemon 线程，解释器退出时会 join 在途转码任务（单任务上限 3600 秒）。
 - 影响：面板退出可能长时间无响应，且转码子进程无人终止。
 - 修复：退出 `finally` 中补一次线程池排空/终止。
-
-**M-02 StopRecording.vbs 存在双重 BOM，兜底停录脚本必然解析失败**
-- 位置：`StopRecording.vbs:1` ｜ 类型：跨平台/文件编码（已经字节级核验：文件头为 `FF FE FF FE`）
-- 说明：文件以两个 UTF-16 LE BOM 开头，WSH 只剥离流首一个 BOM，第二个 U+FEFF 位于语句位置（其后才是注释符 `'`），触发 800A0408 "Invalid character"。
-- 影响：文档化的紧急停录兜底脚本无法执行；GUI 卡死时用户失去该恢复手段，强行杀进程可能产生缺 moov 的损坏录制文件。
-- 修复：删除多余的一个 U+FEFF 字节。
 
 #### 网络与流处理（src/）
 
@@ -349,7 +343,6 @@
 ### P0（立即修复，1-2 个工作日内）
 
 1. **S-01** Qt GUI 录制输出断路——新版 GUI 的核心功能缺陷，用户可感知且阻断日常使用；修复成本低（补一次 emit 或主线程 drain）。
-2. **M-02** StopRecording.vbs 双 BOM——一行字节修复，恢复紧急停录兜底能力。
 3. **M-20** standalone 脚本 `b"q"` 写入失效——一行类型修复，消除"停止录制产出损坏文件"的数据风险。
 
 ### P1（本迭代内修复）

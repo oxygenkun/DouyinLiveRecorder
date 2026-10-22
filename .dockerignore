@@ -1,7 +1,7 @@
 # =============================================================================
 # DouyinLiveRecorder .dockerignore
 # 目的：只把容器运行所需内容送入构建上下文，减小体积、避免宿主机敏感文件与开发产物进镜像。
-# 运行所需：main.py / web.py / gui.py + src/（javascript/ 签名脚本、platforms/ 各平台实现与
+# 运行所需：main.py / web.py + src/（不含 gui_qt/；javascript/ 签名脚本、platforms/ 各平台实现与
 #   弹幕采集、proto/ 弹幕协议）+ web/（面板前端）+ i18n/**/*.mo
 # 红线：编译好的 .mo 是 gettext 运行时必需、Dockerfile 不会重编译，**不可排除**；
 #   只排 .po 源文件（编译脚本 compile_po.py 在 scripts/ 下，随 scripts/ 整目录排除）。
@@ -65,12 +65,12 @@ docker-compose*.yaml
 docker-compose*.yml
 .env
 
-# ---------- 依赖锁文件（镜像经 requirements.txt 用 pip 安装，不消费 uv.lock）----------
-uv.lock
+# ---------- uv.lock 必须进入构建上下文，供构建阶段按锁文件安装 ----------
 
 # ---------- Python 缓存 ----------
 __pycache__/
 .mypy_cache/
+.ruff_cache/
 *.py[cod]
 *$py.class
 
@@ -122,7 +122,6 @@ dist/
 # 路径——规则看着在、实际等于没写，且**伪装成已排除**（比漏写更糟）。注释一律独立成行。
 # 以下三项：本地 / CI 打包脚本、Windows 停止录制脚本、独立的 M3U8 播放器页（面板用 web/）
 build_exe.py
-StopRecording.vbs
 index.html
 
 # ---------- PyInstaller ----------
@@ -155,7 +154,6 @@ i18n/**/*.po
 *.dll
 *.cmd
 *.bat
-*.vbs
 
 # ---------- 临时文件与调试残留（与 .gitignore 同源维护）----------
 # *.jsonl：弹幕监控边车日志（logs/danmaku_monitor.jsonl 等），与下方 logs/ 目录排除互补；
@@ -178,3 +176,7 @@ _probe_*.py
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Docker 永远不运行桌面 GUI；可选 GUI 只在宿主机安装。
+gui.py
+src/gui_qt/

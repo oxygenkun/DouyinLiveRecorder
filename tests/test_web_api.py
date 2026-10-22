@@ -1707,9 +1707,9 @@ class TestOriginSameHostAndPort:
             )
             for origin in ("http://localhost:8000", "http://127.0.0.1:8000"):
                 resp = client.put("/api/rooms/qualities", json={"options": ["超清"]}, headers={"Origin": origin})
-                assert (
-                    resp.status_code == 401
-                ), f"{origin} 未过 Origin 关（期望 401 实得 {resp.status_code}）: {resp.text}"
+                assert resp.status_code == 401, (
+                    f"{origin} 未过 Origin 关（期望 401 实得 {resp.status_code}）: {resp.text}"
+                )
         finally:
             client.close()
 
@@ -2245,9 +2245,9 @@ class TestDeleteRoomReportsTruth:
         resp = app_env.client.delete(f"/api/rooms?url={url}", headers={"Authorization": f"Bearer {token}"})
         still_present = any(r["url"] == url for r in _parse_rooms(app_env))
         # 核心不变量：端点回报的成功必须与文件实际内容一致（既不虚报，也不因保守而漏报）
-        assert (resp.status_code == 200) is (
-            not still_present
-        ), f"status={resp.status_code} still_present={still_present}"
+        assert (resp.status_code == 200) is (not still_present), (
+            f"status={resp.status_code} still_present={still_present}"
+        )
         # 跨文件契约（SEV-05）：config_io.delete_line 已改为「两侧剥行尾后比较 + 返回 bool」，
         # 故 CRLF 文件上的删除必须真的生效。本断言同时锁住那半边——它退回到 no-op 时这里变红。
         assert resp.status_code == 200, f"CRLF 文件上删除仍被静默吞掉: {resp.text}"

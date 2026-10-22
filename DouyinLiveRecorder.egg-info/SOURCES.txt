@@ -13,6 +13,7 @@ DouyinLiveRecorder.egg-info/entry_points.txt
 DouyinLiveRecorder.egg-info/requires.txt
 DouyinLiveRecorder.egg-info/top_level.txt
 src/__init__.py
+src/ab_sign.py
 src/async_http.py
 src/base.py
 src/collector.py
@@ -21,6 +22,7 @@ src/config_io.py
 src/config_read.py
 src/cookie_cache.py
 src/danmaku_monitor.py
+src/douyin_dm.py
 src/ffmpeg_install.py
 src/ffmpeg_linux_download.py
 src/ffmpeg_master_download.py
@@ -88,6 +90,7 @@ src/proto/__init__.py
 src/proto/douyin.proto
 src/proto/douyin_pb2.py
 src/proto/douyin_pb2.pyi
+tests/test_ab_sign.py
 tests/test_agent_hook_guard.py
 tests/test_anchor_rename.py
 tests/test_async_http.py
@@ -110,6 +113,7 @@ tests/test_concurrency.py
 tests/test_concurrency_rate_limit.py
 tests/test_config_bool.py
 tests/test_config_io.py
+tests/test_config_io_append.py
 tests/test_config_io_backup.py
 tests/test_config_io_readonly.py
 tests/test_config_io_update_file.py
@@ -123,6 +127,8 @@ tests/test_decorator_contract.py
 tests/test_docker_publish_workflow.py
 tests/test_dockerfile_image_gui_arg.py
 tests/test_douyin_danmaku.py
+tests/test_douyin_dm.py
+tests/test_douyin_follow.py
 tests/test_douyin_live_collector.py
 tests/test_douyin_signature_encoding.py
 tests/test_douyin_url_resolution.py
@@ -139,6 +145,7 @@ tests/test_ffmpeg_proc.py
 tests/test_ffmpeg_reconnect_args.py
 tests/test_frontend_quality_ui.py
 tests/test_frontend_regression_gates.py
+tests/test_graceful_shutdown.py
 tests/test_gui_language_retranslate.py
 tests/test_gui_monitor.py
 tests/test_gui_qt_label_parity.py
@@ -162,6 +169,8 @@ tests/test_i18n_catalog_coverage.py
 tests/test_i18n_migration.py
 tests/test_i18n_raise_site_tr.py
 tests/test_i18n_tr.py
+tests/test_local_auto_start_recording.py
+tests/test_local_migration.py
 tests/test_log_archive.py
 tests/test_logger_console_sink.py
 tests/test_logger_gui_parent.py
@@ -180,7 +189,6 @@ tests/test_platform_dispatch.py
 tests/test_pre_commit_config.py
 tests/test_proto_runtime_compat.py
 tests/test_proxy.py
-tests/test_pyright_config_parity.py
 tests/test_quality_tiers.py
 tests/test_record_container.py
 tests/test_record_failure_feedback.py
@@ -216,7 +224,6 @@ tests/test_srt_timeline_anchor.py
 tests/test_srt_writer.py
 tests/test_start_record_command_golden.py
 tests/test_startup_cleanup.py
-tests/test_stop_recording_vbs.py
 tests/test_stream.py
 tests/test_stream_select.py
 tests/test_sync_http.py

@@ -122,9 +122,9 @@ def test_global_floor_is_not_looser_than_project_fail_under() -> None:
     # 否则「新模块零测试」能过逐模块闸、只被总闸拦下——判定面就漏了一半。
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     fail_under = float(pyproject["tool"]["coverage"]["report"]["fail_under"])
-    assert (
-        float(check_coverage.GLOBAL_FLOOR) >= fail_under
-    ), f"GLOBAL_FLOOR={check_coverage.GLOBAL_FLOOR} 低于全库 fail_under={fail_under}：新模块可自动豁免"
+    assert float(check_coverage.GLOBAL_FLOOR) >= fail_under, (
+        f"GLOBAL_FLOOR={check_coverage.GLOBAL_FLOOR} 低于全库 fail_under={fail_under}：新模块可自动豁免"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -408,9 +408,9 @@ def test_fresh_data_file_is_not_flagged(tmp_path: Path) -> None:
 def test_find_module_coverage_rejects_tests_only_key(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     report = _report({"tests/utils.py": 99.5})
-    assert (
-        check_coverage._find_module_coverage(report, "src/utils.py") is None
-    ), "tests/utils.py 顶替了 src/utils.py 的读数（6.7 的形态回来了）"
+    assert check_coverage._find_module_coverage(report, "src/utils.py") is None, (
+        "tests/utils.py 顶替了 src/utils.py 的读数（6.7 的形态回来了）"
+    )
 
 
 def test_tests_only_report_exits_1(tmp_path: Path) -> None:

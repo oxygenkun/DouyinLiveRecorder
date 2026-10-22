@@ -11,7 +11,6 @@ from src.room import HEADERS, UnsupportedUrlError
 # 守卫 get_sec_user_id / get_unique_id 在 URL 非法时抛出的专用异常类型。
 # 验证其可被正常构造、是 Exception 子类、可作为 Exception 被捕获。
 class TestUnsupportedUrlError:
-
     # 异常须可被构造并携带消息内容，供上层据此识别"不支持的 URL"
     def test_exception_creation(self) -> None:
         with pytest.raises(UnsupportedUrlError) as exc_info:
@@ -185,7 +184,6 @@ class TestGetUniqueId:
 
 # get_xbogus 是抖音请求签名入口；守卫函数存在性与协程形态，供调用方 await。
 class TestGetXbogus:
-
     @pytest.mark.asyncio
     # 守卫函数可导入且可调用，防止重命名/删除导致调用方崩溃
     async def test_function_exists(self) -> None:

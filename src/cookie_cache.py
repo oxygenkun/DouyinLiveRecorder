@@ -138,7 +138,7 @@ def _reap_orphans_locked(registry: dict[str, _Inflight], only_key: OptionalStr) 
     # 摘除孤儿登记并返回挂在上面的等待者，交调用方在**锁外**唤醒。
     # only_key 为 None 表示整表（clear/无参 invalidate 的语义），否则只处理这一个 key。
     stranded: list[_Waiter] = []
-    for key in (list(registry) if only_key is None else [only_key]):
+    for key in list(registry) if only_key is None else [only_key]:
         rec = registry.get(key)
         if rec is not None and _is_orphan(rec):
             registry.pop(key, None)

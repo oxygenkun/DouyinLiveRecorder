@@ -18,7 +18,7 @@ DouyinLiveRecorder 是一个支持 60+ 国内外直播平台的录制工具，�
 
 | 区域 | 文件数 | 代表性文件（实际行数） |
 |---|---:|---|
-| 根目录入口 | 8 | [main.py](file:///d:/DouyinLiveRecorder/main.py)（5455）、[gui.py](file:///d:/DouyinLiveRecorder/gui.py)（4065）、[build_exe.py](file:///d:/DouyinLiveRecorder/build_exe.py)（1546）、[msg_push.py](file:///d:/DouyinLiveRecorder/msg_push.py)（575）、[i18n.py](file:///d:/DouyinLiveRecorder/i18n.py)（406）、[StopRecording.vbs](file:///d:/DouyinLiveRecorder/StopRecording.vbs)（422）、[web.py](file:///d:/DouyinLiveRecorder/web.py)（325）、[index.html](file:///d:/DouyinLiveRecorder/index.html)（279） |
+| 根目录入口 | 7 | [main.py](file:///d:/DouyinLiveRecorder/main.py)（5455）、[gui.py](file:///d:/DouyinLiveRecorder/gui.py)（4065）、[build_exe.py](file:///d:/DouyinLiveRecorder/build_exe.py)（1546）、[msg_push.py](file:///d:/DouyinLiveRecorder/msg_push.py)（575）、[i18n.py](file:///d:/DouyinLiveRecorder/i18n.py)（406）、[web.py](file:///d:/DouyinLiveRecorder/web.py)（325）、[index.html](file:///d:/DouyinLiveRecorder/index.html)（279） |
 | `src/` 核心模块 | 31 | [spider.py](file:///d:/DouyinLiveRecorder/src/spider.py)（6885）、[web_api.py](file:///d:/DouyinLiveRecorder/src/web_api.py)（1582）、[web_config.py](file:///d:/DouyinLiveRecorder/src/web_config.py)（1155）、[stream_select.py](file:///d:/DouyinLiveRecorder/src/stream_select.py)（1148）、[stream.py](file:///d:/DouyinLiveRecorder/src/stream.py)（1120）、[utils.py](file:///d:/DouyinLiveRecorder/src/utils.py)（845）等 |
 | `src/platforms/` | 7 自有 + 1 生成 | douyin/bilibili/douyu/huya/twitch、`_tars.py`、`_xbogus.py` |
 | `src/javascript/` | 4 自有 | haixiu/liveme/migu/x-bogus（`crypto-js.min.js` 为第三方，未审） |
@@ -125,12 +125,6 @@ json_str = await async_req(f"{api_host}/api/v1/shop_page/live/ongoing?uid={uid}"
 - **位置**：[src/notify.py L104-L143](file:///d:/DouyinLiveRecorder/src/notify.py#L104-L143)
 - **证据**：超时、无执行权限、OSError、ValueError 四条分支都把**整条命令原文**记入 `logs/`（L110-116、L124-143）。用户脚本常内嵌 rclone token、curl 的 Authorization、数据库口令。另 L108-109 超时 `process.kill()` 只杀直接子进程，孙进程继承管道句柄时第二次无超时的 `communicate()` 可永久挂住录后钩子线程。
 - **修复建议**：日志中的 command/e 过 `utils.mask_credentials`；第二次 communicate 加超时，POSIX 用 `start_new_session`+`killpg`、Windows 用 `taskkill /T` 杀进程树。
-
-#### M-6　StopRecording.vbs 按通用脚本名匹配 python 进程，可误杀无关进程树
-
-- **位置**：[StopRecording.vbs L309-L324](file:///d:/DouyinLiveRecorder/StopRecording.vbs#L309-L324)（终止动作 `taskkill /f /t /pid` 在 [L386](file:///d:/DouyinLiveRecorder/StopRecording.vbs#L386)）
-- **证据（已核验）**：在整条命令行任意位置子串匹配 `main.py|gui.py|web.py`，前一字符为 `\`、`/`、空格或引号即判定为本录制器进程。`python D:\其它项目\main.py`、`python some_tool.py --config main.py` 均命中，随后强制连带杀整个进程树；确认框「仅结束本程序相关进程」的承诺在该情形下不成立。
-- **修复建议**：把入口脚本路径与程序安装目录（appDir）或 venv/可执行文件路径锚定；至少在确认文案中披露该匹配面。
 
 #### M-7　migu.js 运行时下载并实例化未做内容钉定的远端 WASM（已知情的架构性残余风险）
 
@@ -456,7 +450,7 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 
 ### P3（跟踪与知情决策）
 
-13. M-7（migu wasm SRI/沙箱）、M-20（打包后 i18n 实测）、M-6（VBS 锚定收紧）、轻微项中所有标「待核实」的条目，经实测/抓包确认后再定方案。
+13. M-7（migu wasm SRI/沙箱）、M-20（打包后 i18n 实测）、轻微项中所有标「待核实」的条目，经实测/抓包确认后再定方案。
 14. 轻微项中的死代码、过期内置凭据、SECLEVEL 收窄、a11y 等可结合周边改动顺手清理。
 
 ### 流程性建议
@@ -482,6 +476,6 @@ DouyinLiveRecorder 的代码库呈现出**高密度修复历史与较强的安�
 
 - **直接通读**：main.py 全部、web_api.py 全部、web_config.py 全部、web.py/i18n.py/msg_push.py 关键路径，以及所有引用到的证据行。
 - **并行只读审查（均附 file:line + 原文摘录）**：gui.py、spider.py、src 其余 31 个模块、platforms/JS、web 前端、scripts、tests 全量。
-- **人工复核（抽样 + 全部严重项）**：S-1（含 `_shopee_host_suffix` 与 XHS 修复对照）、S-2（含兄弟脚本 grep 与 collect-only 实测）、M-1/M-5/M-11/M-12/M-13/M-14/M-15/M-18/M-19/M-24/M-25/M-26/M-32 及 StopRecording.vbs、clean_name、notify 等证据行，均与源码一致。
+- **人工复核（抽样 + 全部严重项）**：S-1（含 `_shopee_host_suffix` 与 XHS 修复对照）、S-2（含兄弟脚本 grep 与 collect-only 实测）、M-1/M-5/M-11/M-12/M-13/M-14/M-15/M-18/M-19/M-24/M-25/M-26/M-32 及 clean_name、notify 等证据行，均与源码一致。
 - **运行时取证**：Python 3.14.7 下 PEP 758 语法确认；`i18n.tr("{x.y}", x=None)` 抛 AttributeError 复现；`pytest tests/test_twitch_live_collector.py --collect-only` 20.55s/退出码 5；根 index.html 两个 CDN SRI 哈希实测 MATCH。
 - **未做的事（局限）**：未对任何平台发起真实网络请求；未运行完整测试套件；未做 PyInstaller 打包验证（M-20 待核实）；未动态验证 migu wasm 与咪咕重定向（M-7/L-9 待核实）；标注「待核实」的代理异常回显、Windows 管道阻塞等依赖特定环境的结论未实证。

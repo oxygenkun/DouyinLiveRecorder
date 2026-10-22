@@ -2756,7 +2756,7 @@ async def get_bigo_stream_url(
             anchor_name = match_anchor_name.group(1)
         else:
             match_anchor_name = re.search(
-                '<meta data-n-head="ssr" data-hid="og:title" property="og:title" ' 'content="(.*?) - BIGO LIVE">',
+                '<meta data-n-head="ssr" data-hid="og:title" property="og:title" content="(.*?) - BIGO LIVE">',
                 html_str,
                 re.DOTALL,
             )
@@ -3227,7 +3227,7 @@ async def get_sooplive_stream_data(
                 return await fetch_data(new_cookie, result)
             raise RuntimeError("sooplive login failed, please check if the account and password are correct")
         elif soop_code == -6001:
-            logger.error("error message：Please check if the input sooplive live room address " "is correct.")
+            logger.error("error message：Please check if the input sooplive live room address is correct.")
             return result
     # result==1 且已有 anchor_name：公开可观看的直播间。hls_authentication_key 即 CDN 的 aid 票据，
     # 必须作为 ?aid= 拼到 m3u8 地址后，缺失该票据 CDN 会直接 403（同样的票据也用于登录态的 AID）。
@@ -4181,8 +4181,7 @@ async def get_popkontv_stream_url(
         # 触发登录刷新（新 token 长度必须 640），登录后复用新 partnerCode 重试。
         if "HTTP Error 400" in json_str or 'statusCd":"E5000' in json_str:
             logger.error(
-                "Failed to retrieve popkontv live stream [token does not exist or has expired]: Please log in to "
-                "watch."
+                "Failed to retrieve popkontv live stream [token does not exist or has expired]: Please log in to watch."
             )
             logger.warning(
                 "Attempting to log in to the popkontv live streaming platform, please ensure your account "
@@ -6440,7 +6439,7 @@ async def get_taobao_stream_url(
             # 两轮都签不上且静默未开播。统一走 _cookie_str_to_dict 提取。
             _m_h5_tk = _cookie_str_to_dict(cookie_str).get("_m_h5_tk", "")
             if _m_h5_tk:
-                pre_sign_str = f'{_m_h5_tk.split("_")[0]}&{t13}&{app_key}&' + params["data"]
+                pre_sign_str = f"{_m_h5_tk.split('_')[0]}&{t13}&{app_key}&" + params["data"]
                 sign = hashlib.md5(pre_sign_str.encode("utf-8")).hexdigest()
                 params["sign"] = sign
         api = f"https://h5api.m.taobao.com/h5/mtop.mediaplatform.live.livedetail/4.0/?{urllib.parse.urlencode(params)}"

@@ -13,7 +13,6 @@ import httpx
 import pytest
 
 from src import spider as sp
-from src.spider import get_douyin_app_stream_data  # noqa: E402
 from src.spider import (
     _extract_room_data_from_html,
     _get_str_response,
@@ -24,6 +23,7 @@ from src.spider import (
     extract_kuaishou_eid,
     get_bilibili_room_info,
     get_bilibili_stream_data,
+    get_douyin_app_stream_data,  # noqa: E402
     get_douyin_web_stream_data,
     get_douyu_info_data,
     get_huya_stream_data,

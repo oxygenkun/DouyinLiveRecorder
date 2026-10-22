@@ -92,7 +92,7 @@ def get_quality_code(qn: str) -> str:
 # 校验探针与 ffmpeg 录制共用同一 UA（见 get_record_user_agent），否则校验「假绿」。
 # 版本对齐全库基准 Chrome/141（见 room.DESKTOP_UA），避免 UA 指纹过旧被风控标记。
 DESKTOP_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 )
 
 # 移动端 UA：与 main.py ffmpeg 录制命令的默认 UA 保持一字不差——探针若改发 httpx 默认 UA，

@@ -334,7 +334,7 @@ class TestKernel32DeclaredAndConsoleRestoreWarns:
             "ctypes",
             types.SimpleNamespace(
                 get_last_error=lambda: 5,
-                WINFUNCTYPE=lambda *a: (lambda func: func),
+                WINFUNCTYPE=lambda *a: lambda func: func,
                 c_bool=object,
                 c_ulong=object,
             ),
@@ -370,7 +370,7 @@ class TestKernel32DeclaredAndConsoleRestoreWarns:
             gui,
             "ctypes",
             types.SimpleNamespace(
-                get_last_error=lambda: 5, WINFUNCTYPE=lambda *a: (lambda func: func), c_bool=object, c_ulong=object
+                get_last_error=lambda: 5, WINFUNCTYPE=lambda *a: lambda func: func, c_bool=object, c_ulong=object
             ),
         )
         monkeypatch.setattr(gui, "sys", _shim(gui.sys, platform="win32"))

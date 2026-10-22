@@ -412,9 +412,9 @@ def test_patterns_are_derived_from_tr_and_cached_per_language() -> None:
             and isinstance(node.args[0].value, str)
         ):
             compiled_literals.append(node.args[0].value)
-    assert not any(
-        marker in literal for marker in _MATCHING_MARKERS for literal in compiled_literals
-    ), "gui.py 仍有硬编码状态行的 re.compile 字面量"
+    assert not any(marker in literal for marker in _MATCHING_MARKERS for literal in compiled_literals), (
+        "gui.py 仍有硬编码状态行的 re.compile 字面量"
+    )
 
     names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
     assert "_build_status_patterns" in names and "_status_patterns" in names

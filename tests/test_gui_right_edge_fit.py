@@ -147,8 +147,8 @@ class TestRealWindowFit:
             pytest.skip(f"无显示环境，跳过真窗用例: {result['skipped']}")
         assert result["ok"], result.get("error")
         # 双保险落地后：整窗需求宽不得超过实际宽（超过即 Tk grid 裁切右缘）
-        assert (
-            result["root_req_w"] <= result["root_w"]
-        ), f"root reqwidth={result['root_req_w']} > width={result['root_w']}（右缘会被裁切）"
+        assert result["root_req_w"] <= result["root_w"], (
+            f"root reqwidth={result['root_req_w']} > width={result['root_w']}（右缘会被裁切）"
+        )
         for name, page in result["pages"].items():
             assert not page["cards_over"], f"{name} 页有卡片右缘超出页面实宽: {page}"

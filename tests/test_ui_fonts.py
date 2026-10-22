@@ -273,9 +273,9 @@ class TestInstallAndRegister:
             logger.remove(handler_id)
         joined = "\n".join(captured)
         assert "复制字体文件失败" in joined, f"失败必须留下一行原因，实得 {captured!r}"
-        assert (
-            "PermissionError" in joined
-        ), "日志须含异常类型名：Windows 下部分异常的 str() 为空串，只打 {err} 会打出空白行"
+        assert "PermissionError" in joined, (
+            "日志须含异常类型名：Windows 下部分异常的 str() 为空串，只打 {err} 会打出空白行"
+        )
         assert "good.ttf" in joined and "target directory is read-only" in joined
 
     def test_register_rejects_non_sfnt(self, tmp_path: Path) -> None:

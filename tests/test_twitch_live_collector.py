@@ -46,7 +46,7 @@ def main() -> None:
     if not channel:
         print("[FAIL] 无法从参数提取频道名")
         print(
-            f'VERIFICATION_RESULT: {json.dumps({"platform": "twitch", "script": "test_twitch_live_collector.py", "url": RAW, "status": "FAIL", "messages": 0})}'
+            f"VERIFICATION_RESULT: {json.dumps({'platform': 'twitch', 'script': 'test_twitch_live_collector.py', 'url': RAW, 'status': 'FAIL', 'messages': 0})}"
         )
         sys.exit(1)
 
@@ -104,12 +104,12 @@ def main() -> None:
     else:
         print(f"[FAIL] SRT 未生成: {srt_file}")
         print(
-            f'VERIFICATION_RESULT: {json.dumps({"platform": "twitch", "script": "test_twitch_live_collector.py", "url": f"twitch.tv/{channel}", "status": "FAIL", "messages": 0})}'
+            f"VERIFICATION_RESULT: {json.dumps({'platform': 'twitch', 'script': 'test_twitch_live_collector.py', 'url': f'twitch.tv/{channel}', 'status': 'FAIL', 'messages': 0})}"
         )
         sys.exit(1)
     _srt_sz = os.path.getsize(srt_file)
     print(
-        f'VERIFICATION_RESULT: {json.dumps({"platform": "twitch", "script": "test_twitch_live_collector.py", "url": f"twitch.tv/{channel}", "status": "PASS" if count > 0 else "WARN", "messages": count, "srt_bytes": _srt_sz})}'
+        f"VERIFICATION_RESULT: {json.dumps({'platform': 'twitch', 'script': 'test_twitch_live_collector.py', 'url': f'twitch.tv/{channel}', 'status': 'PASS' if count > 0 else 'WARN', 'messages': count, 'srt_bytes': _srt_sz})}"
     )
 
 
