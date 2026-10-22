@@ -560,3 +560,7 @@ find . -name "*.isorted" -delete
 - **本机全量 pytest 偶发段错误（exit 139）**: 属环境噪声，不要据此认定代码回归。
 - **平台专属分支的测试不得靠 `skipif` 让 CI 跳过（CI 实测定稿）**: CI 全部 job 跑在 ubuntu，Windows 专属分支（如 `src/ffmpeg_proc.py` 的「向 stdin 写 `q` 再 close」）若按 `os.name`/`sys.platform` skip，相关回归锁会在 CI 上**静默消失**。做法：把平台判定抽成模块级常量（如 `_QUIT_VIA_STDIN = os.name == "nt"`），测试用 `monkeypatch.setattr(module, "_QUIT_VIA_STDIN", True)` 强制走进该分支，让 Windows 路径在 Linux CI 上真实执行。同理，**门禁工具（black / isort / mypy）必须装进 test job**：`tests/test_run_gates.py` 与 `tests/test_regression_2026_09_22_gates.py` 有两条锁会真起子进程调用它们（复现 isort 的 `Unable to parse file` 走 UserWarning 且 rc 仍 0；验证裸 console-script 不在 PATH 时 `python -m` 兜底不误报 rc=3），缺装即 `No module named isort` → rc=1 → 红；版本取 setup job 的 `black_version` / `isort_version` / `mypy_version` 常量，与 static / typecheck 两 job 同值。
 - **并行分组代码审查分工口径**: 子任务 prompt 必须写明本项目刻意约定白名单，避免子代理误报风格为问题。
+
+## 本机 y123 部署补丁边界（2026-10-22）
+
+- 受 graceful_shutdown.shutdown_manager 管理的录制/转换进程统一发送一次停止信号并等待，不能再进入 terminate/kill 兜底；两个进程登记表须在注销时同步收敛。关注 feed 仅作正向直播提示，缺失和失败不得解释为关播；回归锁 tests/test_local_migration.py、tests/test_douyin_follow.py、tests/test_graceful_shutdown.py。

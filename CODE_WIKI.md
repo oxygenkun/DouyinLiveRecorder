@@ -1696,6 +1696,25 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
 
+### 抖音离线房间不再刷 WARNING、不再重复抓 HTML（2026-10-22）
+
+- **现象**：序号64 缈缈Moi喵（`https://live.douyin.com/52979775590`）每 300 秒固定三条：`抖音网页接口失败: ... VR live is not supported or room not found，回退 HTML 解析兜底` → `JSON 解析失败(已忽略): ... Extra data: line 1 column 1922 (char 1921)` → `HTML scraping fallback succeeded`。
+- **根因**：该房间未开播，`webcast/room/web/enter` 返回 `status_code=0`、`data.data=[]`、`room_status=2`；旧实现把空房间列表一律当解析失败上抛，于是每轮记 WARNING 并再抓约 937 KB HTML。HTML 兜底的 `roomStore` 片段本身已完整，旧代码无条件补 `"}}}"` 才拼出 Extra data —— 那条 JSON 告警是自造的。
+- **修复**：`_try_web_api` 在 `data.data` 为空且接口显式给出非 0 `room_status`（0=直播中，非 0=已下播/无直播记录）时静默返回 `{"anchor_name": ...}`（下游缺省 `status=4`，按未开播处理）；`room_status` 缺失或为 0 时保留原 raise + HTML 兜底，避免把「接口没给数据」误判成未开播。新增 `_loads_dict_prefix`（`json.JSONDecoder().raw_decode`）解析「完整 JSON + 尾部补齐」，`_extract_room_data_from_html` 先前缀解析、失败再走旧的补括号严格解析；新增调试模板按仓规登记进四语目录（`zh_CN.po` / `en_US.json` / `en_GB.json` / `zh_TW.yaml`）并重编译 `zh_CN.mo`。
+- **回归锁**：`test_offline_room_status_returns_quietly_without_html_fallback`（只发 1 次请求、零 WARNING）、`test_empty_room_list_without_offline_marker_still_falls_back`、`test_complete_room_store_fragment_parses_without_false_warning`；前两条行为用例做变异验证，还原旧实现即红。
+- **验证**：`pytest tests/test_spider.py tests/test_exception_log_masking.py tests/test_douyin_url_resolution.py tests/test_spider_hardening.py` → 212 passed / 6 skipped；`mypy`（无参）258 files 无问题；`black --check` / `isort --check-only` 通过；`src/spider.py`、`tests/test_spider.py` 仍纯 CRLF。
+- **真实接口只读验证**（未录制）：`get_douyin_web_stream_data` 对 `https://live.douyin.com/52979775590` 只发 1 次 API 请求、零 WARNING、返回 anchor_name=缈缈Moi喵；对在播房间 `493068547233` 返回 status=2 与 HLS `ORIGIN/FULL_HD1/HD1`。录制链路脚本 `test_douyin_live_collector.py` 未执行（需用户授权占用真实直播流）。
+- **DoD 第 2 步**：`PARTIAL(只读接口验证 PASS；录制脚本待用户授权)`。
+
+### 本地部署迁移（2026-10-22）
+
+- 在 main 分支基线 987634f 上迁入原本地 ihmily 实例的三项行为：每主播 Bark 中断级别、统一优雅停止、关注优先检测。
+- 接入现有 notify、平台 resolver 和后处理模块；关注源保留内部房间 ID，缺失/过期时保留逐房间兜底。
+- 修正分段 MP4 子封装器参数。实际 main.safe_exit / check_subprocess 的合成 SIGTERM 验证产出 4 个可完整解码 MP4。
+- 真实 URL 验证已获用户授权并通过：关注 feed 返回 1 个在播房间（已启用列表匹配 0 个）；使用关注房间 https://live.douyin.com/**8475 临时验证，MP4 5.013 秒 / 855924 字节完整解码通过；test_douyin_live_collector.py：PASS，3 条消息 / SRT 218 字节，临时文件已删除。
+- 完整检查的实际结果与限制记录在外层部署目录 VALIDATION.md。
+
+
 > **真机验证留存约定**（与 `AGENTS.md`「完成定义」第 2 步同源）：涉及录制链路 / 选源 / ffmpeg 参数 /
 > 平台解析的改动，真机验证结论写在本文件对应版本条目的「验证」子节，中英同步。
 > **滚动归档**：本节只保留当前发布周期的条目，更早条目整卷存于 [`docs/changelog/code-wiki-history-zh.md`](docs/changelog/code-wiki-history-zh.md)（口径见上方「变更日志归档索引」）。

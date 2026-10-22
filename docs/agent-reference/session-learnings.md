@@ -438,3 +438,9 @@ Qoder CN 发行版的实际数据根（`.qoder-cn`）不一致，属外部工具
   | scripts/check_workflow_constants.py / .github/workflows/ci.yml / .pre-commit-config.yaml
 - **删一个模块有三处「登记尾巴」，其中一处会让另一条用例静默改变语义**（2026-10-20，删除 `src/ab_sign.py`）：① `scripts/check_coverage.py` 的 `MODULE_THRESHOLDS` 条目必须同批删——该门禁把「登记表里的模块在覆盖率数据中查不到」判 rc=1；② CI 注释里的模块枚举（`ci.yml` 逐模块门禁那条）；③ **最隐蔽的一处**：`tests/test_check_coverage.py::test_exempt_claiming_generated_code_is_machine_checked` 拿 `src/ab_sign.py` 当「确定手写的模块」构造虚报豁免，模块删掉后 `read_text` 抛 `OSError`，`_validate_debt_and_exempt` 走的是「无法读取以核对生成物标记」分支而**不是**「虚报豁免」分支，断言因此转红——夹具语义随被测文件消失而漂移。改法是把样本换成另一个确定手写、且不含 `GENERATED_MARKERS` 任一标记的模块（本轮用 `src/proxy.py`），判据形态不变。推广口径：删文件后 `grep -rn <文件名>` 要连 `tests/` 与 `scripts/` 的**字符串字面量**一起扫，不能只扫 import。
   | scripts/check_coverage.py::MODULE_THRESHOLDS / tests/test_check_coverage.py::test_exempt_claiming_generated_code_is_machine_checked
+
+## 2026-10-22 本机迁移
+
+旧 ihmily main.py 补丁不能直接覆盖新版：Bark 位于 src/notify.py，抖音分派位于 _resolve_douyin_com，转换位于 src/video_postprocess.py。关注 feed 须保留内部房间 ID；转换进程也须登记进优雅停止协调器。
+- **新增 `logger.<level>("... {x}")` 常量模板会直接打红 `test_i18n_migration` 的目录覆盖用例**（2026-10-22，抖音离线日志降噪）：提取器把 logger 首参常量也纳入运行时模板集（`scripts/extract_i18n_strings.py::scan_file`），带 `{}` 的串必须同批登记 `zh_CN.po` / `en_US.json` / `en_GB.json` / `zh_TW.yaml` 并跑 `python scripts/compile_po.py` 重编译 `.mo`；纯英文调试串同样要登记（`HTML scraping fallback succeeded` 即先例）。想省掉登记就只能不写占位符——但「纯常量」也在提取集里，唯一免登记形态是 `is_valuable()` 判否的纯符号/纯占位符串。
+  | i18n/zh_CN/LC_MESSAGES/zh_CN.po / scripts/compile_po.py / src/spider.py::get_douyin_web_stream_data

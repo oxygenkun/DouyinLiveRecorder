@@ -1681,6 +1681,25 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
 
+### Offline Douyin rooms no longer log WARNINGs or re-fetch HTML (2026-10-22)
+
+- **Symptom**: anchor #64 缈缈Moi喵 (`https://live.douyin.com/52979775590`) produced the same three lines every 300 s: `Douyin web API failed: ... VR live is not supported or room not found, falling back to HTML scraping` → `JSON parse failed (ignored): ... Extra data: line 1 column 1922 (char 1921)` → `HTML scraping fallback succeeded`.
+- **Root cause**: the room is offline; `webcast/room/web/enter` returns `status_code=0`, `data.data=[]`, `room_status=2`. The old code treated an empty room list as a parse failure, so every poll logged a WARNING and re-fetched about 937 KB of HTML. The HTML fallback's `roomStore` fragment was already complete; the old unconditional `"}}}"` suffix created the Extra data — that JSON warning was self-inflicted.
+- **Fix**: `_try_web_api` now returns `{"anchor_name": ...}` silently when `data.data` is empty and the API explicitly reports a non-zero `room_status` (0 = live, non-zero = ended/no live record); downstream `status` defaults to 4 (offline). When `room_status` is missing or 0 the original raise + HTML fallback stays, so "the API returned no data" is never mistaken for "offline". Added `_loads_dict_prefix` (`json.JSONDecoder().raw_decode`) for "complete JSON + padded tail"; `_extract_room_data_from_html` tries it first and falls back to the legacy brace-padded strict parse; the new debug template was registered in all four catalogs (`zh_CN.po` / `en_US.json` / `en_GB.json` / `zh_TW.yaml`) and `zh_CN.mo` was recompiled.
+- **Regression locks**: `test_offline_room_status_returns_quietly_without_html_fallback` (exactly one request, zero WARNINGs), `test_empty_room_list_without_offline_marker_still_falls_back`, and `test_complete_room_store_fragment_parses_without_false_warning`; the two behavioural cases were mutation-checked (reverting the fix turns them red).
+- **Verification**: `pytest tests/test_spider.py tests/test_exception_log_masking.py tests/test_douyin_url_resolution.py tests/test_spider_hardening.py` → 212 passed / 6 skipped; `mypy` (no path arguments) clean over 258 files; `black --check` / `isort --check-only` pass; `src/spider.py` and `tests/test_spider.py` remain pure CRLF.
+- **Read-only live verification** (no recording): `get_douyin_web_stream_data` issued exactly one API request for `https://live.douyin.com/52979775590` with zero WARNINGs and returned anchor_name=缈缈Moi喵; for the live room `493068547233` it returned status=2 with HLS `ORIGIN/FULL_HD1/HD1`. The recording-chain script `test_douyin_live_collector.py` was not run (needs user authorization to consume a real live stream).
+- **DoD step 2**: `PARTIAL(read-only resolver verification PASS; recording-script verification pending user authorization)`.
+
+### Local deployment migration (2026-10-22)
+
+- Ported the existing ihmily deployment's per-anchor Bark levels, coordinated graceful shutdown and followed-live hints onto main baseline 987634f.
+- Integrated the fork's notifier, platform resolver and postprocessing modules; preserved internal room IDs and individual-polling fallback.
+- Corrected segmented MP4 child muxer options. A synthetic SIGTERM check using actual main.safe_exit / check_subprocess produced four fully decodable MP4 files.
+- Live verification passed after explicit user authorization: follow feed returned one live room (zero matches in the active recorder list); temporary verification used https://live.douyin.com/**8475. The 5.013-second / 855924-byte MP4 decoded completely; test_douyin_live_collector.py: PASS, 3 messages / 218 SRT bytes. Temporary files were deleted.
+- Actual check outcomes and limitations are recorded in the parent deployment's VALIDATION.md.
+
+
 > **Live-verification retention convention** (same source as `AGENTS.md` DoD step 2): for changes
 > affecting the recording chain / source selection / ffmpeg arguments / platform resolvers, write the
 > real-device verification conclusion in the "Verification" subsection of the corresponding changelog
