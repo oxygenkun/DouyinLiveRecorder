@@ -96,6 +96,7 @@ from loguru import logger
 # 推送模板渲染（占位符永不翻译）的唯一实现：main 与 src.notify 共用，故在模块级导入。
 # 位置刻意放在 src.notify 之前——notify 内部 `import msg_push` 会命中已加载的这份模块。
 import msg_push
+from douyin_follow import DouyinFollowMonitor
 from graceful_shutdown import shutdown_manager
 from src import get_danmaku_collector, spider, stream, utils
 from src.config_io import (
@@ -350,6 +351,7 @@ xizhi_api_url: str = ""
 bark_msg_api: str = ""
 bark_msg_level: str = "active"
 bark_level_overrides: dict[str, str] = {}
+follow_monitor = DouyinFollowMonitor(shutdown_manager.stopping)
 bark_msg_ring: str = "bell"
 
 # 邮件
@@ -1649,9 +1651,13 @@ def _resolve_douyin_com(ctx: _PlatformResolveContext) -> None:
     # 限速等待必须在占用网络并发槽之前：放在 `with semaphore` 内会让 N 个抖音房间各占一个槽
     # 原地睡眠（单轮 ≥3×N 秒），抵消调度器扩容收益。移出后仍由 douyin_rate_lock 保证
     # 「两次请求起点间隔 ≥ 3s」，并发槽的额外排队只会拉大间隔。
-    _douyin_rate_limit()
+    _, follow_room = follow_monitor.get_room(record_url)
+    if follow_room is None:
+        _douyin_rate_limit()
     with semaphore:
-        if "v.douyin.com" not in record_url and "/user/" not in record_url:
+        if follow_room is not None:
+            json_data = follow_room
+        elif "v.douyin.com" not in record_url and "/user/" not in record_url:
             json_data = asyncio.run(
                 spider.get_douyin_web_stream_data(url=record_url, proxy_addr=proxy_address, cookies=dy_cookie)
             )
@@ -3714,6 +3720,7 @@ def start_record(
     # 日志关联字段在线程入口即绑定：首轮解析前 record_name 为空，但退出/注释/解析失败等日志
     # 已经产生，先用「序号N」占位，解析出主播名后再升级（原因见 src/logger.py::ROOM_FIELD）。
     set_room_context(f"序号{count_variable}")
+    last_follow_revision = 0
     while True:
         # 两者都置于外层 try 之前：最外层 except/finally 都要引用，放 try 内会在首语句抛错时
         # 未绑定。record_host 是熔断 key；空串在 record_error 中视为 falsy，只计全局预算。
@@ -3802,6 +3809,9 @@ def start_record(
                     continue
                 try:
                     # 平台分派；无法识别返回 None，走延迟重试
+                    follow_revision, follow_room = follow_monitor.get_room(record_url)
+                    if follow_room:
+                        last_follow_revision = follow_revision
                     _resolved = _resolve_platform_stream(record_url, proxy_address, record_quality)
                     if _resolved is None:
                         # 无法识别：延迟一轮重试而非结束线程。直接 break 会绕过轮末延迟，
@@ -4480,6 +4490,10 @@ def start_record(
                 # 逐秒递减等待，三信号（URL 被注释 / 退出标志 / 停止录制）任一命中即打断，
                 # 立即回到循环顶；只查 recording_enabled 会让线程耗完整个周期才响应。
                 while x:
+                    follow_revision, follow_room = follow_monitor.get_room(record_url)
+                    if follow_room and follow_revision != last_follow_revision:
+                        last_follow_revision = follow_revision
+                        break
                     if record_url in url_comments or exit_recording or not recording_enabled:
                         break
                     x = x - 1
@@ -4707,6 +4721,7 @@ except Exception as err:
 # non_interactive=True 时 URL 配置为空不阻塞 input（Web 模式）。
 def main(non_interactive: bool = False) -> None:
     global bark_level_overrides
+    follow_monitor.start()
     global a, acfun_cookie, args, auto_update_anchor_name, baidu_cookie, bark_msg_api, bark_msg_level, bark_msg_ring, begin_push_message_text, begin_show_push, bigo_cookie, bili_cookie, blued_cookie
     global changliao_cookie, chzzk_cookie, clean_emoji, converts_to_h264, converts_to_mp4, create_time_file, custom_script, delay_default, delete_origin_file, dingtalk_api_url, danmaku_platforms, danmaku_split_time, enable_danmaku, enable_danmaku_monitor
     global dingtalk_is_atall, dingtalk_phone_num, disable_record, disk_limited, disk_space_limit, douyu_cookie, dy_cookie, email_host, email_password, enable_https_recording, enable_proxy_platform, enable_proxy_platform_list, exit_recording
@@ -4948,6 +4963,12 @@ def main(non_interactive: bool = False) -> None:
         twitcasting_password = read_config_value(config, "账号密码", "twitcasting密码", "")
         popkontv_access_token = read_config_value(config, "Authorization", "popkontv_token", "")
         dy_cookie = read_config_value(config, "Cookie", "抖音cookie", "")
+        follow_mode = read_config_value(config, "录制设置", "抖音直播检测方式(逐个/关注优先)", "逐个")
+        follow_interval = int(read_config_value(config, "录制设置", "抖音关注轮询间隔(秒)", 60))
+        follow_proxy = proxy_addr_bak if use_proxy and "douyin" in (enable_proxy_platform_list or []) else ""
+        follow_monitor.configure(follow_mode == "关注优先", dy_cookie, follow_interval, follow_proxy)
+        if first_run and follow_mode == "关注优先" and dy_cookie:
+            follow_monitor.wait_initial(timeout=20)
         ks_cookie = read_config_value(config, "Cookie", "快手cookie", "")
         tiktok_cookie = read_config_value(config, "Cookie", "tiktok_cookie", "")
         hy_cookie = read_config_value(config, "Cookie", "虎牙cookie", "")
