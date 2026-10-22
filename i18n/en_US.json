@@ -38,6 +38,7 @@
   "Bark推送失败, 推送地址：{masked_api}, 错误信息:{e}": "Bark push failed, push URL: {masked_api}, error: {e}",
   "Disk space remaining is below": "Disk space remaining is below",
   "Disk space remaining is below {disk_space_limit} GB. Exiting program due to the disk space limit being reached.": "Disk space remaining is below {disk_space_limit} GB. Exiting program due to the disk space limit being reached.",
+  "Douyin room is not live (web API returned empty room list, room_status={room_status})": "Douyin room is not live (web API returned empty room list, room_status={room_status})",
   "Douyin web API failed: {api_error}, falling back to HTML scraping": "Douyin web API failed: {api_error}, falling back to HTML scraping",
   "Error message: {e} Error line: {tb_lineno}": "Error message: {e} Error line: {tb_lineno}",
   "Error occurred during conversion": "Error occurred during conversion",

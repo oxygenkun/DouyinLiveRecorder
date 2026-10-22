@@ -381,6 +381,18 @@ def _safe_loads(text: str) -> Optional[dict[str, object]]:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _loads_dict_prefix(text: str) -> dict[str, object]:
+    # 解析「完整 JSON 对象 + 尾部补齐/拼接垃圾」：失败一律回 {}，不记 warning。
+    # 抖音页面内联数据由正则截出后曾被代码无条件补 "}}}", 片段本身完整时补出来的就是
+    # Extra data —— 那是把解析成功记成失败，不是数据坏了。raw_decode 只取首个完整对象、
+    # 忽略尾部；真截断（root 未闭合）仍失败，由调用方回退到补括号后的严格解析。
+    try:
+        parsed, _ = json.JSONDecoder().raw_decode(text.lstrip())
+    except json.JSONDecodeError:
+        return {}
+    return cast(dict[str, object], parsed) if isinstance(parsed, dict) else {}
+
+
 def _dig(data: object, *keys: str | int) -> object:
     # 深层链式索引的安全下钻版：旧写法在接口改版 / WAF 页 / 房间不存在时抛 KeyError·
     # TypeError·IndexError，一律被装饰器吞成 {"is_live": False}，与「真未开播」不可区分。
@@ -585,8 +597,12 @@ def _extract_room_data_from_html(html_str: str) -> dict[str, object]:
         anchor_name = anchor_name_match.group(1) if anchor_name_match else ""
         # 截到 "has_commerce_goods" 字段前再用固定 3 个右花括号收尾：内联 JSON 被页面截断，
         # 用固定标记切断后再手动补齐括号平衡结构；若结构层级变化会导致解析抛错而落到 except。
-        room_store = room_store.split(',"has_commerce_goods"')[0] + "}}}"
-        room_info = cast(dict[str, object], _loads_dict(room_store).get("roomInfo") or {})
+        room_store = room_store.split(',"has_commerce_goods"')[0]
+        # 2026-10-22：新版页面已无 has_commerce_goods，截出的片段本身完整；旧的无条件
+        # + "}}}" 会拼出「合法 JSON + 多余花括号」→ Extra data，每轮兜底刷一条假告警。
+        # 先按前缀解析（忽略尾部补齐），失败再走旧的补括号严格解析，兼容被截断的老模板。
+        room_store_dict = _loads_dict_prefix(room_store) or _loads_dict(room_store + "}}}")
+        room_info = cast(dict[str, object], room_store_dict.get("roomInfo") or {})
         json_data = cast(dict[str, object], room_info.get("room") or {})
         json_data["anchor_name"] = anchor_name
         # status==4 表示非开播态（回放/下播）；此处提前返回不含 stream_url 的结果，
@@ -704,6 +720,22 @@ async def get_douyin_web_stream_data(
             json_data = cast(dict[str, object], parsed.get("data") or {})
             inner_list = json_data.get("data")
             if not inner_list:
+                # 2026-10-22：data.data 为空有两种成因，原先一律 raise —— 对「已下播/无直播记录」
+                # 也刷 WARNING「VR live is not supported」，并每轮多抓约 1MB HTML。
+                # 接口正常返回且显式给出 room_status（0=直播中，非 0=已下播/无直播记录）时，
+                # 房间确实没在播；这是分钟级轮询的高频常态，按项目约定「未开播不得刷告警」
+                # 静默返回离线结果，不触发 HTML 兜底。
+                # 实测 2026-10-22 缈缈Moi喵 https://live.douyin.com/52979775590：status_code=0、
+                # data.data=[]、room_status=2、user.nickname 正常，HTML 内 roomInfo 同样为空。
+                # room_status 缺失或为 0（自相矛盾/风控降级）时不作判断，仍走下面 raise + HTML
+                # 兜底，避免把「接口没给数据」误判成未开播而漏录。
+                room_status = json_data.get("room_status")
+                if isinstance(room_status, int) and not isinstance(room_status, bool) and room_status != 0:
+                    logger.debug(
+                        "Douyin room is not live (web API returned empty room list, room_status={room_status})",
+                        room_status=room_status,
+                    )
+                    return {"anchor_name": _dig_str(json_data, "user", "nickname")}
                 # M-3（2026-09-29）：进 raise 的 URL 一律先过 utils.mask_credentials。
                 # @trace_error_decorator 落日志时对异常原文不做任何脱敏，而调用方透传的房间地址
                 # 可能挂着 token/ttwid/cookie 类查询参数（pwd/session 均在 utils._SECRET_KEYS 表内），

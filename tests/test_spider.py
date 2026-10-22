@@ -18,6 +18,7 @@ from src.spider import (
     _extract_room_data_from_html,
     _get_str_response,
     _loads_dict,
+    _loads_dict_prefix,
     _safe_extract_id,
     extract_douyin_hevc_flv_url,
     extract_kuaishou_eid,
@@ -235,6 +236,44 @@ class TestGetDouyinWebStreamData:
         mock_ttwid.assert_not_called()
         assert result["anchor_name"] == "主播"
 
+    @pytest.mark.asyncio
+    async def test_offline_room_status_returns_quietly_without_html_fallback(self) -> None:
+        # 2026-10-22：data.data=[] 且 room_status 非 0 是「已下播/无直播记录」的正常离线形态
+        # （实测 缈缈Moi喵 https://live.douyin.com/52979775590：room_status=2、HTML 内 roomInfo 为空）。
+        # 旧实现一律 raise → 每轮 WARNING「VR live is not supported」+ 再抓约 1MB HTML；
+        # 离线不该刷告警，也不该为它做昂贵回退。
+        api_response = json.dumps(
+            {"status_code": 0, "data": {"data": [], "user": {"nickname": "缈缈Moi喵"}, "room_status": 2}}
+        )
+        logger = _LogSpy()
+        with (
+            patch("src.spider.async_req", new_callable=AsyncMock, return_value=api_response) as mock_req,
+            patch("src.spider.logger", logger),
+        ):
+            result = await get_douyin_web_stream_data(
+                "https://live.douyin.com/52979775590", cookies="custom_cookie=abc"
+            )
+
+        assert result == {"anchor_name": "缈缈Moi喵"}
+        assert mock_req.await_count == 1, "离线房间不得再触发 HTML 兜底抓取"
+        assert logger.texts("warning") == []
+
+    @pytest.mark.asyncio
+    async def test_empty_room_list_without_offline_marker_still_falls_back(self) -> None:
+        # room_status 缺失时不静默判离线：接口可能只是没给数据（风控降级），
+        # 必须保留 HTML 兜底与归因日志，避免把「拿不到数据」误判成未开播而漏录。
+        api_response = json.dumps({"status_code": 0, "data": {"data": [], "user": {"nickname": "N"}}})
+        logger = _LogSpy()
+        with (
+            patch("src.spider.async_req", new_callable=AsyncMock, return_value=api_response),
+            patch("src.spider.logger", logger),
+            patch("src.spider.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await get_douyin_web_stream_data("https://live.douyin.com/745964462470", cookies="c=1")
+
+        assert result.get("anchor_name") == ""
+        assert logger.texts("warning"), "非明确离线时必须留下归因日志"
+
 
 class TestGetDouyinAppStreamData:
     # get_douyin_app_stream_data：抖音 APP 端接口获取直播数据。
@@ -311,6 +350,26 @@ class TestExtractRoomDataFromHtml:
     def test_no_match_returns_empty(self) -> None:
         # 异常路径：HTML中无匹配模式返回空字典。
         assert _extract_room_data_from_html("<html><body>nothing</body></html>") == {}
+
+    def test_complete_room_store_fragment_parses_without_false_warning(self) -> None:
+        # 2026-10-22：新版页面已无 has_commerce_goods 字段，正则截出的 roomStore 片段本身完整；
+        # 旧实现无条件补 "}}}" 会拼出「合法 JSON + 多余花括号」→ json.loads 抛 Extra data，
+        # 于是每轮 HTML 兜底都刷一条假的「JSON 解析失败(已忽略)」并退回空结果。
+        room_store = (
+            '{\\"roomInfo\\":{\\"room\\":{\\"status\\":4,\\"title\\":\\"未开播\\",'
+            '\\"stream_url\\":{\\"hls_pull_url_map\\":{},\\"flv_pull_url\\":{}}}}}'
+        )
+        html = (
+            '<script nonce="abc">self.__pace_f.push([1,"{\\"state\\":1,'
+            '\\"roomStore\\":' + room_store + ',"linkmicStore":{}}]\\n"])</script>'
+        )
+        logger = _LogSpy()
+        with patch("src.spider.logger", logger):
+            result = _extract_room_data_from_html(html)
+
+        assert result["status"] == 4, result
+        assert result["title"] == "未开播", result
+        assert logger.texts("warning") == []
 
 
 class TestSafeExtractId:

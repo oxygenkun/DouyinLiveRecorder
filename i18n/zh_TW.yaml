@@ -334,6 +334,7 @@
 'Bark推送失败, 推送地址：{masked_api}, 失败信息：{message}': 'Bark推送失敗, 推送位址：{masked_api}, 失敗訊息：{message}'
 'Bark推送失败, 推送地址：{masked_api}, 错误信息:{e}': 'Bark推送失敗, 推送位址：{masked_api}, 錯誤訊息:{e}'
 'Disk space remaining is below {disk_space_limit} GB. Exiting program due to the disk space limit being reached.': '剩餘磁碟空間低於 {disk_space_limit} GB，達到磁碟空間限制，程式退出。'
+'Douyin room is not live (web API returned empty room list, room_status={room_status})': '抖音房間未開播（網頁接口回傳空房間列表，room_status={room_status}）'
 'Douyin web API failed: {api_error}, falling back to HTML scraping': '抖音網頁接口失敗: {api_error}，回退 HTML 解析兜底'
 'Error occurred during conversion: {e}': '轉換過程中發生錯誤: {e}'
 'FLV下载错误: {e} 发生错误的行数: {get_error_line}': 'FLV下載錯誤: {e} 發生錯誤的行數: {get_error_line}'

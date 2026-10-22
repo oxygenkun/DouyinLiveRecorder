@@ -1259,6 +1259,9 @@ msgstr "Bark推送失败, 推送地址：{masked_api}, 错误信息:{e}"
 msgid "Disk space remaining is below {disk_space_limit} GB. Exiting program due to the disk space limit being reached."
 msgstr "剩余磁盘空间低于 {disk_space_limit} GB，达到磁盘空间限制，程序退出。"
 
+msgid "Douyin room is not live (web API returned empty room list, room_status={room_status})"
+msgstr "抖音房间未开播（网页接口返回空房间列表，room_status={room_status}）"
+
 msgid "Douyin web API failed: {api_error}, falling back to HTML scraping"
 msgstr "抖音网页接口失败: {api_error}，回退 HTML 解析兜底"
 
