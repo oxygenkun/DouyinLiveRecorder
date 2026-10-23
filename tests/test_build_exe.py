@@ -1541,7 +1541,7 @@ def test_i18n_datas_skip_po_sources_but_keep_runtime_formats() -> None:
 
 def test_qt_bloat_files_stay_inside_the_pyside6_dir() -> None:
     # 剪除清单是「按文件名删」，一旦有人写进 `../` 或绝对形态，剪除就会落到 _internal 之外
-    # （甚至仓库里）——体积门禁查不出来，只表现为「构建后某些文件神秘消失」。
+    # （甚至仓库里）——体积检查查不出来，只表现为「构建后某些文件神秘消失」。
     for rel in build_exe.QT_BLOAT_FILES:
         assert not rel.startswith(("/", "\\")) and ":" not in rel, f"剪除项不得为绝对路径：{rel!r}"
         parts = Path(rel).parts
@@ -1601,7 +1601,7 @@ def test_zip_release_dir_prefixes_members_with_app_name(monkeypatch: pytest.Monk
 # 被测面是「在线值在什么条件下才允许影响判据」。三条核心不变量：
 #   ① off（默认）：一次网络请求都不发，_pinned_slots() 的结果与引入本层前逐字相同；
 #   ② verify 档**永不写入**：在线值只用于比对，写进期望值就等于跳过「人工回填内置表」这道闸口，
-#      而那道闸口同时也是「重新确认版本代次 / 体积门禁 / 冒烟」的触发点；
+#      而那道闸口同时也是「重新确认版本代次 / 体积检查 / 冒烟」的触发点；
 #   ③ adopt 只认「清单有独立认证」的槽位：advisory 档（清单与产物同源同服务器）与
 #      「signed 但没钉指纹」一律拒绝采用——前者是 TOFU，后者等于没验。
 # 全程离线：urlopen 与 _run_gpg 一律打桩（桩替换 build_exe 的模块全局名，不改 stdlib 本体）。

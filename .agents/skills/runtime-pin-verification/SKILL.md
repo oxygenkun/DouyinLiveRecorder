@@ -100,9 +100,9 @@ description: >
 
 ## 验证
 
-### 项目级门禁（由 `python scripts/run_gates.py` 统一兜底，Skill 不重复）
+### 项目级检查（由 `python scripts/run_gates.py` 统一兜底，Skill 不重复）
 
-- `python scripts/check_runtime_pins.py`（已在门禁清单内）
+- `python scripts/check_runtime_pins.py`（已在检查清单内）
 
 ### 本领域专项检查
 

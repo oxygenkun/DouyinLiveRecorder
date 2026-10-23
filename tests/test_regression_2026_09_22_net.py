@@ -311,7 +311,7 @@ class TestMid2233ResidualRegistered:
 
 class TestMin2222TypeNameInLogs:
     def test_windows_proxy_error_log_carries_exception_type(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # 注入假 winreg：门禁跑在 Linux，直接 import winreg 会失败；
+        # 注入假 winreg：检查跑在 Linux，直接 import winreg 会失败；
         # 用 sys.modules 塞替身可让这条 Windows 路径跨平台都验到（不是 skip，避免 CI 无覆盖）。
         boom = socket.timeout()  # str() == '' —— 正是「空白日志尾巴」的真实形态
         fake = types.SimpleNamespace(QueryValueEx=lambda *a, **k: (_ for _ in ()).throw(boom))

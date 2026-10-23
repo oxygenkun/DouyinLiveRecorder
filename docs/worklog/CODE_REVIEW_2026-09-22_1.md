@@ -2,16 +2,16 @@
 
 > 来源报告：`CODE_REVIEW_2026-09-22.md`（161 项：严重 28 / 中等 65 / 轻微 68）
 > 本文件定位：**进展快照**，不是最终结论。第 1 部分列出已落地并已验证（或复核后不成立）的项；第 2 部分列出尚未处理、待确认或有争议的项。
-> 门禁口径：本轮所有修复均要求 `scripts/run_gates.py --keep-going` 8/8 全绿 + `pytest` 0 警告 + 无参 `mypy` 通过，方可记为「已修复确认」。
+> 检查口径：本轮所有修复均要求 `scripts/run_gates.py --keep-going` 8/8 全绿 + `pytest` 0 警告 + 无参 `mypy` 通过，方可记为「已修复确认」。
 > 临时辅助文件：`_FIX_BRIEF_2026-09-22.md`（各组共享作业简报）、`_i18n_pending.json`（待合并的四语目录键）、`_run.py`（执行辅助）。收尾阶段统一删除。
 
 ---
 
 ## 第一部分 · 已完成（已修复确认 / 复核通过 / 复核后不成立）
 
-### 1.1 已全盘完成的文件组（门禁已验证通过）
+### 1.1 已全盘完成的文件组（检查已验证通过）
 
-| 组 | 文件 | 负责人 | 门禁结论 |
+| 组 | 文件 | 负责人 | 检查结论 |
 | --- | --- | --- | --- |
 | A | `src/stream.py`、`src/stream_select.py` | 代理 | mypy 147 源文件无问题；pytest 791 passed / 7 skipped |
 | B + B2 | `main.py` | 代理 | run_gates 8/8 全绿；pytest 86 passed；无参 mypy 148 源文件无问题 |
@@ -39,17 +39,17 @@
 - **SEV-2214** `src/spider.py:2207-2290` 小红书落地页双闸：XHS 域族白名单 + 内网判定，不通过即丢弃跳转、不发送凭据。结论：Cookie/sid 被发往响应决定的任意主机闭合。
 - **SEV-2215** `src/platforms/bilibili.py:26-45 / 73-95` 弹幕 WS host 过官方域白名单，非白名单跳过并 WARNING，全不可信时降级（只录视频）。结论：登录 Cookie 随 `getDanmuInfo` host 外泄闭合。
 - **SEV-2216** `requirements.txt:40-41` 与 `pyproject.toml:59-60` 同步新增 `h2>=4.3.0`、`socksio>=1.0.0`；回归锁断言两侧包名集合一致 + httpx 运行期 import 站点匹配声明。结论：`h2`/`socksio` 运行期缺包修复。
-- **SEV-2220** `scripts/run_gates.py:247 / 258` 注释与实现相反已就地改正 + 可复核判据（grep `stdout=`）。结论：门禁自检注释口径闭环。
+- **SEV-2220** `scripts/run_gates.py:247 / 258` 注释与实现相反已就地改正 + 可复核判据（grep `stdout=`）。结论：检查自检注释口径闭环。
 
-#### 已编辑、待验证（属 1.3 的 G 组，门禁尚未单独重跑）
+#### 已编辑、待验证（属 1.3 的 G 组，检查尚未单独重跑）
 
 - **SEV-2221** `src/web_api.py:1265-1318` 状态接口新增 `main_loop_alive` 心跳判据（连续 `_MAIN_LOOP_STALL_SECONDS` 秒计数零增长 ⇒ `False`）。
 - **SEV-2225** `src/web_api.py:1034 / 1062` 写侧谓词改为调用 `web_config.is_sensitive_item`（消除读写分叉）。
 
 #### 复核后不成立（已跳过，附理由；建议维护者二次确认）
 
-- **SEV-2218 / SEV-2219**（钉定表门禁接线）：实测 `run_gates.py` 第 8 步与 `ci.yml:257` 均执行 `check_runtime_pins.py`，且 `--strict` 在 `build-release.yml:146` 调用、实测能 rc=1 拦下发布。结论：接线完整，原前提不成立。
-- **SEV-2223**（门禁丢退出码）：实测 `run_command` 已返回真实 rc，`main()` 以 `if rc == 0 and not hits:` 收口。已补锁防回归，未改逻辑。
+- **SEV-2218 / SEV-2219**（钉定表检查接线）：实测 `run_gates.py` 第 8 步与 `ci.yml:257` 均执行 `check_runtime_pins.py`，且 `--strict` 在 `build-release.yml:146` 调用、实测能 rc=1 拦下发布。结论：接线完整，原前提不成立。
+- **SEV-2223**（检查丢退出码）：实测 `run_command` 已返回真实 rc，`main()` 以 `if rc == 0 and not hits:` 收口。已补锁防回归，未改逻辑。
 - **SEV-2224**（18 处 `patch("subprocess.")` 失效）：全仓实扫仅 6 处且逐一实证有效（`vp.subprocess`/`utils.subprocess` 均为真实模块），命中 `time.sleep` 11 处目标为 `src.stream_select.time.sleep`（正确）。结论：前提不成立。
 - **MID-2259 / MID-2267 / MID-2268**（钉定表键/槽位、`FATAL_STDERR_PATTERNS` 覆盖）：实测矩阵键 `['windows-x64','linux-x64','macos-arm64']` 与 `build-release.yml` 一致；`FATAL_STDERR_PATTERNS = ('Unable to parse file',)` 正确覆盖 isort 的 stderr 告警。结论：正确。
 
@@ -123,7 +123,7 @@
 - **SEV-2207（部分）** `src/video_postprocess.py` 转码线程池需暴露 `shutdown_postprocess_executor(wait, cancel_futures)`（`main.py:534` 已就绪调用点），并改用守护线程 + 自管队列（与 `ffmpeg_proc` 处置同构）；当前该模块尚未改，**atexit join 先于 ffmpeg 清理 3600 秒**的上限未消除。下一步：在 `src/video_postprocess.py` 落地关闭接口 + 守护化，补回归锁。
 - **SEV-2209** `src/utils.py::run_js_async` 整条 execjs 链路无超时（C 组只验证了消费侧形态正确，未加 `timeout: float = 30.0`）。下一步：给 `run_js_async` 加 `timeout` 并透传 `call(..., timeout=timeout)`，或用 `asyncio.wait_for` 包 `to_thread`；与 `run_node_script_async` 同口径；补「超时按 `ProgramError` 上抛」的锁。
 - **SEV-2217** `src/ws_client.py` 未处理（组 K 未派发）。下一步：回源核对 WS 连接失败/掉线的重连与心跳，补「健康断开不判死」的锁。
-- **SEV-2221 / SEV-2225** 已编辑（见 1.2），但**门禁尚未对其文件单独重跑**。下一步：跑 `black`/`isort`/`mypy` + `node --check web/app.js` + `node --test tests/frontend/*.mjs` + 相关 pytest，确认 G 组改动未破门禁；清理 G 组残留的 `_out_g_*.txt` 与 `_probe_g.py`。
+- **SEV-2221 / SEV-2225** 已编辑（见 1.2），但**检查尚未对其文件单独重跑**。下一步：跑 `black`/`isort`/`mypy` + `node --check web/app.js` + `node --test tests/frontend/*.mjs` + 相关 pytest，确认 G 组改动未破检查；清理 G 组残留的 `_out_g_*.txt` 与 `_probe_g.py`。
 - **SEV-2226（部分）** `src/sync_http.py` 死码（只有 `weverse_auth` 测试导入）与 `AGENTS.md`「两条安全辩护」陈述待处理；`stream_select`/`spider` 侧注释已改。下一步：二选一——(a) 删除 `sync_http.py` 与 `weverse_auth.py` 死码并同步 `tests`；(b) 给 `sync_http` 补 `is_safe_http_url` + 有限 gzip 解压并把 AGENTS 两条陈述改成「已接线/被钉定」。决策与 `MIN-2255`（AGENTS 五点同步清单）、`MIN-2256`（scheduler 回指陈述）一并处理。
 
 ### 2.2 中等 / 轻微项待落地（组 K / 组 L 尚未派发）
@@ -146,7 +146,7 @@
 ### 2.5 AGENTS.md / 文档与收尾
 
 - **SEV-2226** 的两条「安全辩护」陈述、MIN-2255（五点同步清单）、MIN-2256（`scheduler` 回指陈述）需在 `AGENTS.md` 就地改正（事实性陈述按「只增不改例外」口径）。
-- **全量门禁 + 端到端真机验证**：所有组收口后跑一次 `scripts/run_gates.py --keep-going` 全绿 + `pytest` 全量 0 警告 + 无参 `mypy` + basedpyright，并在真实房间上增量验证（按项目「完成定义」）。
+- **全量检查 + 端到端真机验证**：所有组收口后跑一次 `scripts/run_gates.py --keep-going` 全绿 + `pytest` 全量 0 警告 + 无参 `mypy` + basedpyright，并在真实房间上增量验证（按项目「完成定义」）。
 - **CODE_WIKI / CODE_WIKI_EN 更新日志**：按项目收尾约定追加本轮修复条目。
 - 删除临时文件：`_FIX_BRIEF_2026-09-22.md`、`_i18n_pending.json`、`_run.py` 及所有 `_out_*.txt`、`_probe_*.py`。
 
@@ -155,7 +155,7 @@
 以下为各组「回源判定不成立」的结论，建议维护者二次确认其复核是否正确（尤其 SEV-2224 的「6 处 vs 报告 18 处」差异可能源于报告计数口径）：
 
 - SEV-2218 / SEV-2219（钉定表接线）—— 代理实测 `--strict` 能拦发布；
-- SEV-2223（门禁丢退出码）—— 实测 rc 已正确返回；
+- SEV-2223（检查丢退出码）—— 实测 rc 已正确返回；
 - SEV-2224（18 处 `patch("subprocess.")` 失效）—— 代理实扫仅 6 处且有效；
 - MID-2259 / MID-2267 / MID-2268（钉定表/`FATAL_STDERR_PATTERNS`）—— 实测正确。
 
@@ -166,6 +166,6 @@
 - 严重 28 项：已修复确认 **15**、已编辑待验证 **2**（SEV-2221/2225）、复核后不成立 **5**（2218/2219/2223/2224 + 其中 MID 级 3）、待落地 **6**（2207 部分 / 2209 / 2217 / 2226 部分 + 2221/2225 验证）。
 - 中等 65 项：已修复确认约 **30+**（A/B/C/E/F 覆盖），剩余约 30 项归组 K/L/G 未派发。
 - 轻微 68 项：已修复确认约 **20+**，剩余归组 K/L/G 未派发。
-- 阻塞项：i18n 合并（22 键）、AGENTS.md 3 处陈述、全量门禁复跑、test_concurrency 修正、CODE_WIKI 收尾。
+- 阻塞项：i18n 合并（22 键）、AGENTS.md 3 处陈述、全量检查复跑、test_concurrency 修正、CODE_WIKI 收尾。
 
-> 下一步总动作：派发组 K / 组 L；补 SEV-2207（video_postprocess）、SEV-2209（utils）、SEV-2226（sync_http+AGENTS）；验证 G 组改动并清残留；合并 i18n；改 AGENTS.md；修 test_concurrency；全量门禁复跑 + CODE_WIKI 收尾。
+> 下一步总动作：派发组 K / 组 L；补 SEV-2207（video_postprocess）、SEV-2209（utils）、SEV-2226（sync_http+AGENTS）；验证 G 组改动并清残留；合并 i18n；改 AGENTS.md；修 test_concurrency；全量检查复跑 + CODE_WIKI 收尾。

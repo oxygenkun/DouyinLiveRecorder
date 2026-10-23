@@ -50,9 +50,9 @@ agent_created: true
 
 只改必须改的行：不顺手优化相邻代码/注释/格式，不重构没坏的东西，不删既有死代码（发现就提出来）。自己的改动制造出的孤儿（未使用的 import/变量/函数）由自己清理。详见 `references/engineering-principles.md`。
 
-### 铁律 4：门禁只在本地入口跑一次
+### 铁律 4：检查只在本地入口跑一次
 
-**不要在任何文档或 skill 里复制 black/isort/mypy 命令清单**——那会制造并行事实源并在 `AGENTS.md` 更新后静默漂移。全量门禁只有一个入口：`python scripts/run_gates.py`（命令清单运行时从 `AGENTS.md`「格式化命令」章节解析）。
+**不要在任何文档或 skill 里复制 black/isort/mypy 命令清单**——那会制造并行事实源并在 `AGENTS.md` 更新后静默漂移。全量检查只有一个入口：`python scripts/run_gates.py`（命令清单运行时从 `AGENTS.md`「格式化命令」章节解析）。
 
 ## 路由表
 
@@ -71,13 +71,13 @@ agent_created: true
 
 ## 验证
 
-### 项目级门禁（统一入口，不复制命令清单）
+### 项目级检查（统一入口，不复制命令清单）
 
-全量门禁的唯一入口是 `python scripts/run_gates.py`（在仓库根目录执行）：按原顺序跑完全部 `--check` 型门禁，任一失败非 0 退出。**完整命令清单、收窄排障（`--only`/`--keep-going`/`--list`）与平台增跑（`mypy --platform linux`）的口径以 `AGENTS.md`「格式化命令（门禁唯一基准）」为唯一事实源，本手册只引用不复制**——需要逐条命令时用 `run_gates.py --list` 现场解析，或直接查该章节。
+全量检查的唯一入口是 `python scripts/run_gates.py`（在仓库根目录执行）：按原顺序跑完全部 `--check` 型检查，任一失败非 0 退出。**完整命令清单、收窄排障（`--only`/`--keep-going`/`--list`）与平台增跑（`mypy --platform linux`）的口径以 `AGENTS.md`「格式化命令（检查唯一基准）」为唯一事实源，本手册只引用不复制**——需要逐条命令时用 `run_gates.py --list` 现场解析，或直接查该章节。
 
-退出码语义：`0` 通过 / `1` 门禁红（代码问题）/ `2` 清单缺失或含写型命令（属「没跑」）/ `3` 可执行文件缺失（环境问题）。后两者不是代码不合格，别当成回归。
+退出码语义：`0` 通过 / `1` 检查红（代码问题）/ `2` 清单缺失或含写型命令（属「没跑」）/ `3` 可执行文件缺失（环境问题）。后两者不是代码不合格，别当成回归。
 
-**单任务验证补充**（随配方执行，非 CI 门禁清单）：改动模块跑 `pytest tests/test_<module>.py -v` → **0 warnings**，涉及子进程输出时再单独跑一次该文件（抓 GBK/UTF-8 代码页问题）；改动文件用 `python -m py_compile` 或 `compileall src` 做语法检查，跑完按铁律 1 清 `__pycache__`；覆盖率跑 `scripts/check_coverage.py`（口径见 `AGENTS.md`「测试」与「完成定义」）。
+**单任务验证补充**（随配方执行，非 CI 检查清单）：改动模块跑 `pytest tests/test_<module>.py -v` → **0 warnings**，涉及子进程输出时再单独跑一次该文件（抓 GBK/UTF-8 代码页问题）；改动文件用 `python -m py_compile` 或 `compileall src` 做语法检查，跑完按铁律 1 清 `__pycache__`；覆盖率跑 `scripts/check_coverage.py`（口径见 `AGENTS.md`「测试」与「完成定义」）。
 
 安全不变量类测试必须做**变异验证**：临时改坏生产代码，确认测试转红；仅被既有测试覆盖的平凡断言可豁免。
 
@@ -87,12 +87,12 @@ agent_created: true
 
 - 目标模块路径：`src/<module>.py` ↔ `tests/test_<module>.py` 一一对应。
 - 报错/日志**原文**：mypy 的 `file:line: error: ... [code]`、日志的 `file:func:line` 标记。
-- 验证边界：允许跑哪些门禁、是否需要真机/端到端验证。
+- 验证边界：允许跑哪些检查、是否需要真机/端到端验证。
 
 **输出**（每次任务的固定收尾形态）：
 
 1. 改动文件清单 + 每个文件「改了什么 / 刻意没动什么」。
-2. 门禁与测试结果（引用实际输出，不写「应该通过」）。
+2. 检查与测试结果（引用实际输出，不写「应该通过」）。
 3. 清理结果一行（见铁律 1 第 7 条）。
 4. 在回复里**显式写出本次做的假设与回滚方式**；沉默猜测仍属违规。
 
@@ -107,17 +107,17 @@ agent_created: true
 - 把无括号 `except A, B:` 「顺手改成」带括号（过不了 `black --check`）。
 - 用 `chmod(0o444)` 测 `config_io` 只读路径（对 `os.replace` 无效）。
 - 测试里自己实现一遍被测逻辑（假绿）。
-- 把门禁命令清单复制到文档或 skill 里。
+- 把检查命令清单复制到文档或 skill 里。
 - 改完代码不同步 `CODE_WIKI.md` / `CODE_WIKI_EN.md` 更新日志。
 
 ## 目录结构
 
 ```text
 dlr-dev-playbook/
-├── SKILL.md                                  # 路由 + 通用铁律 + 统一门禁（引用 AGENTS.md）
+├── SKILL.md                                  # 路由 + 通用铁律 + 统一检查（引用 AGENTS.md）
 ├── references/
 │   ├── engineering-principles.md             # 想清楚再做：假设外显、极简、外科手术、目标驱动
-│   ├── design-brainstorming.md               # 设计流程、规格文档、评审门禁
+│   ├── design-brainstorming.md               # 设计流程、规格文档、评审检查
 │   ├── visual-companion.md                   # 浏览器可视化伴侣（配 scripts/）
 │   ├── testing-conventions.md                # 测试编写强制约定 + stdlib 替身配方
 │   ├── log-fault-triage.md                   # 日志分诊 + 三个已验证修复配方

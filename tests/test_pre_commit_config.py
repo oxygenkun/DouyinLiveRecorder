@@ -1,12 +1,12 @@
-# .pre-commit-config.yaml 与 AGENTS.md「格式化命令（门禁唯一基准）」的同源回归锁。
+# .pre-commit-config.yaml 与 AGENTS.md「格式化命令（检查唯一基准）」的同源回归锁。
 #
-# 治理症状：五条仓库级门禁（check_annotations / compile_po / check_version / check_runtime_pins /
+# 治理症状：五条仓库级检查（check_annotations / compile_po / check_version / check_runtime_pins /
 # check_skill_agents_consistency）曾只在 CI 与 `python scripts/run_gates.py` 执行，pre-commit 侧
-# 完全漏配——本地提交绿不等于门禁全绿。本用例把「AGENTS.md 章节列出的每条常驻门禁都必须在
-# pre-commit 找到对应 hook」钉成机检，新增门禁漏配即刻拦下。
+# 完全漏配——本地提交绿不等于检查全绿。本用例把「AGENTS.md 章节列出的每条常驻检查都必须在
+# pre-commit 找到对应 hook」钉成机检，新增检查漏配即刻拦下。
 #
 # 断言口径：不钉整行字面量——`python -m black` 由 mirror hook `id: black` 覆盖，`python scripts/x.py`
-# 由 local hook `entry:` 覆盖；锁的是「该门禁由 pre-commit 触发」这一不变量，只钉「谁被调用」，
+# 由 local hook `entry:` 覆盖；锁的是「该检查由 pre-commit 触发」这一不变量，只钉「谁被调用」，
 # 不钉参数顺序（避免 M-26 类反转：钉旧实参名 → 契约反转后静默空洞成立）。
 #
 # 未纳入断言：`mypy --platform linux` 属按需触发的条件增跑；pre-commit 不覆盖是刻意设计，
@@ -22,7 +22,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# AGENTS.md「格式化命令」章节列出的五条仓库级门禁脚本（匹配口径取脚本相对路径子串：
+# AGENTS.md「格式化命令」章节列出的五条仓库级检查脚本（匹配口径取脚本相对路径子串：
 # entry 可再携带参数，只要脚本本身被调用即视为覆盖，不钉参数顺序与字符串完全相等）。
 REPO_LEVEL_GATE_SCRIPTS: tuple[str, ...] = (
     "scripts/check_annotations.py",
@@ -47,7 +47,7 @@ _run_gates = _load_run_gates()
 
 
 def _load_agents_gate_commands() -> list[str]:
-    # 走 run_gates 现成的解析器：AGENTS.md 章节若被改（新增/删除门禁行），本用例立即同步。
+    # 走 run_gates 现成的解析器：AGENTS.md 章节若被改（新增/删除检查行），本用例立即同步。
     return cast("list[str]", _run_gates.extract_gate_commands(ROOT / "AGENTS.md"))
 
 
@@ -86,12 +86,12 @@ def _local_entries(cfg: dict[str, Any]) -> list[str]:
 
 
 def test_agents_gate_section_includes_repo_level_gates() -> None:
-    # 前置守卫：章节必须**确实列出**这五条门禁脚本；若章节被误删，下面的覆盖用例会因
-    # 「AGENTS.md 里根本没这条」而空过，反而给出「门禁同源」的假绿（SEV-2219 同口径 fail-closed）。
+    # 前置守卫：章节必须**确实列出**这五条检查脚本；若章节被误删，下面的覆盖用例会因
+    # 「AGENTS.md 里根本没这条」而空过，反而给出「检查同源」的假绿（SEV-2219 同口径 fail-closed）。
     cmds = _load_agents_gate_commands()
-    assert cmds, "未能从 AGENTS.md「格式化命令」章节解析到任何门禁，同源锁失去基准"
+    assert cmds, "未能从 AGENTS.md「格式化命令」章节解析到任何检查，同源锁失去基准"
     for script in REPO_LEVEL_GATE_SCRIPTS:
-        assert any(script in c for c in cmds), f"AGENTS.md「格式化命令」章节缺失门禁行：{script}"
+        assert any(script in c for c in cmds), f"AGENTS.md「格式化命令」章节缺失检查行：{script}"
 
 
 def test_agents_gate_section_includes_formatter_tools() -> None:
@@ -105,11 +105,11 @@ def test_agents_gate_section_includes_formatter_tools() -> None:
 
 
 def test_pre_commit_local_hooks_cover_repo_level_gates() -> None:
-    # 核心回归锁：五份仓库级门禁脚本必须在 local hook 的 entry 里出现（子串匹配，允许额外参数）。
-    # 缺失任一条 = 本次修复回归，CI 与本地门禁再次脱钩。
+    # 核心回归锁：五份仓库级检查脚本必须在 local hook 的 entry 里出现（子串匹配，允许额外参数）。
+    # 缺失任一条 = 本次修复回归，CI 与本地检查再次脱钩。
     entries = _local_entries(_load_pre_commit_config())
     missing = [s for s in REPO_LEVEL_GATE_SCRIPTS if not any(s in e for e in entries)]
-    assert not missing, f"pre-commit 未覆盖 AGENTS.md 仓库级门禁脚本：{missing}"
+    assert not missing, f"pre-commit 未覆盖 AGENTS.md 仓库级检查脚本：{missing}"
 
 
 def test_pre_commit_local_hooks_cover_ruff_tools() -> None:
@@ -125,7 +125,7 @@ def test_pre_commit_local_hooks_cover_ruff_tools() -> None:
 
 
 def test_repo_level_gate_hooks_share_system_pass_filenames_false_always_run() -> None:
-    # 结构不变量：五份仓库级门禁 hook 必须 language=system + pass_filenames=false + always_run=true。
+    # 结构不变量：五份仓库级检查 hook 必须 language=system + pass_filenames=false + always_run=true。
     # 五个脚本按仓库根遍历做跨文件比对（i18n 双侧、版本号三处、钉定表对账、Skill 目录表与 AGENTS.md），
     # 若允许 pass_filenames 会把 staged 文件当参数传入而破坏自身遍历；若非 always_run 则改 .po /
     # build_exe.py / pyproject.toml 时不触发，等于回到本次修复前的症状（语义细则见配置文件内注释）。
@@ -147,7 +147,7 @@ def test_repo_level_gate_hooks_share_system_pass_filenames_false_always_run() ->
             f"hook {hook_id!r} 必须 always_run: true（跨文件比对不能被 staged 类型漏掉）"
         )
     assert matched == len(REPO_LEVEL_GATE_SCRIPTS), (
-        f"pre-commit 应命中 {len(REPO_LEVEL_GATE_SCRIPTS)} 条仓库级门禁 hook，实际 {matched} 条"
+        f"pre-commit 应命中 {len(REPO_LEVEL_GATE_SCRIPTS)} 条仓库级检查 hook，实际 {matched} 条"
     )
 
 
@@ -177,7 +177,7 @@ def test_run_gates_is_invocable_as_single_hook_entry() -> None:
         sys.argv = argv_backup
     out_lines = [ln for ln in captured.getvalue().splitlines() if ln.strip()]
     assert rc == 0, f"run_gates.py --list 应以 0 退出，实际 {rc}"
-    # --list 输出必须覆盖四条仓库级门禁脚本 + black/isort/mypy
+    # --list 输出必须覆盖四条仓库级检查脚本 + black/isort/mypy
     for script in REPO_LEVEL_GATE_SCRIPTS:
         assert any(script in ln for ln in out_lines), (
             f"run_gates.py --list 未列出 {script}，AGENTS.md 章节与本地入口脱钩"

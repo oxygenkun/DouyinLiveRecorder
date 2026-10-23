@@ -40,7 +40,7 @@ DouyinLiveRecorder 是 Python ≥ 3.14 的多平台直播录制工具（ffmpeg �
 | 工具与配置 | `src/utils.py`、`src/config_io.py`、`src/config_bool.py`、`src/logger.py`、`src/log_archive.py`、`src/notify.py`、`msg_push.py`、`src/recorder_status.py`、`i18n.py` | 3,524 | 中 4 / 轻 10 |
 | 安装与后处理 | `src/ffmpeg_install.py`、`src/ffmpeg_master_download.py`、`src/node_install.py`、`src/ffmpeg_proc.py`、`src/video_postprocess.py`、`src/base.py`、`src/__init__.py` | 2,600 | 中 6 / 轻 6 |
 | 前端与签名脚本 | `web/app.js`、`web/index.html`、`web/style.css`、`index.html`（根）、`src/javascript/*.js`（4 个自研） | 4,805 | 中 1 / 轻 15 |
-| 构建与门禁 | `build_exe.py`、`scripts/*.py`（12 个）、`Dockerfile`、`docker-compose.yaml`、`.github/workflows/*`、`.github/actions/retry` | 约 8,000 | 中 6 / 轻 9 |
+| 构建与检查 | `build_exe.py`、`scripts/*.py`（12 个）、`Dockerfile`、`docker-compose.yaml`、`.github/workflows/*`、`.github/actions/retry` | 约 8,000 | 中 6 / 轻 9 |
 | 独立发行版 | `scripts/douyin_live_recorder_standalone.py` | 2,261 | **严重 2** / 中 4 / 轻 11 |
 
 另：`src/http_config.py`（63 行）审查后未发现问题；`src/ui_theme.py` 审查后未发现问题。
@@ -86,7 +86,7 @@ DouyinLiveRecorder 是 Python ≥ 3.14 的多平台直播录制工具（ffmpeg �
 | 工具与配置 | 0 | 4 | 10 |
 | 安装与后处理 | 0 | 6 | 6 |
 | 前端与签名脚本 | 0 | 1 | 15 |
-| 构建与门禁/CI | 0 | 6 | 9 |
+| 构建与检查/CI | 0 | 6 | 9 |
 | 独立发行版（standalone） | **2** | 4 | 11 |
 | 测试（6 组） | 0 | 14 | 36 |
 | **合计** | **2** | **51** | **160** |
@@ -350,7 +350,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 - 问题与影响：`#config-container` 挂着 `data-i18n="loading"`，而 `loadConfig()` 只重写其 `innerHTML`、属性仍在；任何语言切换（`setLanguage` 成功/失败路径均调 `applyTranslations()`）都会把该容器 `textContent` 覆盖成「加载中...」。用户在配置页有未保存修改时切换语言，编辑内容静默丢失；点保存走 0 输入分支显示「无变更」，无报错。
 - 建议：`loadConfig` 渲染成功后 `container.removeAttribute('data-i18n')`；或把初始 loading 文案放独立子元素。
 
-### 5.11 构建与门禁 / CI（6 项）
+### 5.11 构建与检查 / CI（6 项）
 
 **M-28 `check_annotations.py --snapshot` 主目录防护方向反了：仓库克隆在主目录下时快照功能恒被拒**
 
@@ -376,8 +376,8 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 **M-31 冒烟 `expect_alive=True` 不断言存活：CLI/GUI 入口提前干净退出（rc=0）通过冒烟**
 
 - 位置：`build_exe.py:1552`
-- 类型：逻辑错误（门禁假绿面）
-- 问题与影响：对「应长期运行的入口」只在 rc≠0 时判失败；进程在等待期内干净退出（rc=0）直接通过。`smoke_web` 有 HTTP 探活兜底，CLI/GUI 没有等价见证——「入口启动后立即静默退出」类回归（空配置提前 return、监控循环条件写反）在 CI 冒烟恒绿，与本仓「假绿即门禁失效」口径相悖。
+- 类型：逻辑错误（检查假绿面）
+- 问题与影响：对「应长期运行的入口」只在 rc≠0 时判失败；进程在等待期内干净退出（rc=0）直接通过。`smoke_web` 有 HTTP 探活兜底，CLI/GUI 没有等价见证——「入口启动后立即静默退出」类回归（空配置提前 return、监控循环条件写反）在 CI 冒烟恒绿，与本仓「假绿即检查失效」口径相悖。
 - 建议：`expect_alive` 且进程提前退出时无论 rc 均判失败（或至少断言「存活至超时」）。
 
 **M-32 `dorny/paths-filter@v4` 浮动 ref，自动运行在外部 PR 上，未按本仓 MIN-17 判据钉 SHA 或登记豁免**
@@ -496,10 +496,10 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 - 问题与影响：负向先行 `(?<![\w.])` 把 `window.localStorage` 排除出命中，而裸 `window.localStorage` 在隐私模式下同样抛异常；白名单状态机按函数声明形态判定，改箭头函数即失配。该文本锁是 MID-2238 不变量的唯一防线。
 - 建议：补行为锁（注入「访问即抛」的 storage 桩，断言 init 不中断）；文本锁正则同时命中 `window.` 前缀形态。
 
-**T-M-11 MID-2253 行级扫描门禁不自证：多行调用/换导入形态即静默归零，offenders==[] 恒过**
+**T-M-11 MID-2253 行级扫描检查不自证：多行调用/换导入形态即静默归零，offenders==[] 恒过**
 
 - 位置：`tests/frontend/test_regression_2026_09_22_gates.mjs:722-750`
-- 类型：文本锁反模式 + 门禁不自证
+- 类型：文本锁反模式 + 检查不自证
 - 问题与影响：只处理「同一行同时含 `i18n.tr(` 与中文串」的行，Python 括号续行把中文实参写到下一行即完全逃逸；`from i18n import tr` 使匹配归零；没有「至少匹配到 N 处」的前提自证——「tr 模板掺中文常量值」回归可从任一逃逸形态进入而不红。
 - 建议：扫描前断言至少命中 N 处 `i18n.tr(`；根治改 Python AST 侧扫描。
 
@@ -582,7 +582,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 | 3 | web_config.py:1032-1033 | 测试哨兵泄漏 | 生产环境 Origin host=`testserver`（无显式端口）无条件放行同源判定；哨兵豁免改测试上下文门控 |
 | 4 | web.py:128 | 资源泄漏 | `logs/web_console.log` append 打开后永不轮转永不截断，长期运行无上界；进入后台模式时超阈值轮转或启动截断 |
 | 5 | web_api.py:269-271 | 性能/放大面 | 免鉴权端点每请求在锁内做 O(键数) 全表清理，多 IP 源可放大成本；改惰性分片清理或键数硬上限 |
-| 6 | web_api.py:681-682/702-705 | 并发竞态 | 登录限流 check-then-append 非原子，并发突刺约 2× 超预算；门禁阶段乐观占位、验证成功再回退 |
+| 6 | web_api.py:681-682/702-705 | 并发竞态 | 登录限流 check-then-append 非原子，并发突刺约 2× 超预算；检查阶段乐观占位、验证成功再回退 |
 | 7 | web_config.py:779/795-798 | 注释失真 | update_room_quality 注释声称 `_config_write_lock` 防 GUI/Web 并发丢写，实际读在锁外且锁是进程内 RLock（跨进程无效）；修正注释并把读移进锁内 |
 | 8 | web_api.py:1235-1239/1503-1527 | 缓存残差（待确认） | mtime+size 等长同刻外部改写可致认证视图滞留「关闭」（fail-open 方向，NTFS 基本不触发）；鉴权依赖键额外比对内容摘要 |
 | 9 | web_config.py:1070-1083 | 脱敏缺口 | 值形态正则漏 `pass=`/`sign=`/`sig=`/`signature=` 等查询键；补词根或对 URL 形态值默认脱敏 |
@@ -685,7 +685,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 | 14 | haixiu.js:517-519、liveme.js:349 | 接口健壮性 | `require(cryptoJSPath)` 路径来自调用实参（当前 Python 侧传固定相对路径）；写死或校验 basename |
 | 15 | migu.js:378、235、244 | 边界 | `&` 拼接对含 `#` 入参与重复 ddCalcu 无防御；两处 fetch 无超时（外层 30s 兜底）；追加前判 `parsedUrl.search`，fetch 加 AbortSignal.timeout |
 
-### 6.11 构建与门禁 / CI（9 项）
+### 6.11 构建与检查 / CI（9 项）
 
 | # | 位置 | 类型 | 问题与建议 |
 | --- | --- | --- | --- |
@@ -695,7 +695,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 | 4 | build_exe.py:276 vs 300-315 | 注释与行为不符 | `_sanitized_config_text` 注释称「保留注释」，实际 configparser 往返丢光注释，发布模板失去使用说明；改注释或改逐行保留式脱敏 |
 | 5 | check_coverage.py:220-221 | 报错文案 | 债务基线违规文案方向与不变量相反（当前 COVERAGE_DEBT 为空不可达）；更正文案 |
 | 6 | patch_i18n_2026_09_12.py:228-233 | 逻辑错误 | compile_po 失败被吞、恒 return 0，与自身注释矛盾；`return res.returncode`（连同 M-29 一并处理后按一次性脚本处置） |
-| 7 | run_gates.py:280-287 | 健壮性（待确认） | stderr 逐行转发 EOF 依赖孙进程关管道，未来门禁若派生后台进程会挂死（当前六条门禁不触发）；可选加整体超时并在「格式化命令」登记约束 |
+| 7 | run_gates.py:280-287 | 健壮性（待确认） | stderr 逐行转发 EOF 依赖孙进程关管道，未来检查若派生后台进程会挂死（当前六条检查不触发）；可选加整体超时并在「格式化命令」登记约束 |
 | 8 | build_exe.py:1428-1430 | 健壮性 | `_clean_stale_release_zips` 的 `unlink()` 未捕 OSError，Windows 句柄占用时 --dual 第一步即崩；捕 OSError 告警后继续（后续互异校验可兜住） |
 | 9 | build-release.yml:213/490/498 | 纵深防御 | version 字符串未做格式校验即插入 run: 与 gh 参数（来源为仓库内容非外部事件，非可利用注入）；prepare 提取后加一行正则校验再写 output |
 
@@ -806,7 +806,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 
 | 机扫类别（HIGH/LOW） | 数量 | 人工复核结论 |
 | --- | --- | --- |
-| HIGH · 命令注入（run_gates.py:268；haixiu.js:518；liveme.js:349） | 3 | run_gates.py:268 为固定门禁命令起子进程（`sys.executable -m black/...`），命令与参数均为代码内常量，无外部不可信输入拼接，**不成立**。haixiu.js:518 / liveme.js:349 的 `require(cryptoJSPath)` 路径来自调用实参——与人工发现 J-组轻 14 一致：当前 Python 侧传固定相对路径，无可利用面，作为**接口加固项**收录（写死或校验 basename）。 |
+| HIGH · 命令注入（run_gates.py:268；haixiu.js:518；liveme.js:349） | 3 | run_gates.py:268 为固定检查命令起子进程（`sys.executable -m black/...`），命令与参数均为代码内常量，无外部不可信输入拼接，**不成立**。haixiu.js:518 / liveme.js:349 的 `require(cryptoJSPath)` 路径来自调用实参——与人工发现 J-组轻 14 一致：当前 Python 侧传固定相对路径，无可利用面，作为**接口加固项**收录（写死或校验 basename）。 |
 | HIGH · 硬编码凭据（spider.py:4774；5846；5848） | 3 | 4774 为 Twitch 公共 Web 客户端 ClientId（非机密、公开于其 Web 源码，且带 env/config 覆盖入口）；5846/5848 为平台内置公共访问 token（PopkonTV/WinkTV 类），均带 env/config 覆盖入口与失效告警——与 AGENTS 既定设计一致，判定为**平台公共客户端标识而非机密泄漏**，接受为设计内取值。 |
 | HIGH · 路径穿越（build_exe.py:880/1135；gui.py:987/2853/4472；main.py:729/4804/4826；config_io.py:381；ffmpeg_install.py:301；ffmpeg_master_download.py:206；log_archive.py:104；node_install.py:247） | 11 | 逐点复核：路径来源均为本地可信配置/固定目录/进程自身产物（config 目录、日志归档改名目标、发布目录），无外部不可信输入直达路径拼接的实例；build_exe 的 zip 解包另有 realpath 前缀校验 + 文件名白名单 + `tarfile filter="data"` 双层防护（人工 L 组核实）。**静态模式误报为主**。node_install.py:247 的真实问题不在路径穿越而在版本号未校验（本报告 M-24，人工评级中等）。 |
 | HIGH · SSRF（build_exe.py:801/877；ffmpeg_install.py:152/291；node_install.py:99/239；sync_http.py:23） | 7 | build_exe/ffmpeg_install/node_install 的出站下载端点全部落在 `DOWNLOAD_SOURCES` 白名单 + SHA256/TOFU 校验体系内，主链 fail-closed（人工 I/L 组核实）；真实问题在白名单体系内的两个缺口：node 版本号无格式校验（M-24）与 TOFU 基准读失败 fail-open（M-21）。sync_http.py:23 与人工发现 M-13 一致（opener 无内网复检，当前无生产 importer）。机扫**未覆盖 standalone 的完整 SSRF/file:// 链**（S-01），该最重发现由人工深审找出。 |
@@ -846,7 +846,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 
 1. **孪生文件治理**：standalone 的 2 严重 + 4 中等 + 2 项轻微全部源于「主线修复未回灌」。建议在 `AGENTS.md` 增加硬约定：主线安全/正确性修复涉及 `sync_http` opener、`-protocol_whitelist`、`ffmpeg_proc` 终止链、`config_bool`、MID-49 类签名修复时，必须同步核对 standalone 并在提交信息中写明「已核对/已回灌/刻意不回灌及原因」（现有 9 格矩阵锁只覆盖 PATH 让位判据一项）。
 2. **机扫位**：Mimosa 扫描 validation 阶段未执行（investigated=0），41 条发现均未验证——建议后续扫描配置验证阶段，或在流程上明确「机扫发现须经人工复核才能进入修复队列」。
-3. **测试卫生机检扩面**：R1 的 `_MUTABLE_MODULE_NAMES` 补 `configparser`；`_SANCTIONED` 登记表补 `test_web_tray.py` 的 ctypes 条目——把本次发现的两个机检盲区纳入门禁。
+3. **测试卫生机检扩面**：R1 的 `_MUTABLE_MODULE_NAMES` 补 `configparser`；`_SANCTIONED` 登记表补 `test_web_tray.py` 的 ctypes 条目——把本次发现的两个机检盲区纳入检查。
 
 ---
 
@@ -854,7 +854,7 @@ logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
 
 1. **总体评价**：本项目代码库的工程质量显著高于同类工具的平均水平——关键安全设计（Web 密码 PBKDF2 + 恒时比较、token 256-bit、SSRF 多层判定、完整性校验 fail-closed 主链、SRT 注入清洗、锁定体系与停止握手契约）在主线代码中普遍到位且有回归锁护持；测试套件大量使用行为锁与反假绿自检，18 个审查批次均确认「无真实凭据硬编码、无 `patch.dict(os.environ)`、无 MUTATION 残留」。
 2. **最重的结构性风险集中在两个点**：其一，**独立发行版（standalone）与主线孪生漂移**——主线 2026-09-12/09-20/09-29 三轮安全修复（协议白名单、内网判定、斗鱼签名 POST、ffmpeg 三级终止）均未回灌，叠加命令日志凭据明文落盘，形成本次仅有的两项「严重」；其二，**防线的「写入侧一致性」**——脱敏正则的死分支、Web 密码空白口径、配置值注释保留逻辑，都属于「防线存在但实现口径分叉」形态，靠常规测试难以暴露，需要在修复时同步补「值确实消失/读回一致」类断言。
-3. **测试侧无严重项但有一个系统性信号**：14 项中等测试问题中过半是「替身打到进程级共享本体」与「文本锁可绕过/不自证」两类既有已知形态的复发（R1 名单盲区、M-26 同族）——建议按第 8 章流程性建议扩机检名单，把这类形态从「靠审查发现」转为「靠门禁拦截」。
+3. **测试侧无严重项但有一个系统性信号**：14 项中等测试问题中过半是「替身打到进程级共享本体」与「文本锁可绕过/不自证」两类既有已知形态的复发（R1 名单盲区、M-26 同族）——建议按第 8 章流程性建议扩机检名单，把这类形态从「靠审查发现」转为「靠检查拦截」。
 4. **机扫与人工的关系**：Mimosa 深扫的 41 条原始发现经逐条复核后，无一构成人工未见的可利用漏洞，但其中 2 条与人工发现重合并提供了交叉印证；其 inconclusive 状态与有限选取面说明机扫当前只能作为交叉证据源。本次报告的安全结论以人工深审为准。
 5. **置信度与后续动作**：213 项发现中，2 项严重与 6 项代表性中等已经行号级人工复核证实；其余条目均基于实读代码，机理成立但影响评级含推断成分，标「待确认」的 10 余项需要真机或特定环境复现后再定级。建议按第 8 章优先级推进修复：P0 五组先行（预计小批量即可完成），P1 以「安装链接口」「HTTP 面上界」「测试防线恢复」三个工作包组织，standalone 建议单独立项做一次「回灌对齐」专项。
 6. **本报告的边界**：静态审查未运行任何用例、未做真机录制验证；对平台接口行为（如 M-03 的单路形态是否存在）、部署形态（如 M-05 的 0.0.0.0 暴露面）的判断均标注了前提。完成定义中的「端到端真机验证」不适用于本报告（纯文档产出），后续修复涉及的录制链路/选源改动仍须按 AGENTS「完成定义」执行真机验证并回写验证记录。

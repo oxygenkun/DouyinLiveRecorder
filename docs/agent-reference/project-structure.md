@@ -106,19 +106,19 @@
 │   └── skills/          # 5 个 Skill 目录：dlr-dev-playbook / ffmpeg-command-construction / platform-source-selection / runtime-pin-verification / browser-skill（外部工具技能）
 │       └── .gitattributes # *.sh text eol=lf（仓库 core.autocrlf=true 会把 shebang 翻成 bash\r，限定在本子树生效）
 │
-├── scripts/             # 维护脚本与独立工具（CI 门禁、i18n 工具、单文件整合版；运行时链路不引用）
-│   ├── check_coverage.py       # 逐模块覆盖率门禁（阈值见 MODULE_THRESHOLDS）
+├── scripts/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
+│   ├── check_coverage.py       # 逐模块覆盖率检查（阈值见 MODULE_THRESHOLDS）
 │   ├── check_version.py        # 版本「动态化、未写死」状态校验
 │   ├── sync_version.py         # 从 pyproject.toml 同步版本号到遗留文件
-│   ├── compile_po.py           # 纯 Python po→mo 编译（CI --check 字节级门禁）
+│   ├── compile_po.py           # 纯 Python po→mo 编译（CI --check 字节级检查）
 │   ├── extract_i18n_strings.py # i18n 待翻译串提取（AST 扫描，与四语目录比对）
 │   ├── check_annotations.py   # 注释规范检查 + 逻辑等价性校验（三模式，见下方「注释约定」章节）
-│   ├── run_gates.py            # 本地一次性门禁入口：运行时解析 AGENTS.md「格式化命令」章节逐字执行（只跑 --check）
+│   ├── run_gates.py            # 本地一次性检查入口：运行时解析 AGENTS.md「格式化命令」章节逐字执行（只跑 --check）
 │   ├── check_runtime_pins.py  # 运行时二进制 SHA256 钉定表检查：默认只查结构（rc=2 表缺陷），
 │   │                          #   --strict 供 build-release.yml 拦发布，--emit-env 输出 DLR_RUNTIME_SHA256
 │   ├── smoke_test.py           # Web/接口冒烟测试工具（JSON 配置驱动，纯标准库）
-│   ├── check_skill_agents_consistency.py # AGENTS.md「项目级 Skill」表与 .agents/skills/ 目录同源校验（已入门禁清单）
-│   ├── agent_hook_guard.py     # 项目级 Hook 执行体：stdin 收 Qoder 事件 JSON，拦「风险控制（前置）」红线 + 报「对门禁三面隐形」的回归（注册在 .qoder/settings.json）
+│   ├── check_skill_agents_consistency.py # AGENTS.md「项目级 Skill」表与 .agents/skills/ 目录同源校验（已入检查清单）
+│   ├── agent_hook_guard.py     # 项目级 Hook 执行体：stdin 收 Qoder 事件 JSON，拦「风险控制（前置）」红线 + 报「对检查三面隐形」的回归（注册在 .qoder/settings.json）
 │   ├── smoke_web.json          # 冒烟测试接口配置
 │   ├── patch_i18n_2026_09_12.py # 一次性 i18n 目录补齐脚本（2026-09-12 审查遗留；已执行完毕，保留作审计留痕）
 │   └── douyin_live_recorder_standalone.py # 单文件整合版录制脚本（抖音/虎牙/B站/斗鱼，零第三方依赖）
@@ -127,7 +127,7 @@
     ├── actions/retry/   # 复合动作：网络安装重试包装（ci.yml / build-release.yml 共用）
     ├── ISSUE_TEMPLATE/  # 议题模板（中英双语：bug / feature / question）
     ├── PULL_REQUEST_TEMPLATE.md
-    └── workflows/       # CI/CD：ci.yml（门禁 + deps-audit）/ build-release.yml（四平台构建发布，含 linux aarch64）
+    └── workflows/       # CI/CD：ci.yml（检查 + deps-audit）/ build-release.yml（四平台构建发布，含 linux aarch64）
                        #   / trivy.yml（镜像漏洞扫描，本地构建不推送）/ issue-translator.yml（已降级为仅手动）
 
 # 根目录文档与分发脚本（不进镜像，见 .dockerignore）
@@ -141,7 +141,7 @@
 
 ## 与根文件的分工
 
-- 根文件「项目结构」章节只保留**职责边界一句话 + 本文件链接**；任何「约定 / 门禁 / 坑」都不写在这里。
+- 根文件「项目结构」章节只保留**职责边界一句话 + 本文件链接**；任何「约定 / 检查 / 坑」都不写在这里。
 - 逐模块覆盖率**阈值数值**不在本文件也不在根文件维护：唯一事实源是
   [`scripts/check_coverage.py`](../../scripts/check_coverage.py) 的 `MODULE_THRESHOLDS`（根文件只指向该脚本）。
 - `.gitignore` / `.dockerignore` / pyproject 各工具排除列表的同源约定，见根文件「CI / workflow 约定」章节，

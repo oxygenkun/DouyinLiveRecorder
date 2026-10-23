@@ -8,7 +8,7 @@
   未捕获异常；弹窗只是 `gui.py` 的进程级崩溃兜底把别人的异常按「GUI 启动」名义报了出来。
 - **失败点**：pytest 会话全局 fd 捕获停机 → 读捕获临时文件 → 严格 UTF-8 解码失败 →
   `ExitStack.close()` 里重抛 → 一路穿出 `pytest_cmdline_main` → 进程级 `sys.excepthook`。
-- **影响面**：本地（中文 Windows / cp936）门禁与全量 `pytest` 可能**整轮无结论**；更隐蔽的是它会先把
+- **影响面**：本地（中文 Windows / cp936）检查与全量 `pytest` 可能**整轮无结论**；更隐蔽的是它会先把
   某个**无关用例**判成 `FAILED` + `ERROR`，把排查引向被测代码。CI 在 ubuntu 上不复现。
 
 ## 2. 排查时间线
@@ -101,7 +101,7 @@ Python 层的写入经 `EncodedFile` 编码为 UTF-8，不会产生非法字节�
 ### 4.3 影响范围与风险
 
 - 改动 4.1：只影响「不可编码字符的显示降级为 `?`」，与 `run_gates.py` 既有取舍一致；不掩盖异常，
-  不改变门禁判定。风险极低。
+  不改变检查判定。风险极低。
 - 改动 4.2（打桩）：`tests/test_build_exe.py` 不再顺带验证该函数本身，但专项覆盖在
   `tests/test_run_gates.py:262/286` 已有同款实现；若想保留覆盖，改用「保存/恢复 (encoding, errors)」
   的 fixture 而非打桩。
@@ -122,7 +122,7 @@ Python 层的写入经 `EncodedFile` 编码为 UTF-8，不会产生非法字节�
 - **未采纳「把 `_ensure_utf8_streams` 打桩」**：打桩会让三条 `main()` 用例失去对真实副作用路径的覆盖，
   也掩盖再次劣化；改为「守卫 fixture（防护）+ 专项回归锁（点名）」组合。
 - **未采纳 4.2-3**：它只把非法字节变成合法字节而不消除产出方，等于把症状压进静默（与本仓
-  「不得用 filter/降级让门禁变绿」口径冲突），且会改变子进程 stdio 这一被测面；待 0xa1 产出方定位后
+  「不得用 filter/降级让检查变绿」口径冲突），且会改变子进程 stdio 这一被测面；待 0xa1 产出方定位后
   随该产出方一并处置。
 - **未执行「抽成单一公共实现」**：6 处调用点横跨根入口 / scripts / standalone（含冻结 exe 敏感路径），
   收敛收益低于改动面风险；暂以注释显式交叉引用（`build_exe` ↔ `run_gates`）保证改一侧能被另一侧发现。
@@ -141,11 +141,11 @@ Python 层的写入经 `EncodedFile` 编码为 UTF-8，不会产生非法字节�
 4. **待补的定位**（0xa1 产出方）：翻转存在的前提下跑全量，记录**第一个**被点名的用例，再对该文件
    `-s` 观察控制台乱码来源；或临时 dump `global_capturing.err.tmpfile` 的原始字节（用
    `errors="replace"` 打印）以凭上下文认出产出方。
-5. **修复后门禁读数（2026-09-24）**：`tests/test_build_exe.py` 63 passed；全量 `pytest`
+5. **修复后检查读数（2026-09-24）**：`tests/test_build_exe.py` 63 passed；全量 `pytest`
    **3193 passed / 10 skipped / 0 警告**（`COVERAGE_FILE` 置仓库外）；`mypy` 无参跑 Success（156 文件）；
    `basedpyright` 0 errors / 0 warnings / 0 notes；`black --check` / `isort --check-only` unchanged；
    `scripts/check_annotations.py` rc=0（平均密度 23.6%）；`scripts/run_gates.py` 8/8（含 pytest warnings
-   summary 兜底）；覆盖率门禁 `pytest --cov=src` 3193 passed / 10 skipped + `scripts/check_coverage.py`
+   summary 兜底）；覆盖率检查 `pytest --cov=src` 3193 passed / 10 skipped + `scripts/check_coverage.py`
    **42/42 PASSED**（总覆盖率 83.94%）。
 6. **变异验证（证明「锁得住」而非「恰好绿」）**：把 `errors="replace"` 临时退回旧写法后立刻三条红——
    ① `test_ensure_utf8_streams_keeps_replace_error_policy`：`('replace','replace') -> ('strict','strict')`；

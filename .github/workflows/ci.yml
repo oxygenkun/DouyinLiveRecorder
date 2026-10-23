@@ -18,7 +18,7 @@
 #
 #   setup ──┬── static             格式 / 导入序 / 版本一致性 / 派生元数据一致性 / 运行时钉定表结构 / i18n po-mo 同步
 #           ├── deps-audit         pip-audit 按 OSV 审计 requirements.txt（补-05）
-#           ├── test               pytest 矩阵（3.14）+ 全局与逐模块覆盖率门禁 + Web 面板 HTTP 冒烟
+#           ├── test               pytest 矩阵（3.14）+ 全局与逐模块覆盖率检查 + Web 面板 HTTP 冒烟
 #           ├── concurrency-test   线程安全 / 跨事件循环锁 / 速率限制专项
 #           ├── integration-verify ffmpeg / node 真实环境探测验证
 #           └── build-verify       PyInstaller lite 打包 + CLI/Web/GUI 三入口冒烟
@@ -84,7 +84,7 @@ permissions:
 # 同一分支/PR 的新推送会取消尚未完成的旧运行，节省额度并加快反馈
 # （与 build-release.yml 的 cancel-in-progress: false 有意区分：发布流不可半途取消）
 # [2026-10-17 补] 改为仅手动触发后，同一 ref 上重复点 Run workflow 仍会取消上一次未完成
-# 运行——保留该语义是有意的：全量门禁一轮约 20+ 分钟，并发跑两份没有意义。
+# 运行——保留该语义是有意的：全量检查一轮约 20+ 分钟，并发跑两份没有意义。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -117,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # python_min     : 最低支持版本，用作类型检查目标与覆盖率门禁基准版本
+          # python_min     : 最低支持版本，用作类型检查目标与覆盖率检查基准版本
           # python_latest  : 最高支持版本，用作格式化检查（与 Ruff target-version 对齐）
           # python_matrix  : 测试矩阵固定 3.14 —— requires-python = ">=3.14" 且全库使用
           #                  PEP 758 无括号多异常语法（except A, B:），3.13 及以下连
@@ -138,7 +138,7 @@ jobs:
       # 理由：workflow_dispatch 事件没有 push/PR 的 before/after 基线，该动作只能退化为
       # 「对比上一次成功运行的 SHA」——这个基线与用户点击时手上的代码无关，一旦把 python 组
       # 判成 unchanged，static / typecheck / test 等 job 会被整片跳过，而 ci-summary 视
-      # skipped 为通过，于是「手动点了全量门禁、实际一个检查都没跑」还显示绿——与 AGENTS.md
+      # skipped 为通过，于是「手动点了全量检查、实际一个检查都没跑」还显示绿——与 AGENTS.md
       # 「skipped 与 passed 在汇总里不可区分」同一形态的假绿，必须消灭。手动触发的语义本来
       # 就是「跑全量」，故不再做路径过滤。
       # [历史注] 原过滤口径（2026-09-20 定稿）为：src/**、tests/**、scripts/**、i18n/**、
@@ -236,13 +236,13 @@ jobs:
 
   # ── 1.5 依赖漏洞审计（pip-audit，补-05）────────────────────────────────
   # 本仓运行时清单刻意「只有下限、无上限」（唯一例外 protobuf<8），且 uv.lock 不参与
-  # 镜像/CI 安装，于是「声明区间内仍含已知受影响版本」这类问题在既有门禁里完全不可见
+  # 镜像/CI 安装，于是「声明区间内仍含已知受影响版本」这类问题在既有检查里完全不可见
   # （starlette 旧下限 0.49.1 就把 CVE-2026-48710 的 <=1.0.0 整段留在合法区间内）。
   # pip-audit 直查 OSV：解析 requirements.txt 到临时环境后逐个比对公告。
   # 刻意只装在本 job（**不进 requirements.txt / [project.dependencies]**：
   # 它是审计工具、不是运行时依赖，与 pytest/black 同理归 dev 侧）。
   # 独立成 job 而非塞进 static：static 只装两个秒级 lint 工具，pip-audit 要解析全部
-  # 运行时依赖（分钟级），混在一起会拖慢最常被看的格式门禁，且失败归因会含糊。
+  # 运行时依赖（分钟级），混在一起会拖慢最常被看的格式检查，且失败归因会含糊。
   deps-audit:
     name: Dependency audit (pip-audit)
     needs: setup
@@ -280,7 +280,7 @@ jobs:
       # pip-requirements-parser 的 auto_decode()，它用的是 locale.getpreferredencoding(False)
       # 而不是 UTF-8——非 UTF-8 locale 下会在读 requirements.txt 的中文注释时直接抛
       # UnicodeDecodeError（本机 Windows/GBK 实测 rc=1、崩溃在 decode 而非漏洞判定）。
-      # ubuntu runner 默认 UTF-8 不受影响，但仍显式钉住，避免任何换 locale 后「门禁换个死法」。
+      # ubuntu runner 默认 UTF-8 不受影响，但仍显式钉住，避免任何换 locale 后「检查换个死法」。
       - name: Audit runtime requirements against OSV
         env:
           PYTHONUTF8: "1"
@@ -319,7 +319,7 @@ jobs:
           pip-audit -r "$floors" --no-deps --progress-spinner off --timeout 120
 
   # ── 2. 静态类型检查 ──────────────────────────────────────────────────────
-  # ── 3. 单元测试 + 覆盖率门禁 ─────────────────────────────────────────────
+  # ── 3. 单元测试 + 覆盖率检查 ─────────────────────────────────────────────
   test:
     name: Test (pytest, py${{ matrix.python-version }})
     needs: setup
@@ -388,7 +388,7 @@ jobs:
       # 一组**系统库**——ubuntu runner 缺 libEGL.so.1 时 `from PySide6.QtGui import ...` 抛
       # ImportError，两个 Qt 测试模块以 collection error 形态把整轮 pytest 打断
       # （2026-10-18 实测：4337 collected / 2 errors → Interrupted，exit code 2，其余用例
-      # 一条没跑，覆盖率 xml 与逐模块门禁全部拿不到数据）。装这组库是让窗口层真跑起来的前提，
+      # 一条没跑，覆盖率 xml 与逐模块检查全部拿不到数据）。装这组库是让窗口层真跑起来的前提，
       # 而不是让它在 CI 上安静地 skip（见下方两道反 skip 闸门）。
       - name: Install ffmpeg + xvfb + Qt runtime libs (apt)
         uses: ./.github/actions/retry
@@ -524,7 +524,7 @@ jobs:
           fi
           echo "Qt GUI 模块已收集用例，无模块级 skip"
 
-      # 逐模块门禁（spider/stream/utils/ttwid/proxy）只需跑一次，
+      # 逐模块检查（spider/stream/utils/ttwid/proxy）只需跑一次，
       # 固定在最低支持版本上执行，避免矩阵内重复且结论歧义。
       - name: Per-module coverage gate
         if: matrix.python-version == needs.setup.outputs.python_min
@@ -542,7 +542,7 @@ jobs:
       # 可选能力：仅在仓库配置了 secrets.CODECOV_TOKEN 时运行（未配置自动跳过，判定来自
       # 上面的 Detect Codecov token 步骤，见 MIN-2263）。
       # 固定在最低支持版本上执行一次，避免矩阵内重复上传；fail_ci_if_error: false
-      # 保证 Codecov 服务异常时不会反噬 CI 门禁。使用浮动主版本 @v7
+      # 保证 Codecov 服务异常时不会反噬 CI 检查。使用浮动主版本 @v7
       # （v6 唯一破坏性变更是迁移 node24 运行时，ubuntu-latest 原生支持；inputs 无变化）。
       - name: Upload coverage to Codecov
         if: matrix.python-version == needs.setup.outputs.python_min && steps.codecov.outputs.available == 'true'
@@ -553,13 +553,13 @@ jobs:
           fail_ci_if_error: false
           # 2026-10-04：slug 从上游 ihmily 改指本仓库 y123ao6。前置条件：Codecov 须为
           # y123ao6/DouyinLiveRecorder 建好项目且 CODECOV_TOKEN 对该项目有效——未配置前上报会
-          # 落空（fail_ci_if_error: false 仅保证不反噬 CI 门禁，数据不会被接收）。
+          # 落空（fail_ci_if_error: false 仅保证不反噬 CI 检查，数据不会被接收）。
           slug: y123ao6/DouyinLiveRecorder
 
       # ── Web 面板 HTTP 冒烟（运行中的真实服务，非 TestClient）──────────────
       # 动机：pytest 全程用 FastAPI TestClient 且注入了 fake main，从不监听端口——
       # 「面板进程能否真的起来并应答」这条链路（import 期崩溃、路由未注册、鉴权中间件
-      # 误挡探活、静态资源目录缺失、uvicorn 绑定失败）此前完全没有门禁。
+      # 误挡探活、静态资源目录缺失、uvicorn 绑定失败）此前完全没有检查。
       # 位置：排在覆盖率相关步骤之后（而非之前），避免冒烟变红时反而压制掉 coverage.xml / Codecov 上报。
       # 与路径过滤同源（scripts/** 与 web.py 变更都会触发 python 过滤），不改变其它 job 的触发语义。
       # 探活目标与断言形态：scripts/smoke_web.json（默认 http://127.0.0.1:8000 的 / 与
@@ -592,7 +592,7 @@ jobs:
 
       # 无论冒烟通过与否都留一份机读报告（含实际状态码/耗时/错误行）与面板启动输出：
       # if: always() 保证冒烟步骤变红时工件仍能上传（否则红了看不到断言细节）。
-      # 冒烟输出落在 logs/（已 gitignore，不污染工作区）；文件缺失时仅告警不反噬门禁。
+      # 冒烟输出落在 logs/（已 gitignore，不污染工作区）；文件缺失时仅告警不反噬检查。
       - name: Upload web smoke artifacts
         if: matrix.python-version == needs.setup.outputs.python_min && always()
         uses: actions/upload-artifact@v7
@@ -787,7 +787,7 @@ jobs:
       - name: Build (lite) + smoke test CLI/Web/GUI
         run: xvfb-run -a python build_exe.py --smoke --no-runtime --no-zip
 
-  # ── 7. 汇总门禁 ─────────────────────────────────────────────────────────
+  # ── 7. 汇总检查 ─────────────────────────────────────────────────────────
   # [2026-10-17 修订] 路径过滤移除后已无 job 会被跳过，「skipped → 通过」通道实际空转；
   # 判定口径保留，以免将来恢复过滤时本 job 反过来把合法跳过判成失败。
   # [历史注] 原注「上游 job 会被路径过滤跳过，分支保护若直接勾选它们会『永久 pending』」

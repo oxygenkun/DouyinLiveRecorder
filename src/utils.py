@@ -73,7 +73,7 @@ _js_compile_lock = threading.Lock()
 # 「程序不可用」。CI / 加固部署可设 DLR_JS_STRICT_HASH=1，届时哈希不符拒绝执行。更新脚本后
 # 必须把新哈希同步到此处（注明来源版本/日期）。[历史注] 2026-09-20 移除 laixiu / taobao-sign
 # 两条（全仓零调用点，且后者注释里留有真实抓包凭据）。
-# MIN-2266 ① 把「表与目录一一对应」升级为常驻门禁：tests/test_utils.py::
+# MIN-2266 ① 把「表与目录一一对应」升级为常驻检查：tests/test_utils.py::
 # test_every_executable_js_is_pinned 断言两侧集合**相等**（未登记的 .js 与表里残留的已删键都判红）。
 # 本表无「白名单外的例外」：vendored 的 crypto-js.min.js 也照样登记——将来若确需不钉定的脚本，
 # 须在此注明理由并同步放宽那条用例，不要靠 _check_js_hash 的静默分支。
@@ -111,7 +111,7 @@ def _check_js_hash(js_path: str, raw: bytes) -> None:
     name = os.path.basename(js_path)
     expected = _JS_SHA256_EXPECTED.get(name)
     # MIN-2266 ①：未登记文件也走同一条告警路径（原实现是**静默 return**，于是「src/javascript/
-    # 里多出第 6 个 .js」既不进钉定面、也不留痕迹，门禁仍全绿）。刻意不把未登记升级成 strict
+    # 里多出第 6 个 .js」既不进钉定面、也不留痕迹，检查仍全绿）。刻意不把未登记升级成 strict
     # 拒绝：动态生成/第三方的临时脚本不该被钉定表误伤，「拒绝执行」只保留给「登记过但内容变了」
     # 这一种可归因情形。复用已登记那条「与钉定值不符」文案（只把期望值写成未登记），不新造 msgid
     # ——两者处置建议相同，而新 msgid 要求四份语言目录 + 重编译 .mo 同改。
@@ -238,7 +238,7 @@ _NODE_TREE_KILL_VIA_TASKKILL = os.name == "nt"
 _NODE_TREE_KILL_TIMEOUT_SECONDS = 5.0
 
 # 超时后收尸的时限（秒）。必须收尸：Popen.__del__ 见到 returncode 仍为 None 就发
-# ResourceWarning("subprocess ... is still running")，而本仓测试门禁是「pytest 0 警告」，
+# ResourceWarning("subprocess ... is still running")，而本仓测试检查是「pytest 0 警告」，
 # 挂死一次就多一条无法归因的告警；但等待一律带上限——无界等待正是要消灭的形态。
 _NODE_REAP_TIMEOUT_SECONDS = 5.0
 
@@ -857,7 +857,7 @@ def check_disk_capacity(file_path: str | Path, show: bool = False) -> float:
     disk_root = Path(directory).anchor
     free_space_gb = disk_usage.free / (1024**3)
     if show:
-        # MID-68：三段 f-string 相加的首参是 ast.BinOp，i18n 门禁看不见、翻译在查目录前就已插值。
+        # MID-68：三段 f-string 相加的首参是 ast.BinOp，i18n 检查看不见、翻译在查目录前就已插值。
         # GB 数值按约定在调用方预求值（:.2f 不进模板），实参名沿用目录里既有 msgid 的
         # disk_usage / disk_usage_2（同模板内重名加 _2 后缀）。
         print(

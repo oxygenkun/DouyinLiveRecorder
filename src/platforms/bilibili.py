@@ -72,7 +72,7 @@ class BilibiliDanmaku(DanmakuBase):
     def _report_close(self, reason: str) -> None:
         if self._hosts_left > 0 and not self._stopped:
             # 留痕不静默：复用 DanmakuBase._on_reconnect 这条既有 debug 通道（语义正合适，且文案
-            # 已登记在四语目录；不新造 msgid 就不给 i18n 门禁「运行时模板 ⊆ zh_CN.po 键集」添缺口）。
+            # 已登记在四语目录；不新造 msgid 就不给 i18n 检查「运行时模板 ⊆ zh_CN.po 键集」添缺口）。
             self._on_reconnect(reason)
             return
         if self._close_reported:

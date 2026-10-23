@@ -52,7 +52,7 @@ SCAN_FILES: list[Path] = getattr(_EX, "SCAN_FILES")
 is_valuable = getattr(_EX, "is_valuable")
 scan_file = getattr(_EX, "scan_file")
 # 占位符还原（丢格式说明符/转换符、双引号转单引号）复用提取器实现：本文件与提取器
-# 必须给出同一个 msgid 形态，否则门禁与目录登记两侧口径漂移
+# 必须给出同一个 msgid 形态，否则检查与目录登记两侧口径漂移
 extract_constant_or_template = getattr(_EX, "extract_constant_or_template")
 # tr() 的模块别名集合取自提取器，避免两处硬编码各自漂移
 TR_CALLER_IDS: set[str] = getattr(_EX, "TR_CALLER_IDS")
@@ -165,7 +165,7 @@ def test_gate_predicate_sees_concatenated_fstring() -> None:
         "print(f'x: {v}' + ' tail text')\n"
         "logger.error(i18n.tr(f'模板位被插值 {x}', x=x))\n"
     )
-    assert _offending_linenos(src) == [1, 2, 3], "门禁漏抓：拼接 f-string / tr 模板位 f-string 必须全部命中"
+    assert _offending_linenos(src) == [1, 2, 3], "检查漏抓：拼接 f-string / tr 模板位 f-string 必须全部命中"
     # 反向：约定②允许「把格式说明符预求值为实参」——这类 f-string 发生在查表之后，
     # 不影响 msgid 匹配，判违规会把本仓推荐写法打成回归（旧 `_backoff=f"{v:.0f}"` 即此形态）
     assert _offending_linenos("logger.debug(i18n.tr('退避 {_backoff}s', _backoff=f'{v:.0f}'))\n") == []
@@ -263,7 +263,7 @@ def test_no_valuable_fstring_in_print_colored_or_messagebox() -> None:
     )
     # 判据自检：谓词必须真抓得到盲区形态，且不误伤 tr 预格式化/常量/动态非模板实参
     hits = "color_obj.print_colored(f'[{n}]录制时已被注释', c)\nmessagebox.showerror('错误', f'保存失败: {e}')\n"
-    assert _blindspot_fstring_offenders(hits) == [1, 2], "门禁漏抓：盲区实参位的插值 f-string 必须全部命中"
+    assert _blindspot_fstring_offenders(hits) == [1, 2], "检查漏抓：盲区实参位的插值 f-string 必须全部命中"
     clean = (
         "color_obj.print_colored(i18n.tr('[{n}]已注释', n=n), c)\n"  # tr 预格式化（推荐形态）
         "messagebox.showerror(i18n_module.tr('错误'), i18n_module.tr('失败: {e}', e=e))\n"  # 标题正文均 tr

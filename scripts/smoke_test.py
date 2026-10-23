@@ -182,7 +182,7 @@ def load_config(path: str) -> tuple[list[CheckConfig], str | None]:
             )
         return [_validate_check_item(item, i, path) for i, item in enumerate(items)], cast("str | None", cfg_base)
     # 既不是 list 也不是 dict：配置已损坏，必须让 CI 感知。原实现返回空 checks，
-    # main 会 0 检查全"通过"并以退出码 0 结束——门禁形同虚设。
+    # main 会 0 检查全"通过"并以退出码 0 结束——检查形同虚设。
     raise ValueError(f"冒烟配置格式非法（顶层须为 list 或 {{'checks': [...]}}）: {path}")
 
 

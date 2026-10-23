@@ -1,10 +1,10 @@
 # scripts/check_skill_agents_consistency.py 的回归用例。
 #
-# 锁的是「门禁自身完整性」四条（对应 SR-06，docs/worklog/CODE_REVIEW_2026-10-04.md）：
+# 锁的是「检查自身完整性」四条（对应 SR-06，docs/worklog/CODE_REVIEW_2026-10-04.md）：
 #   1) .agents/skills/ 必须入库——该目录缺失时脚本退 2，而它是 required check `ci-summary`
 #      的 needs 之一，干净检出上必然全链红；故用「.agents/* + !.agents/skills/」反选，
 #      且不得退化回 `.agents/` 目录级排除（git 会停止下钻，反选即失效）。
-#   2) 「目录缺失 = 门禁自身失效（2）」与「表格条目指向不存在路径 = 一致性不合格（1）」
+#   2) 「目录缺失 = 检查自身失效（2）」与「表格条目指向不存在路径 = 一致性不合格（1）」
 #      必须是两档不同结论，后者不得被前者吞掉。
 #   3) SKILL.md 的四条判据各自能单独转红：文件存在 / frontmatter name 与目录名对齐 /
 #      声明 AGENTS.md 为约束事实源 / 引用的 AGENTS.md 章节实际存在。
@@ -85,7 +85,7 @@ def _make_skill(root: Path, dir_name: str, **kwargs: object) -> None:
 
 
 def test_missing_skills_dir_is_rc2_not_silent_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 目录缺失必须仍是「门禁自身失效」(2)：资产已入库后，干净检出缺它说明检出/ignore 被改坏
+    # 目录缺失必须仍是「检查自身失效」(2)：资产已入库后，干净检出缺它说明检出/ignore 被改坏
     (tmp_path / "AGENTS.md").write_text(
         _build_agents_md([("DLR 开发手册", ".agents/skills/dlr-dev-playbook/")]),
         encoding="utf-8",

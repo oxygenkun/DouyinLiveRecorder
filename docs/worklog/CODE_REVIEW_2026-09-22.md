@@ -23,7 +23,7 @@
 3. **回归核查**：逐条复核上一轮 6 项严重结论的落地状态（附录 A）。结论是 **5 项在位、1 项（`SEV-N06`）至今未落地且在本轮发现新的同族实例**。
 4. **审查「基线之后的增量」**：本工作目录在 2026-09-22 13:10:27 有一次真实提交（`51c2193 baseline: initial workspace snapshot`），而 13:10 之后又写入了约 1,739 行实质内容（`git diff --ignore-cr-at-eol` 口径，已剔除纯行尾噪声）。**这部分代码从未被任何一轮审查覆盖**，且集中在「运行期下载并执行外部二进制」这一危害半径最大的链路上。本轮把它作为独立取证线（见 1.3 第 4 步与第三章 `SEV-2201`/`SEV-2202`）。
 
-一个必须先说明的总量事实：本轮 14 个分组与主会话增量审计**均在 `scripts/run_gates.py` 8 条门禁全绿、`pytest` 告警摘要为空的前提下**得出 19 项严重结论。换言之，本报告的多数内容不是「门禁没修」，而是「门禁看不见」——这与 `AGENTS.md` 反复登记的「绿但什么都没查」母题同族，第六章据此给出结构性建议。
+一个必须先说明的总量事实：本轮 14 个分组与主会话增量审计**均在 `scripts/run_gates.py` 8 条检查全绿、`pytest` 告警摘要为空的前提下**得出 19 项严重结论。换言之，本报告的多数内容不是「检查没修」，而是「检查看不见」——这与 `AGENTS.md` 反复登记的「绿但什么都没查」母题同族，第六章据此给出结构性建议。
 
 ### 1.2 审查目标
 
@@ -32,7 +32,7 @@
 - **正确性**：逻辑错误、边界条件、控制流漏口、状态一致性、**跨模块类型契约**、跨副本语义一致性。
 - **健壮性**：异常吞没、资源生命周期（进程 / 句柄 / 线程 / 连接 / 文件 / 信号量）、无界增长、超时预算缺失、降级路径。
 - **安全性**：认证与授权、凭据外泄与脱敏、SSRF 与跨域 Cookie 边界、注入、路径遍历、供应链与发布链完整性、TLS 校验。
-- **可验证性**：门禁与回归锁是否真能抓住回归、测试是否自实现被测逻辑、注释与文档陈述是否与代码一致。
+- **可验证性**：检查与回归锁是否真能抓住回归、测试是否自实现被测逻辑、注释与文档陈述是否与代码一致。
 
 ### 1.3 审查方法
 
@@ -49,8 +49,8 @@
 
 | 严重度 | 数量 | 分组分布（与第三～五章的小节一一对应） |
 | --- | --- | --- |
-| 严重（P0） | 28 | 录制链与平台解析正确性 9（§3.1）/ 凭据·TLS·SSRF·注入·供应链 8（§3.2）/ 运行期下载源 1（§3.3）/ 门禁与测试可信度 8（§3.4）/ Web 面板可用性 2（§3.5） |
-| 中等（P1） | 65 | 录制主链与房间线程 9 / 平台解析与签名 17 / 选源与画质档位 5 / 并发与凭据生命周期 2 / 面板与配置写入与前端 8 / 弹幕与字幕 6 / GUI 与 i18n 与推送 6 / 构建·CI·门禁与测试可信度 12 |
+| 严重（P0） | 28 | 录制链与平台解析正确性 9（§3.1）/ 凭据·TLS·SSRF·注入·供应链 8（§3.2）/ 运行期下载源 1（§3.3）/ 检查与测试可信度 8（§3.4）/ Web 面板可用性 2（§3.5） |
+| 中等（P1） | 65 | 录制主链与房间线程 9 / 平台解析与签名 17 / 选源与画质档位 5 / 并发与凭据生命周期 2 / 面板与配置写入与前端 8 / 弹幕与字幕 6 / GUI 与 i18n 与推送 6 / 构建·CI·检查与测试可信度 12 |
 | 轻微（P2） | 68 | 平台解析与网络层 22 / 录制链与 ffmpeg 与字幕 14 / 面板与配置写入与前端 10 / GUI 与推送 6 / i18n 目录与构建与仓库卫生 16 |
 | **合计** | **161** | 其中若干行为同源合并条目，行内含 2～6 个子项 |
 
@@ -59,13 +59,13 @@
 | **本轮经可执行命令实测复现**的结论 | **7 项**：主会话实测 4 项（`SEV-2202` ffmpeg 模板、`SEV-2210` 掩码绕过、`SEV-2212` TLS context、`SEV-2216` h2/socksio 缺失）+ 分组本机实测 3 项（`MID-2207` glob 失配、`MID-2221` 双 Cookie 头、`MIN-2227` `fnmatch.translate`）；命令与读数见 2.3 |
 | 两个及以上独立取证线得出同一结论（交叉印证后合并） | 5 组：`SEV-2202`（两个录制组）、`SEV-2210`（选源组 + 平台组 + 主会话）、`MID-2209`/`MID-2227`（网络层组 + 选源组的同一约定缺口）、`SEV-2218`（增量审计 + 构建组）、`SEV-2219`（增量审计 + 构建组） |
 | 正文写明属「半修 / 漏改 / 只在一条分支落地」 | 严重 2 项（`SEV-2203`、`SEV-2208`）+ 中等 10 项（`MID-2209`、`2213`、`2218`、`2223`、`2225`、`2227`、`2235`、`2239`、`2249`、`2253`）+ 轻微 5 项（`MIN-2226`、`2227`、`2234`、`2235`、`2259`） |
-| 「注释 / 文档陈述与代码不符」（含把未做的写成已做） | 19 处，其中 **3 处位于 `AGENTS.md` 自身**（`SEV-2226` 的两条安全辩护、`MIN-2255` 的五点同步清单、`MIN-2256` 的 scheduler 回指陈述），另 3 处属**门禁自检注释自述与实现相反**（`SEV-2220`、`SEV-2225`、`MIN-2257`） |
+| 「注释 / 文档陈述与代码不符」（含把未做的写成已做） | 19 处，其中 **3 处位于 `AGENTS.md` 自身**（`SEV-2226` 的两条安全辩护、`MIN-2255` 的五点同步清单、`MIN-2256` 的 scheduler 回指陈述），另 3 处属**检查自检注释自述与实现相反**（`SEV-2220`、`SEV-2225`、`MIN-2257`） |
 | 涉及凭据 / TLS / SSRF / 注入 / 脱敏 / 供应链的安全面 | 严重 **10 项**（§3.2 全部 8 项 + `SEV-2218` + `SEV-2222`）；中等与轻微侧未单设类别列，可按各行「影响」栏检索 `mask_credentials`／凭据／Cookie／TLS／SSRF／钉定 复核 |
 | 缺回归锁，或现有回归锁**看不见该失效形态** | 23 项（6.3 表逐条列出待补 21 处，含 5 处「锁只断言调用形状」） |
 | 需真机或外部响应形态才能定论（已降置信度、列入待用户补跑动作） | 14 项，集中在 `SEV-2204`、`SEV-2205`、`MID-2208`、`MID-2211`、`MID-2212`、`MID-2222`、`MID-2226`、`MIN-2201`、`MIN-2202`、`MIN-2204`、`MIN-2208`～`MIN-2212`、`MIN-2230` |
 | 基线提交（13:10）之后新写入、此前从未被任何一轮审查覆盖的代码 | 约 1,739 行实质内容（含 402 行全新模块）→ 产出 `SEV-2218`、`SEV-2222`、`SEV-2208` 三项严重与 `MID-2259`、`MIN-2267`、`MIN-2268` 三条轻微 |
 
-**一句话结论**：28 项严重里有 **12 项属于「门禁与测试查不到的类别」**——§3.4 的 8 项（门禁自身丢退出码、锁只断言调用形状、替身丢实参、被锁对象搬了家）、§3.1 的 2 项半修复、§3.3 的 1 项「锁看不见被锁之物」，以及 §3.5 的 1 项假绿面板——而非新增架构缺陷。项目的架构约束仍然有效：探针语义、ffmpeg 四类单一定义点、并发信号量配平与 `Popen` 前 acquire、发布链钉定的形状判定、装饰器与返回契约、路径穿越与 argv 注入面、凭据入日志的既有脱敏链，在本轮逐条复核下均未复现问题（第九章 24 组）。
+**一句话结论**：28 项严重里有 **12 项属于「检查与测试查不到的类别」**——§3.4 的 8 项（检查自身丢退出码、锁只断言调用形状、替身丢实参、被锁对象搬了家）、§3.1 的 2 项半修复、§3.3 的 1 项「锁看不见被锁之物」，以及 §3.5 的 1 项假绿面板——而非新增架构缺陷。项目的架构约束仍然有效：探针语义、ffmpeg 四类单一定义点、并发信号量配平与 `Popen` 前 acquire、发布链钉定的形状判定、装饰器与返回契约、路径穿越与 argv 注入面、凭据入日志的既有脱敏链，在本轮逐条复核下均未复现问题（第九章 24 组）。
 
 ---
 
@@ -79,7 +79,7 @@
 | --- | --- | --- | --- |
 | 根目录 Python（`main.py` 4,925 / `gui.py` 3,696 / `build_exe.py` 1,165 / `msg_push.py` 531 / `i18n.py` 402 / `web.py` 325） | 6 | 11,044 | 全文，`main.py` 拆 3 组按行区间覆盖 |
 | `src/` Python（含 `src/platforms/`、`src/proto/`；`src/spider.py` 6,470 拆 3 组，`src/stream.py` 1,200 与 `src/stream_select.py` 1,193 一组） | 44 | 22,732 | 全文 |
-| `scripts/` Python（含 2,097 行的 `douyin_live_recorder_standalone.py` 孪生副本 + 10 个门禁/维护脚本） | 11 | 4,874 | 全文 |
+| `scripts/` Python（含 2,097 行的 `douyin_live_recorder_standalone.py` 孪生副本 + 10 个检查/维护脚本） | 11 | 4,874 | 全文 |
 | 自研 JavaScript（`web/app.js` 1,567；`src/javascript/` 的 `x-bogus.js` 563 / `haixiu.js` 534 / `liveme.js` 425 / `migu.js` 393） | 5 | 3,482 | 全文（`crypto-js.min.js` 为 vendored，排除） |
 | 前端样式与页面（`web/style.css` 426 / `web/index.html` 160 / 根 `index.html` 271） | 3 | 857 | 全文 |
 | 测试面（`tests/*.py` 94 文件 33,869 行 + `tests/frontend/*.mjs` 775 行） | 95 | 34,644 | 可信度专项审计（第七章），并逐条核对回归锁与被测实现的关系 |
@@ -87,7 +87,7 @@
 | i18n 目录（`zh_CN.po` / `zh_CN.mo` / `en_US.json` / `en_GB.json` / `zh_TW.yaml`） | 5 | — | 键集与占位符集合一致性、与代码内 `tr()` 模板的对账 |
 `scripts/spike_arm64_static_ffmpeg.sh`；`typings/*.pyi` 手写存根；`src/proto/douyin_pb2.pyi`） | 18 | — | 全文（`douyin_pb2.py` 为 protoc 生成，按 AGENTS 不深读，仅核对存根覆盖面） |
 
-**基线之后的增量（本轮新增覆盖）**：`src/ffmpeg_master_download.py`（402 行，全新且此前未跟踪）、`src/ffmpeg_install.py`（384 行改写）、`scripts/run_gates.py`（47 行）、`scripts/check_runtime_pins.py`（17 行）、`build_exe.py`（18 行）、`scripts/douyin_live_recorder_standalone.py`（41 行）、`.github/workflows/ci.yml`（33 行新增两条门禁步骤）、`main.py`（13 行，W6 的 Apple Silicon 让位判据接线）、`tests/test_build_exe.py` / `tests/test_ffmpeg_install.py` / 两个新增测试文件。
+**基线之后的增量（本轮新增覆盖）**：`src/ffmpeg_master_download.py`（402 行，全新且此前未跟踪）、`src/ffmpeg_install.py`（384 行改写）、`scripts/run_gates.py`（47 行）、`scripts/check_runtime_pins.py`（17 行）、`build_exe.py`（18 行）、`scripts/douyin_live_recorder_standalone.py`（41 行）、`.github/workflows/ci.yml`（33 行新增两条检查步骤）、`main.py`（13 行，W6 的 Apple Silicon 让位判据接线）、`tests/test_build_exe.py` / `tests/test_ffmpeg_install.py` / 两个新增测试文件。
 
 ### 2.2 明确排除项
 
@@ -103,7 +103,7 @@
 
 | # | 命令 / 取证方式 | 读数时刻 | 结论 |
 | --- | --- | --- | --- |
-| 1 | `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` | 2026-09-22 21:5x | **8/8 全绿（28.1s）** + 附带 `[pytest warnings summary 兜底] PASS (183.4s)`。即本章全部 24 项严重结论是在门禁全绿状态下取得的。 |
+| 1 | `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` | 2026-09-22 21:5x | **8/8 全绿（28.1s）** + 附带 `[pytest warnings summary 兜底] PASS (183.4s)`。即本章全部 24 项严重结论是在检查全绿状态下取得的。 |
 | 2 | `python scripts/check_runtime_pins.py` | 同上 | rc=0；报 2 个矩阵内槽位 + 2 个矩阵外键未钉定（按设计本地放行、`--strict` 才拦）。用于确认 `SEV-2209` 的「验签不可达」不是表空导致。 |
 | 3 | 用 `src/utils.py` 的真实 `_SECRET_KEYS`/`_SECRET_QUERY_RE` 对合成查询串做 `re.sub`（不 `import src.utils`，避免触发日志 sink） | 2026-09-22 22:0x | `accessToken=SECRET…`、`wsAuth=SECRET…`、`tk=TKVAL` **原样保留**；`access_token`、`token`、`ws_secret` 被抹成 `***`。→ `SEV-2203` 定量成立。 |
 | 4 | 在本机 venv（CPython 3.14.7）读 `ssl`/`smtplib`：`_create_stdlib_context is _create_unverified_context`、所得 context 的 `verify_mode`、`SMTP_SSL.__init__` 与 `SMTP.starttls` 源码 | 同上 | 同一对象；`verify_mode == 0`（CERT_NONE）、`check_hostname is False`；两条路径均回落该 context。→ `SEV-2205` 定量成立。 |
@@ -118,7 +118,7 @@
 
 ## 三、严重问题（P0，28 项）
 
-> 判定口径：**用户可见的功能失效 / 数据或凭据外泄 / 发布链可分发不可信产物 / 门禁在失效形态上自证全绿**。
+> 判定口径：**用户可见的功能失效 / 数据或凭据外泄 / 发布链可分发不可信产物 / 检查在失效形态上自证全绿**。
 > 四项标「已实测」的结论（`SEV-2202`、`SEV-2210`、`SEV-2212`、`SEV-2216`）附带 2.3 节的复现命令与读数，属本轮证据等级最高的一类。
 
 ### 3.1 录制链与平台解析的正确性（9 项）
@@ -145,7 +145,7 @@
 ```
 
 - **机理**：写入侧产出 `list[str]`，读取侧无条件对元素调 `.get()`。`_pad_list`（`src/stream.py:404-418`）只做「以末元素补齐」，**不做任何类型包装**；`get_stream_url` 挂 `@trace_error_decorator`（`1139`），于是 `AttributeError: 'str' object has no attribute 'get'` 被兜成 `{"is_live": False}`。调用点一律 `spec=False` ⇒ `get_url(None)` ⇒ 必进探测循环 ⇒ 必抛。受影响平台：SOOP 两条路径、PandaTV、WinkTV、TTingLive 的 HLS 路径、TwitCasting、Twitch、百度直播、ShowRoom。
-- **影响**：这些房间**在播也永远录不上**，用户侧只看到「未开播」，`streamget.log` 每轮一条 error。为何三面门禁全绿（已逐一核对）：`tests/test_stream.py` 全部用例只喂 dict 元素（`972`/`1003`/`1019`/`1051`/`1068`），`tests/test_spider_hardening.py:1083` 反而把 `list[str]` **钉成契约**，`tests/test_platform_dispatch.py:55` 把 `main.stream` 整体换成记录桩——这条跨模块接缝无任何测试。`src/stream.py:266-270` 的注释「通用平台的 play_url_list 每项是一『画质 → 地址字典』」是错误前提。
+- **影响**：这些房间**在播也永远录不上**，用户侧只看到「未开播」，`streamget.log` 每轮一条 error。为何三面检查全绿（已逐一核对）：`tests/test_stream.py` 全部用例只喂 dict 元素（`972`/`1003`/`1019`/`1051`/`1068`），`tests/test_spider_hardening.py:1083` 反而把 `list[str]` **钉成契约**，`tests/test_platform_dispatch.py:55` 把 `main.stream` 整体换成记录桩——这条跨模块接缝无任何测试。`src/stream.py:266-270` 的注释「通用平台的 play_url_list 每项是一『画质 → 地址字典』」是错误前提。
 - **修复**：`get_url` 内先判 `isinstance(play_url, str)` → 无 key 时原样返回，仅 dict 项走 `_PLAY_URL_KEY_ORDER` 探测；补一条 `play_url_list=["https://x/a.m3u8"]` 的接缝用例并做变异验证（删掉 str 分支即变红）；同时改正 `266-270` 的前提陈述。**注意不要反过来把 8 个平台改成产出 dict**——写入侧契约已被测试钉死，改读取侧是一处收口、改写入侧是八处。
 - **置信度**：高（四级证据全部实读）｜ **类别**：正确性
 
@@ -333,7 +333,7 @@ ok   https://…?access_token=***&token=***         # 正常
 ```
 
 - **机理**：黑名单里有裸 `auth`/`token`/`access_token`，但 `(?<![A-Za-z0-9])` 前顾把「字母紧跟」的 camelCase 复合键全部排除（`accessToken` 的 `token` 前是字母 `s`）；`ws_secret`/`ms_token` 因带下划线反被覆盖，**恰好掩盖了这个缺口**。三个分组独立命中同一根因（选源组的 `wsAuth`/`tk`、平台组的 `accessToken`/`msToken`/`verifyFp`、主会话复测）。
-- **影响**：斗鱼 `getH5PlayV1` 下发的 FLV/m3u8 一律挂 `wsAuth`，于是**每个斗鱼房间每轮选源**都把可用的完整拉流直链写进 `logs/streamget.log`（WARNING 级，300KB 轮转保留多份、停止录制还经 `archive_runtime_logs` 改名归档）与 `PlayURL.log`；拿到日志即可直接拉流或外发。嗨秀侧真正外泄的不是随仓库分发的内置 token，而是用户经 `[Cookie] haixiu_access_token` 配置的**私有轮换凭据**——那正是该覆盖入口存在的理由。门禁与注释共同构成假绿：`tests/test_stream_select.py:1319-1348` 只断言「`url=` 必须包 `mask_credentials`」这一**调用形状**，`tests/test_utils.py::TestMaskCredentialsCoverage` 的覆盖面表有 `wsSecret`/`txSecret`/`signature` 却没有 `wsAuth`。
+- **影响**：斗鱼 `getH5PlayV1` 下发的 FLV/m3u8 一律挂 `wsAuth`，于是**每个斗鱼房间每轮选源**都把可用的完整拉流直链写进 `logs/streamget.log`（WARNING 级，300KB 轮转保留多份、停止录制还经 `archive_runtime_logs` 改名归档）与 `PlayURL.log`；拿到日志即可直接拉流或外发。嗨秀侧真正外泄的不是随仓库分发的内置 token，而是用户经 `[Cookie] haixiu_access_token` 配置的**私有轮换凭据**——那正是该覆盖入口存在的理由。检查与注释共同构成假绿：`tests/test_stream_select.py:1319-1348` 只断言「`url=` 必须包 `mask_credentials`」这一**调用形状**，`tests/test_utils.py::TestMaskCredentialsCoverage` 的覆盖面表有 `wsSecret`/`txSecret`/`signature` 却没有 `wsAuth`。
 - **修复**：`_SECRET_KEYS` 增加 `wsauth`/`tk`/`accesstoken`/`mstoken`/`verifyfp`/`idtoken`/`refreshtoken`（长名优先排序已自动生效），并把覆盖面断言从「调用了掩码」升级为「**值确实消失**」；建议同时给 `mask_credentials` 加一条 camelCase 边界分支（`(?<=[a-z])(?=[A-Z])`），否则下一个新平台会第三次重犯。
 - **置信度**：高（本机实跑复现）｜ **类别**：安全
 
@@ -472,7 +472,7 @@ socks5 client RAISES ImportError: Using SOCKS proxy, but the 'socksio' package i
 requirements.txt:24  httpx[http2]>=0.28.1        pyproject/requirements 内 grep socks -> 零命中
 ```
 
-- **影响**：`_acquire_client` 的调用点落在外层 `try` 内（已核对行号），其 `except Exception` 把 `ImportError` 归一成 `return ""`、只留一条 **DEBUG** 级日志。两类触发路径：① **声明性缺口**——`web_config._PROXY_SCHEMES` 明确放行 `socks4/socks4a/socks5/socks5h` 且注释警告「不得收紧成只允许 http/https」，但 `socksio` / `python-socks` **既不在 `requirements.txt` 也不在 `pyproject [project.dependencies]`**，故任何配置 SOCKS 代理的用户 124+ 处 `async_req` 全部空响应 → spider 判成「HTTP 200 + 空响应体 = 疑似风控」→ 该平台 100% 无法录制，而日志里只有一句 debug。② **运维触发**——`AGENTS.md`「venv 依赖修复分级处置」的三级命令 `pip install --ignore-installed --no-deps -r requirements.txt` 因 `--no-deps` **不会物化 `httpx[http2]` extra**，照该文档执行恢复后即得到本工作区当前的状态：`h2` 缺失 → 因为 `async_req` 默认 `http2=True`，**全部平台解析静默失败**。由于单测全部打桩网络层、门禁不含真实请求，这一状态在 8/8 全绿下完全不可见。
+- **影响**：`_acquire_client` 的调用点落在外层 `try` 内（已核对行号），其 `except Exception` 把 `ImportError` 归一成 `return ""`、只留一条 **DEBUG** 级日志。两类触发路径：① **声明性缺口**——`web_config._PROXY_SCHEMES` 明确放行 `socks4/socks4a/socks5/socks5h` 且注释警告「不得收紧成只允许 http/https」，但 `socksio` / `python-socks` **既不在 `requirements.txt` 也不在 `pyproject [project.dependencies]`**，故任何配置 SOCKS 代理的用户 124+ 处 `async_req` 全部空响应 → spider 判成「HTTP 200 + 空响应体 = 疑似风控」→ 该平台 100% 无法录制，而日志里只有一句 debug。② **运维触发**——`AGENTS.md`「venv 依赖修复分级处置」的三级命令 `pip install --ignore-installed --no-deps -r requirements.txt` 因 `--no-deps` **不会物化 `httpx[http2]` extra**，照该文档执行恢复后即得到本工作区当前的状态：`h2` 缺失 → 因为 `async_req` 默认 `http2=True`，**全部平台解析静默失败**。由于单测全部打桩网络层、检查不含真实请求，这一状态在 8/8 全绿下完全不可见。
 - **修复**：① 把 `socksio` 写进两份清单（或将 `_PROXY_SCHEMES` 收窄到实际支持的集合，两处口径同源）；② `async_req` 对 `ImportError`/`ModuleNotFoundError`/`httpx` 的 `UsageError`/`ValueError` **升为 warning 且每进程每种根因只报一次**（这是配置/环境错误，不是风控信号，绝不可与空响应同形）；③ `http2=True` 首次 `ImportError` 后把模块级开关置 False 并降级重跑；④ 建议加一条启动自检：探测 `h2`/`socksio` 是否可用并在缺位时明确告警——本仓「依赖缺失表现为收集期 ImportError」的既有经验条目应据此更新。
 - **置信度**：高（两条失败均已本机实测）｜ **类别**：安全（可用性 + 静默降级）
 
@@ -522,11 +522,11 @@ def _candidate_urls(arch: str) -> list[str]:
 - **修复**：三选一，但必须由维护者决策而非审查侧放宽——(a) 把 master 路径改为显式开启（沿用被删蓝奏云那套开关语义：默认关、开启必须 warning 落盘）；(b) 为其接回「官方公布哈希」判据（BtbN 的 `latest` 别名无可核对公布值则不得作为默认自动源）；(c) 保持现状但把 AGENTS ② 与 `ffmpeg_install.py:44-50` 的陈述改成与实现一致。无论何种处置，都须把 GitHub 排在任何镜像之前，并把锁的判定范围从「单文件 AST」扩成「运行期可达的全部下载常量集合」（可遍历 `src/` 下所有模块的 `http*` 字面量并对照白名单）。
 - **置信度**：高（两个独立取证线同判；条款与代码均可逐字核对）｜ **类别**：安全（供应链）
 
-### 3.4 门禁与测试可信度（8 项）
+### 3.4 检查与测试可信度（8 项）
 
-> 本节是本报告的重心所在：以下每一条都发生在**门禁全绿**的前提下。
+> 本节是本报告的重心所在：以下每一条都发生在**检查全绿**的前提下。
 
-#### SEV-2219 ｜ `run_gates.py` 的 pytest 兜底丢弃退出码、吞掉 stderr：整套测试崩溃或未跑也报「门禁全绿」
+#### SEV-2219 ｜ `run_gates.py` 的 pytest 兜底丢弃退出码、吞掉 stderr：整套测试崩溃或未跑也报「检查全绿」
 
 - **位置**：`scripts/run_gates.py:336-353`（判据）与 `:443-455`（消费）；同形态见今日 `.github/workflows/ci.yml` 新增的两条 `Gate pytest warnings summary` 步骤
 - **证据**：
@@ -544,8 +544,8 @@ def _candidate_urls(arch: str) -> list[str]:
     return True, f"pytest warnings summary 为空 ({dur:.1f}s)"
 ```
 
-- **影响**：`proc.wait()` 的返回码被丢弃、stderr 被 `DEVNULL` 吞掉，判定只看 stdout 里有没有那行标题。pytest `rc=4`（用法错误 / 插件缺失）、`rc=5`（`tests/` 改名 → no tests ran）、`rc=2/3`（收集期 ImportError、内部错误）时输出里没有 warnings summary，于是返回 `True`，`main()` 打印 `[PASS] pytest warnings summary 为空` 并以 **0** 退出——而 pytest 根本没跑或全红。`run_gates.py` 是 `AGENTS.md`「完成定义」第 1 步的本地唯一入口，且 pytest **不在**「格式化命令」门禁块里（脚本 `442` 行注释自陈这一点），所以这里是本地回路上**唯一**一次跑测试。CI 侧新加的两条孪生步骤用 `set -euo pipefail` + `$(python -m pytest -q 2>/dev/null || true)`，`|| true` 与丢弃 stderr 造成同样的失败开放（本仓已记录「全量 pytest 偶发段错误 exit 139」与 `tests/_out_e2e` rmtree 竞态，两者都会让重跑崩在半路而 summary 缺失）。
-- **修复**：取回退出码分层判定——`rc == 0` 再查 warnings；`rc in (1,2)` FAIL 并附 rc；`rc in (4,5)` 按「门禁本身没跑」返回 rc=2（与 `MIN-19` 口径一致）。CI 两步改为先断言 rc==0 再 grep，且不要 `2>/dev/null`；并发步骤的 3 个文件清单与上方步骤合并成一份事实源（当前是硬编码副本）。
+- **影响**：`proc.wait()` 的返回码被丢弃、stderr 被 `DEVNULL` 吞掉，判定只看 stdout 里有没有那行标题。pytest `rc=4`（用法错误 / 插件缺失）、`rc=5`（`tests/` 改名 → no tests ran）、`rc=2/3`（收集期 ImportError、内部错误）时输出里没有 warnings summary，于是返回 `True`，`main()` 打印 `[PASS] pytest warnings summary 为空` 并以 **0** 退出——而 pytest 根本没跑或全红。`run_gates.py` 是 `AGENTS.md`「完成定义」第 1 步的本地唯一入口，且 pytest **不在**「格式化命令」检查块里（脚本 `442` 行注释自陈这一点），所以这里是本地回路上**唯一**一次跑测试。CI 侧新加的两条孪生步骤用 `set -euo pipefail` + `$(python -m pytest -q 2>/dev/null || true)`，`|| true` 与丢弃 stderr 造成同样的失败开放（本仓已记录「全量 pytest 偶发段错误 exit 139」与 `tests/_out_e2e` rmtree 竞态，两者都会让重跑崩在半路而 summary 缺失）。
+- **修复**：取回退出码分层判定——`rc == 0` 再查 warnings；`rc in (1,2)` FAIL 并附 rc；`rc in (4,5)` 按「检查本身没跑」返回 rc=2（与 `MIN-19` 口径一致）。CI 两步改为先断言 rc==0 再 grep，且不要 `2>/dev/null`；并发步骤的 3 个文件清单与上方步骤合并成一份事实源（当前是硬编码副本）。
 - **置信度**：高 ｜ **类别**：可验证性
 
 #### SEV-2220 ｜ 新增的 `test_official_failure_is_final` 走真实网络并具备破坏工作树能力，而它守护的锁看不见它要防的东西
@@ -607,7 +607,7 @@ def _candidate_urls(arch: str) -> list[str]:
             return
 ```
 
-- **机理与影响**：`hash_file.exists()` 为真表示**本机已有一份可信基准**，此时读不出来（编码损坏、目录权限变更、被杀软隔离、读到 0 字节）本应等价于「不可信 → 拒装」，实现却是 `return`——调用方 `download_ffmpeg_master` 把 `None` 当作校验通过，继续解压并 `shutil.copytree` 到 `execute_dir/ffmpeg`、前置进 `PATH`、随后以子进程执行。这正是本仓反复明令禁止的「用捕获异常后跳过让它变绿」形态（`MID-63` 之于 isort、`MID-68` 之于 i18n 门禁、`MIN-19` 之于 coverage，同一族）。它与 `SEV-2218` 是**两个可分别修复的缺陷**：`SEV-2218` 管「这条源该不该存在」，本条管「既然存在，它的唯一一道完整性检查可以在磁盘状态下静默失效」。另注：首次记账那一路（`:269-270`）也只用 `logger.debug`，而 `ffmpeg_install.py:250-252` 的同类降级按要求用 warning——两处严重度口径在同一天的两份实现里就不一致。
+- **机理与影响**：`hash_file.exists()` 为真表示**本机已有一份可信基准**，此时读不出来（编码损坏、目录权限变更、被杀软隔离、读到 0 字节）本应等价于「不可信 → 拒装」，实现却是 `return`——调用方 `download_ffmpeg_master` 把 `None` 当作校验通过，继续解压并 `shutil.copytree` 到 `execute_dir/ffmpeg`、前置进 `PATH`、随后以子进程执行。这正是本仓反复明令禁止的「用捕获异常后跳过让它变绿」形态（`MID-63` 之于 isort、`MID-68` 之于 i18n 检查、`MIN-19` 之于 coverage，同一族）。它与 `SEV-2218` 是**两个可分别修复的缺陷**：`SEV-2218` 管「这条源该不该存在」，本条管「既然存在，它的唯一一道完整性检查可以在磁盘状态下静默失效」。另注：首次记账那一路（`:269-270`）也只用 `logger.debug`，而 `ffmpeg_install.py:250-252` 的同类降级按要求用 warning——两处严重度口径在同一天的两份实现里就不一致。
 - **修复**：读基准失败即 `raise IntegrityError(...)`（与同函数的哈希不符分支同样删除产物并拒绝安装）；首次记账升级为 warning 并写明「本次安装无可比对期望值」；把「exists 但不可读 = 拒装」写进 `AGENTS.md` ② 类判据，避免下一个下载模块重抄这段。
 - **置信度**：高（控制流直接可读）｜ **类别**：安全
 
@@ -629,7 +629,7 @@ def _candidate_urls(arch: str) -> list[str]:
             if not lock.acquire(blocking=False):
 ```
 
-- **影响**：实测该文件的 import 清单只有 `asyncio`/`threading`/`time`/`unittest.mock`/`pytest`——**不引用任何 `src.*`**。把 `src/ttwid.get_ttwid()`、`src/cookie_cache`、以及 `src/stream_select.py:1183-1193` 的 `_douyin_rate_limit` **整个删除**，本文件 5 条用例仍全绿。`grep -rn "_douyin_rate_limit\|douyin_min_interval" tests/` 除该文件一条**注释**外零命中，即该限流器（`main.py:1541` 生产在用、`douyin_min_interval` 默认 3.0s）实际无任何真实断言。删掉 `with main.douyin_rate_lock:` 或把其中的 `time.sleep` 改成 no-op 后，80+ 房间并发 hammer 抖音 API 触发风控（表现为「明明在播却持续漏录」），测试面毫无反应。`test_lock_is_threading_lock` 还是恒真式（`isinstance(threading.Lock(), type(threading.Lock()))`）。真实版本已由 `tests/test_concurrency_rate_limit.py` 承担（`AGENTS.md`「测试不得自实现被测逻辑」条目点名的就是它），本文件属**被取代后遗留却仍在门禁计数**。
+- **影响**：实测该文件的 import 清单只有 `asyncio`/`threading`/`time`/`unittest.mock`/`pytest`——**不引用任何 `src.*`**。把 `src/ttwid.get_ttwid()`、`src/cookie_cache`、以及 `src/stream_select.py:1183-1193` 的 `_douyin_rate_limit` **整个删除**，本文件 5 条用例仍全绿。`grep -rn "_douyin_rate_limit\|douyin_min_interval" tests/` 除该文件一条**注释**外零命中，即该限流器（`main.py:1541` 生产在用、`douyin_min_interval` 默认 3.0s）实际无任何真实断言。删掉 `with main.douyin_rate_lock:` 或把其中的 `time.sleep` 改成 no-op 后，80+ 房间并发 hammer 抖音 API 触发风控（表现为「明明在播却持续漏录」），测试面毫无反应。`test_lock_is_threading_lock` 还是恒真式（`isinstance(threading.Lock(), type(threading.Lock()))`）。真实版本已由 `tests/test_concurrency_rate_limit.py` 承担（`AGENTS.md`「测试不得自实现被测逻辑」条目点名的就是它），本文件属**被取代后遗留却仍在检查计数**。
 - **修复**：删除 `TestThreadSafeCredential`/`TestRateLimit`/`test_shared_credential_single_source`/`test_lock_is_threading_lock`（`test_ttwid_module_pattern` 保留，它是唯一驱动真实模块的一条）；把速率限制改写成驱动真实 `src.stream_select._douyin_rate_limit()`（只打桩 `main.douyin_*` 三个全局与 `time.sleep` shim）并断言「第二次调用确实 sleep ≥ `douyin_min_interval`」；在 `tests/test_test_hygiene.py` 增一条规则「用例内不得定义与生产同名的锁/缓存/限流实现」。
 - **置信度**：高 ｜ **类别**：可验证性
 
@@ -651,7 +651,7 @@ def _candidate_urls(arch: str) -> list[str]:
 - **修复**：`_Cap` 记录 `{"command": ..., "platform": platform, "danmaku_args": danmaku_args, "save_type": record_save_type}` 并 `GOLDEN_REGEN=1` 重生成基准；把 ssl patch 移出循环体。
 - **置信度**：高 ｜ **类别**：可验证性
 
-#### SEV-2225 ｜ 18 处用例仍整体改写 stdlib 模块本体，而禁止它的卫生门禁看不见字符串形态 patch（其注释还声称「本仓未使用」）
+#### SEV-2225 ｜ 18 处用例仍整体改写 stdlib 模块本体，而禁止它的卫生检查看不见字符串形态 patch（其注释还声称「本仓未使用」）
 
 - **位置**：`tests/test_main_fixes.py:172-176`、`290`；`tests/test_spider_fixes.py:83-101`；`tests/test_stream_select.py:995-1005`；判据缺陷在 `tests/test_test_hygiene.py:100-120`
 - **证据**：
@@ -665,9 +665,9 @@ def _candidate_urls(arch: str) -> list[str]:
             # 改打标准库模块本身：与原先打 sp.subprocess.run 语义等价（同一模块对象），
 ```
 
-- **影响**：`patch("subprocess.Popen")` / `patch("subprocess.run")` 的替换目标是**全进程唯一的 stdlib 模块对象**，`with` 窗口内同进程的 harness safe-delete 守卫线程、loguru enqueue 线程、coverage 全部拿到假实现——`AGENTS.md`「patch `main.py` 的 subprocess 必须替换 main 的全局引用」点名的正是这一形态及其症状 `SAFE_DELETE_BULK_GUARD_ERROR`。实测该形态共 18 处（另有 `patch("src.stream_select.time.sleep")` 13 处，把全进程 `time.sleep` 换成 MagicMock，使退避/节流类断言的时序前提被这些用例自己破坏）。`test_spider_fixes.py:94-96` 的注释还为它作了「语义等价」的论证——**等价于被测面、不等价于影响面**。而卫生门禁的 `_is_setter` 只认 `setattr`/`patch.object`，字符串形态一律放过，其注释「本仓未使用」已与现网相反。
+- **影响**：`patch("subprocess.Popen")` / `patch("subprocess.run")` 的替换目标是**全进程唯一的 stdlib 模块对象**，`with` 窗口内同进程的 harness safe-delete 守卫线程、loguru enqueue 线程、coverage 全部拿到假实现——`AGENTS.md`「patch `main.py` 的 subprocess 必须替换 main 的全局引用」点名的正是这一形态及其症状 `SAFE_DELETE_BULK_GUARD_ERROR`。实测该形态共 18 处（另有 `patch("src.stream_select.time.sleep")` 13 处，把全进程 `time.sleep` 换成 MagicMock，使退避/节流类断言的时序前提被这些用例自己破坏）。`test_spider_fixes.py:94-96` 的注释还为它作了「语义等价」的论证——**等价于被测面、不等价于影响面**。而卫生检查的 `_is_setter` 只认 `setattr`/`patch.object`，字符串形态一律放过，其注释「本仓未使用」已与现网相反。
 - **修复**：三处统一改成仓内既有范式（`shim = types.SimpleNamespace(**vars(subprocess)); shim.Popen = ...; monkeypatch.setattr(<module_under_test>, "subprocess", shim)`，见 `tests/test_record_failure_feedback.py:59-84`）；`time.sleep` 同理走模块命名空间 shim；删掉 `test_spider_fixes.py:94-96` 的错误论证注释；R1 增判字符串形态（按 `.` 逐段解析，末段属 stdlib 模块名且首段不是被测模块即违规），并把「违规见证 + 合规反向见证」补到 R4。
-- **置信度**：高（计数与门禁判据均实测）｜ **类别**：可验证性
+- **置信度**：高（计数与检查判据均实测）｜ **类别**：可验证性
 
 #### SEV-2226 ｜ `src/sync_http.py` 整模块在生产链路中不被导入，而 `AGENTS.md` 的两条安全辩护都以它为前提
 
@@ -807,7 +807,7 @@ def _candidate_urls(arch: str) -> list[str]:
 | MID-2244 | `src/platforms/twitch.py:35`、`117-119` | 跨帧行缓冲 `_line_buf` **无长度上限**，且 `_on_ws_ready`/`stop()`/`decode_message` 都没有重置点（grep 证实只在 35/117/119 出现） | `MI-21` 把「丢半行」换成「攒半行」却没设上界：单帧虽有 `_MAX_FRAME_BYTES = 8MiB`，一个持续不含 `\n` 的对端会让缓冲随帧数线性增长，长录数小时即成内存放大点；另一半是跨会话污染——重连后旧连接残留的半行会被拼到新连接第一条消息前面，那一行必然解析失败，且这条路径连 debug 都没有（bilibili/douyu/huya 均有帧解析异常日志） | 给 `_line_buf` 加上限（超限丢弃并 debug 一条），并在 `_on_ws_ready` 里清空 | 高 |
 | MID-2245 | `src/platforms/bilibili.py:148-157` → `src/ws_client.py:282-286` → `src/collector.py:478-500` | `_reject_auth()` 复用 `WsClient.close()`，而 close 先置 `self._stopped = True`；`connect()` 的正常关闭分支 `if self._stopped: break` 直接 break，**不调 `self._on_close`** | `_on_ready` 已调过 `hub.room_connected()`，配对的 `room_closed()` 只在 `_on_close` 里发 → buvid 软拒绝与 8 秒看门狗超时这两条「已知的静默零弹幕」形态被主动断开后，Web 弹幕监控一直显示该房间「已连接」且消息数为 0，直到录制结束才由 `room_stopped` 收走。恰好复现 AGENTS 记录的那类「连接就绪但 0 弹幕且无线索」观感，只是换了触发点 | `WsClient` 暴露 `fail(reason)`（置 `_stopped` 后仍回调 `on_close(reason)`）；或 `_reject_auth` 里显式调一次 `self._on_close("进房认证被拒")` | 高 |
 | MID-2246 | `src/room.py:204-217` | `get_unique_id()` 主路径异常被 `except Exception: pass` 整段吞没，**零日志** | 主路径（iesdouyin JSON 接口）失败时异常类型、状态码、响应长度全部丢失，随后走的 HTML 兜底按 AGENTS 记录「已是 JS 反爬壳页、正则通常失效」，于是用户只看到上层一句「网址内容获取失败」，而根因（证书/代理/DNS/风控 200+空 body/JSON 改版）无任何落盘线索——与 AGENTS「异常日志必须带异常类型与上下文、禁止静默吞异常」直接冲突。抖音主页类链接（`www.douyin.com/user/<sec_uid>`）全部经此路径 | 至少 `logger.debug(tr("抖音 unique_id 接口失败(转 HTML 兜底): {type_name}: {e} - {masked_url}", ...))`，新增模板同步四语目录并重编译 `.mo` | 高 |
-| MID-2247 | `src/ws_client.py:372-376` | 全仓唯一的「别名 logger + f-string」组合：`from loguru import logger as _log` 后 `_log.warning(f"...{x:.0f}s...")`；而门禁判据是 `node.func.value.id == "logger"`（`tests/test_i18n_migration.py:128-133`） | 双重后果：① 带插值的 f-string 在查目录前完成插值，该文案永远无法翻译；② 不变量① 与③ 都看不见它 → 门禁自证「全绿」，且该串也不在四语目录里（`extract_i18n_strings.py` 只认 `logger.*` 首参）。实测 `grep "as _log\|as log\b"` 全仓仅此一处，即这是**i18n 门禁在 MID-68「首参子树」之外的第二个已知盲区（别名形态）**，而它位于五个平台弹幕共用的 WS 层 | 本文件顶部已 `from .logger import logger`，直接用 `logger.warning(i18n.tr(模板, seconds=...))` 并同步四目录；把不变量① 的判定放宽为「被调对象的解析名绑定到 loguru logger（含 `*_log` 与模块属性形态）」，或加一条「不得给 logger 起别名」的 AST 检查 | 高（两分组同判） |
+| MID-2247 | `src/ws_client.py:372-376` | 全仓唯一的「别名 logger + f-string」组合：`from loguru import logger as _log` 后 `_log.warning(f"...{x:.0f}s...")`；而检查判据是 `node.func.value.id == "logger"`（`tests/test_i18n_migration.py:128-133`） | 双重后果：① 带插值的 f-string 在查目录前完成插值，该文案永远无法翻译；② 不变量① 与③ 都看不见它 → 检查自证「全绿」，且该串也不在四语目录里（`extract_i18n_strings.py` 只认 `logger.*` 首参）。实测 `grep "as _log\|as log\b"` 全仓仅此一处，即这是**i18n 检查在 MID-68「首参子树」之外的第二个已知盲区（别名形态）**，而它位于五个平台弹幕共用的 WS 层 | 本文件顶部已 `from .logger import logger`，直接用 `logger.warning(i18n.tr(模板, seconds=...))` 并同步四目录；把不变量① 的判定放宽为「被调对象的解析名绑定到 loguru logger（含 `*_log` 与模块属性形态）」，或加一条「不得给 logger 起别名」的 AST 检查 | 高（两分组同判） |
 
 ### 4.7 GUI、i18n 与推送 — MID-2248 … MID-2253
 
@@ -820,26 +820,26 @@ def _candidate_urls(arch: str) -> list[str]:
 | MID-2252 | `gui.py:2288-2304`（对照同文件 `756-777`） | `AdvancedSettingsWindow.save_config` 已按 `MID-55` 在写回前重读磁盘并走 `_config_change_verdict` 裁决，**URL 页这条整文件写回路径没有同款复核** | 唯一防线是 `_watch_url_config` 的 3-10 秒 mtime 轮询，且用户答「否」时会主动把基线对齐到当前以止吵。而录制子进程运行期**确实在写** `URL_config.ini`（`main.py:4674` 回写主播名、`4748/4754` 归一 URL、`4771` 把无法识别/风控的房间整行注释掉）→ 用户点一次「保存」即把刚被自动注释的坏房间重新启用（表现为「停不掉的房间又回来继续刷错误」）、刚归一的地址退回带 `?modal_id=` 的长链。`_on_room_quality_change` 的读-改-写只受**进程内** `_config_write_lock` 保护，跨进程同样只剩原子替换 | `save_config` 落盘前先 `_read_config_snapshot` 与基线比对，不一致即复用 `_config_change_verdict` 的 conflict 弹窗；`_on_room_quality_change` 同理想复用 | 高 |
 | MID-2253 | `gui.py:879`、`891`、`2982`；新实例 `web.py:297` | **上一轮 `SEV-N06` 复核结论：未落地**（`grep -rn "DLRQ\|#DLR"` 全仓 0 命中，三条简中 pattern 原样在位、无机器可读前缀机制）；同族新实例——`web.py` 把中文常量值插进已翻译模板 | 实测两条清标记 key 在 en_US/en_GB/zh_TW 均**不含** `没有正在录制` 子串 → 非 zh_CN 语言下三条判定全部恒假：画质监控表永久「暂无」、降级告警整块丢失、`recording` 标记不清（`gui.py:2982` 的 `if "没有正在录制" in msg` 中 `msg` 取自 `gui.py:2917-2931` 的日志正文，而该正文由 `main.py` 经 `i18n.tr()` 按当前语言发出）。新实例：`tr()` 只翻译模板、不翻译插值后的实参，故 en_US 下 Web 启动横幅输出 `Authentication: 开启`——同一「模板已本地化、值未本地化」缺陷族在 Web 入口复现。（`gui.py:2341` 的 `"录制设置" in config` 是 ini **节名**、不随语言变，**不是**问题） | 实参改 `tr("开启")/tr("关闭")` 后传入（四目录补 key + 重编 `.mo`）；`SEV-N06` 本体按报告建议在 `AGENTS.md` 先定义 `#DLRQ\|` 前缀契约，再同改 `recorder_status.py`/`main.py`/`gui.py` | 高 |
 
-### 4.8 构建、CI、门禁与测试可信度 — MID-2254 … MID-2265
+### 4.8 构建、CI、检查与测试可信度 — MID-2254 … MID-2265
 
 | 编号 | 位置 | 问题 | 影响 | 修复方向 | 置信度 |
 | --- | --- | --- | --- | --- | --- |
 | MID-2254 | `build_exe.py:1144-1159` | `full` zip 在 `smoke_test()` **之后**才压缩（`lite` 先压缩故干净） | 冒烟以 `cwd=RELEASE_DIR` 连跑 CLI 25s / Web 90s / GUI 8s，`src/logger.py` 会在 `script_path/logs/` 落 `streamget.log`、`PlayURL.log`、`web_console.log`，「缺键补写」还可能改写包内 config.ini → 用户解压即见 runner 的绝对路径/用户名与告警堆栈（信息外泄），且随包带一个非空 `logs/`。AGENTS 把 `logs/`、`backup_config/` 列为「不得入镜像」的同一条口径在 zip 侧无人守 | 压缩与冒烟解耦（先 make_zip 再 smoke，或 smoke 跑独立临时副本）；`make_zip` 前删 `logs/`、`backup_config/`、`downloads/`、`__pycache__/`；发布产物清单加 `unzip -l` 断言不含 `logs/` | 高 |
 ./` 进镜像。它**伪装成「已经排除了」**，人工核对极易漏，正是 AGENTS 反复登记「漏一处即误入镜像」的形态。另 `:141` 的 `i18n/**/compile_po.py` 是空规则（真身在 `scripts/`，已被整目录排除） | 注释移到独立行；删失效的空规则；补一条断言「`.dockerignore` 每行都不含 ` # ` 形态」的用例 | 中（解析语义与 Docker 文档一致，本轮未实跑 `docker build`） |
-| MID-2256 | `scripts/check_annotations.py:60-74` | `EXCLUDE_DIRS` 自称「与 `.gitignore`/pyproject 同源」，实测落后 13 项（缺 `.mimosa`/`.qoder`/`.qoder-credits`/`.agents`/`.pnpm-store`/`.npm-cache`/`.dsh-validation`/`.ego-browser-test`/`.plugin-src`/`.tmp-dps-extract`/`.v2c`/`backup_config`/`recordings`，`typings` 亦未排除） | ① 本地 `run_gates.py` 会把第三方工具目录里的 `.py` 按 13% 密度/模块头规则判红（CI 全新 checkout 看不到，典型「本地红、CI 绿」）；② 更值得注意——`check_dangling_symbols()` 用同一份清单聚合 `global_bound`，任何第三方目录里的同名绑定都会让「被删符号的残留调用点」被判为「全仓有绑定」而**漏报**，即门禁 teeth 被静默削弱。当前这些目录实测 0 个 `.py`，属潜伏缺口 | 把三处已同源的清单抽成一份可被脚本读取的事实源，或脚本内补齐并加一条与 pyproject exclude 的键集对比用例（仿 `test_ffmpeg_path_preference` 的跨文件同源锁） | 高 |
+| MID-2256 | `scripts/check_annotations.py:60-74` | `EXCLUDE_DIRS` 自称「与 `.gitignore`/pyproject 同源」，实测落后 13 项（缺 `.mimosa`/`.qoder`/`.qoder-credits`/`.agents`/`.pnpm-store`/`.npm-cache`/`.dsh-validation`/`.ego-browser-test`/`.plugin-src`/`.tmp-dps-extract`/`.v2c`/`backup_config`/`recordings`，`typings` 亦未排除） | ① 本地 `run_gates.py` 会把第三方工具目录里的 `.py` 按 13% 密度/模块头规则判红（CI 全新 checkout 看不到，典型「本地红、CI 绿」）；② 更值得注意——`check_dangling_symbols()` 用同一份清单聚合 `global_bound`，任何第三方目录里的同名绑定都会让「被删符号的残留调用点」被判为「全仓有绑定」而**漏报**，即检查 teeth 被静默削弱。当前这些目录实测 0 个 `.py`，属潜伏缺口 | 把三处已同源的清单抽成一份可被脚本读取的事实源，或脚本内补齐并加一条与 pyproject exclude 的键集对比用例（仿 `test_ffmpeg_path_preference` 的跨文件同源锁） | 高 |
 | MID-2257 | `scripts/douyin_live_recorder_standalone.py:509-525` 对照 `src/scheduler.py:198-213` | standalone 的 `PlatformBreaker` half-open 分支**无条件**把任何回报当探针结果，缺 `_probing`/`_probe_owner`/`_probe_seq` 门控（AST 复算副本仍 5 方法 vs src 9 方法） | 熔断转 half-open 后，一条在熔断前就已放行、此刻才收尾的普通轮次 `record_success` 会直接 `clear()` 样本窗口并置 closed → 坏 CDN 立刻重新拿到全部房间流量（正是 MIN-22 要修的形态）；租约重授予后的陈旧探针同样能关掉新探针。次级差异：副本 `_push` 用 `list.pop(0)`（持锁 O(n)）而 src 用 deque 增量扣减。`AGENTS.md:1287-1295` 只登记了「缺四个方法」的结构差异，**低估了由此产生的行为差** | 按「逐方法 diff 后显式决定」回灌 `_grant_probe`/`_end_probe` + 探针归属字段并在两处注释互相点名；同时把行为差补进 AGENTS 条目 | 高（两分组同判） |
 | MID-2258 | `src/log_archive.py:76-84` 与 `90-114` | `_archive_web_console` 已在改名前 close 掉流，而 `_rebind_web_console` 在重开失败时只 `logger.warning` + `return` | `sys.stdout`/`sys.stderr` 此后**永久停在已关闭对象上**，且 `rebind_console_sink()` 未被调用（旧 sink 仍绑死对象），本进程剩余生命周期所有 `print()` 抛 `ValueError: I/O operation on closed file`；`display_info` 侧只表现为连续失败退避到 300 秒，用户看到「状态面板卡住不动」，唯一线索是一条只进 `streamget.log` 的 warning。触发需「改名成功但重开失败」（备份/杀软短暂占用、logs 目录改只读、句柄耗尽） | 失败分支也接上输出链路：回退 `open(os.devnull,"w")`（或置 None 让 logger 判空早退接管），并一律调 `rebind_console_sink()`；重开支持下一轮归档重试 | 中 |
-| MID-2259 | `scripts/check_coverage.py:50-57` + `:188`；`tests/` 全库 | 逐模块覆盖率门禁**只遍历硬编码的 6 模块表**（`spider`/`stream`/`utils`/`ttwid`/`ab_sign`/`proxy`），不按 `src/` 扫描；而今天新增的 402 行下载模块 `src/ffmpeg_master_download.py` 在 `tests/` 内**零引用**（grep `download_ffmpeg_master`/`ffmpeg_master_download` 0 命中） | 任何新 `src/*.py` 模块自动豁免覆盖率门禁 → 「门禁查不到新增的高危面」。该模块做的事是下载外部二进制、写盘、`rmtree` 目录、前置 PATH 并执行。`MIN-19` 的「模块查不到按失败处理」只覆盖表内条目的**数据缺失**，不覆盖「压根没登记」这一形态 | `check_coverage.py` 改为「遍历 `src/` 全部模块，未登记阈值者按全局 floor 判定或显式列白名单」；并为本模块补最低限度的下载/解压/失败路径用例（含「读基准失败必须拒装」的锁，对应 `SEV-2222`） | 高 |
+| MID-2259 | `scripts/check_coverage.py:50-57` + `:188`；`tests/` 全库 | 逐模块覆盖率检查**只遍历硬编码的 6 模块表**（`spider`/`stream`/`utils`/`ttwid`/`ab_sign`/`proxy`），不按 `src/` 扫描；而今天新增的 402 行下载模块 `src/ffmpeg_master_download.py` 在 `tests/` 内**零引用**（grep `download_ffmpeg_master`/`ffmpeg_master_download` 0 命中） | 任何新 `src/*.py` 模块自动豁免覆盖率检查 → 「检查查不到新增的高危面」。该模块做的事是下载外部二进制、写盘、`rmtree` 目录、前置 PATH 并执行。`MIN-19` 的「模块查不到按失败处理」只覆盖表内条目的**数据缺失**，不覆盖「压根没登记」这一形态 | `check_coverage.py` 改为「遍历 `src/` 全部模块，未登记阈值者按全局 floor 判定或显式列白名单」；并为本模块补最低限度的下载/解压/失败路径用例（含「读基准失败必须拒装」的锁，对应 `SEV-2222`） | 高 |
 | MID-2260 | `tests/test_check_runtime_pins.py:65-69` 对照 `scripts/check_runtime_pins.py:78-97` | `_runtime_matrix_keys` 被 **autouse fixture 整体桩掉**，本文件没有任何用例驱动真实现 | `check(strict=...)` 的「矩阵内/矩阵外」分流全靠它。把该函数的 `sys.exit(2)` 改成 `return []`（解析不出来就当没有平台），所有未钉定槽位都落进 `unpinned_offmatrix` 只告警，`--strict` 对一张全占位的表返回 0 → `build-release.yml` 的 prepare job 放行、full zip 无校验打进对外分发包（`SEV-10` 的原始危害）。当前用例对此全绿，因为它们眼中的矩阵是自己造的 | 补一条不套该 fixture 的用例：`_WORKFLOW` 指向 tmp 下三份 fixture（正常三平台 / 含未登记标签 / 无 `- os:` 行），断言 3 键 / SystemExit(2) / SystemExit(2)；再加一条「真 workflow 解析结果 == _MATRIX_KEYS」的同源锁 | 高 |
-| MID-2261 | `scripts/check_coverage.py`（`grep -rln "check_coverage" tests/` **无任何命中**） | 8 条门禁里唯一「零回归锁」的一个 | 把 `MODULE_THRESHOLDS` 清空、或把 `missing_modules` 判定改回「只告警」，`rc` 仍为 0 并打印 `PASSED: All 0 module(s) meet coverage threshold`——AGENTS「测试不得自实现被测逻辑」条目与 `MIN-19` 记录的正是这句话的两次历史形态，而 `ci.yml` 把它作为 required 链路一环。同理 `_find_module_coverage` 第③步若改回「按纯文件名匹配」，`src/utils.py` 的阈值会被 `tests/utils.py` 顶替（2026-09-12 审查 6.7 的原始缺陷） | 新增 `tests/test_check_coverage.py`（`spec_from_file_location` 加载，与 `test_run_gates.py` 同法）：表非空且键存在于 `src/`、喂 `files={}` 断言 rc=2、喂只含 `tests/utils.py` 的报告断言 rc=1、一条 rc=0 正例 | 高 |
-| MID-2262 | `tests/test_decorator_contract.py:44-61`、`100-113` | 全仓 AST 门禁依赖字符串常量 `DEC_DICT`/`DEC_NONE`，但**没有「扫到了多少」的见证**；两个 `except …: continue` 让读不到/解不开的文件静默出局 | 把 `src/utils.py` 的两个装饰器改名（含全部 50+ 调用点、含本文件顶注），`hit` 恒空 → `violations == []` → 门禁绿，而 CR-12 的「装饰器绑到下一个 def」与「返回契约错配」两条防线同时消失（表现为 haixiu/looklive 一类平台异常不再计入熔断样本、popkontv 元组解包被二次吞没）。同仓已有正确范式可抄：`test_test_hygiene.py:268-273`、`test_record_container.py:100-105`、`test_platform_dispatch.py:275` 都留了命中数见证 | 断言前加 `n_decorated >= 40` 与 `len(files) > 100`；`except` 改为记入 `unscanned` 后断言其为空 | 高 |
+| MID-2261 | `scripts/check_coverage.py`（`grep -rln "check_coverage" tests/` **无任何命中**） | 8 条检查里唯一「零回归锁」的一个 | 把 `MODULE_THRESHOLDS` 清空、或把 `missing_modules` 判定改回「只告警」，`rc` 仍为 0 并打印 `PASSED: All 0 module(s) meet coverage threshold`——AGENTS「测试不得自实现被测逻辑」条目与 `MIN-19` 记录的正是这句话的两次历史形态，而 `ci.yml` 把它作为 required 链路一环。同理 `_find_module_coverage` 第③步若改回「按纯文件名匹配」，`src/utils.py` 的阈值会被 `tests/utils.py` 顶替（2026-09-12 审查 6.7 的原始缺陷） | 新增 `tests/test_check_coverage.py`（`spec_from_file_location` 加载，与 `test_run_gates.py` 同法）：表非空且键存在于 `src/`、喂 `files={}` 断言 rc=2、喂只含 `tests/utils.py` 的报告断言 rc=1、一条 rc=0 正例 | 高 |
+| MID-2262 | `tests/test_decorator_contract.py:44-61`、`100-113` | 全仓 AST 检查依赖字符串常量 `DEC_DICT`/`DEC_NONE`，但**没有「扫到了多少」的见证**；两个 `except …: continue` 让读不到/解不开的文件静默出局 | 把 `src/utils.py` 的两个装饰器改名（含全部 50+ 调用点、含本文件顶注），`hit` 恒空 → `violations == []` → 检查绿，而 CR-12 的「装饰器绑到下一个 def」与「返回契约错配」两条防线同时消失（表现为 haixiu/looklive 一类平台异常不再计入熔断样本、popkontv 元组解包被二次吞没）。同仓已有正确范式可抄：`test_test_hygiene.py:268-273`、`test_record_container.py:100-105`、`test_platform_dispatch.py:275` 都留了命中数见证 | 断言前加 `n_decorated >= 40` 与 `len(files) > 100`；`except` 改为记入 `unscanned` 后断言其为空 | 高 |
 | MID-2263 | `tests/frontend/test_quality_ui.mjs:415-423`（对照 `src/config_bool.py:30-31`、`web/app.js:1162-1163`） | 名为「`parseConfigBool` 与后端 `src/config_bool.py` 同口径」的用例，断言基准是**测试内联的字面量清单**，既非 `TRUE_TOKENS` 也非 `CONFIG_TRUE_TOKENS`；`tests/test_config_bool.py:36-64` 的参数化表同样是自抄一份 | 从 `src/config_bool.py::TRUE_TOKENS` 删掉 `"on"`（后端 `parse_config_bool("on", False)` 回落 default，面板仍显示为「是」）**两侧都绿**。AGENTS「保持同集合（改任一侧须同步另一侧）」这条跨语言不变量实际只靠人记 | 由包装层先把 `TRUE_TOKENS/FALSE_TOKENS` 序列化为 JSON 传给 node、`.mjs` 用它驱动断言；或在 `.mjs` 里正则抠出 `CONFIG_*_TOKENS` 键集合与传入的 Python 集合做 `deepEqual` | 高 |
 | MID-2264 | `.github/workflows/ci.yml:148-156` 与 `392-436`；`tests/test_frontend_quality_ui.py:51` | `test` job（ubuntu）不装 Node（`setup-node` 只在另两个 job），故 ci.yml 注释承诺的「改 web/app.js 须由 test job 触发 `.mjs` 锁」只成立于 runner 镜像恰好自带 node；而 `skip` 与 `pass` 在 `ci-summary` 里不可区分 | 一旦镜像不附带 node 或换 self-hosted，`test_frontend_quality_ui.py` 整模块 skip → 面板侧 27 条断言（含 `saveConfig` 跳过 `'***'` 这条写入侧防线、画质 PUT 契约、四语 toast）全部消失而汇总仍绿。`test_frontend_quality_ui.py:171-178` 对「node 在但收集到 0 用例」有锁，对「node 不在」没有任何反向锁 | 给 `test` job 加 `actions/setup-node@v7`（与 `node_version` 常量同源），并加兜底步骤断言不存在该模块的 skip；或在 `ci-summary` 显式核对「前端锁已执行」 | 中（「镜像自带 node 时仍会执行」一环未实盘核对） |
-| MID-2265 | `src/ab_sign.py:536-546` × `scripts/check_coverage.py:55`（`"src/ab_sign.py": 95`）× `tests/test_ab_sign.py:44-46` | 546 行的 A-Bogus 全链**无任何生产调用点**（`ab_sign(` 在 `src/`/`main.py`/`web.py`/`gui.py`/`scripts/` 内除定义外零命中），却被要求 ≥95% 覆盖率（全表最高，高于 spider/stream/utils）；抖音实际用的是 `_xbogus.py` 与 `x-bogus.js` | ① 门禁统计把预算花在无调用方的代码上，并给人「A-Bogus 已被保护」的错觉；② 若抖音把 web 接口从 X-Bogus 切到 A-Bogus，接线者拿到的是一份**从未与真实服务端对过一次**的实现（SM3 本体该组用 OpenSSL 独立核对为标准值，但 `generate_rc4_bb_str` 的字段布局/时间戳语义无任何外部裁判），静默产出错误签名的排查成本极高；③ 新加的符号可达性检查查不到这种形态（名字有绑定，只是没人引用）。`tests/test_ab_sign.py:44-46` 关于 `src/__init__.py` 再导出的注释也已失效 | 要么删模块 + 用例 + 表项（含 `ci.yml` 的模块清单），要么在模块头写明「当前无生产调用点，等待接线」并把地板降到与死码相称的值；同时修掉失效注释 | 高 |
+| MID-2265 | `src/ab_sign.py:536-546` × `scripts/check_coverage.py:55`（`"src/ab_sign.py": 95`）× `tests/test_ab_sign.py:44-46` | 546 行的 A-Bogus 全链**无任何生产调用点**（`ab_sign(` 在 `src/`/`main.py`/`web.py`/`gui.py`/`scripts/` 内除定义外零命中），却被要求 ≥95% 覆盖率（全表最高，高于 spider/stream/utils）；抖音实际用的是 `_xbogus.py` 与 `x-bogus.js` | ① 检查统计把预算花在无调用方的代码上，并给人「A-Bogus 已被保护」的错觉；② 若抖音把 web 接口从 X-Bogus 切到 A-Bogus，接线者拿到的是一份**从未与真实服务端对过一次**的实现（SM3 本体该组用 OpenSSL 独立核对为标准值，但 `generate_rc4_bb_str` 的字段布局/时间戳语义无任何外部裁判），静默产出错误签名的排查成本极高；③ 新加的符号可达性检查查不到这种形态（名字有绑定，只是没人引用）。`tests/test_ab_sign.py:44-46` 关于 `src/__init__.py` 再导出的注释也已失效 | 要么删模块 + 用例 + 表项（含 `ci.yml` 的模块清单），要么在模块头写明「当前无生产调用点，等待接线」并把地板降到与死码相称的值；同时修掉失效注释 | 高 |
 
 ## 五、轻微问题（P2，68 项）
 
-> 计入口径：能在无人察觉的情况下劣化行为、或使后续改动踩坑的缺陷。纯风格问题不计（本仓风格已由 black/isort/mypy/basedpyright/`check_annotations` 五面门禁覆盖，见第七章）。相近条目已合并成行，行内列出全部落点。
+> 计入口径：能在无人察觉的情况下劣化行为、或使后续改动踩坑的缺陷。纯风格问题不计（本仓风格已由 black/isort/mypy/basedpyright/`check_annotations` 五面检查覆盖，见第七章）。相近条目已合并成行，行内列出全部落点。
 
 ### 5.1 平台解析与网络层（MIN-2201 … MIN-2222）
 
@@ -924,13 +924,13 @@ def _candidate_urls(arch: str) -> list[str]:
 | MIN-2257 | `scripts/patch_i18n_2026_09_12.py:231-237` + `245-252` | 一次性补丁脚本（自述已耗尽）注释写「returncode 非零透传给上层（CI 可见）」而实现是 `return 0`；且用裸 `["python", "scripts/compile_po.py"]` 而非 `sys.executable`——AGENTS 硬约束「语法/编译检查一律使用项目 venv 的 Python 3.14」，Windows 上裸 `python` 可能是 py launcher 的 3.13。`.mo` 编译失败时脚本报成功，四语目录与 `.mo` 静默分叉（只靠 `compile_po.py --check` 事后拦）。该文件本身仍留在 `[tool.mypy].files` 的 `scripts` 面内被长期检查，按 AGENTS「测试收尾清理临时脚本」口径属残留物 | 三选一但必须让陈述与实现一致：`return res.returncode` + `[sys.executable, ...]`；或按收尾约定删除该脚本（成果已在四份目录与 CODE_WIKI 落档，审计留痕不需要可执行副本） | 高 |
 | MIN-2258 | `src/ffmpeg_install.py:115-118`、`148-151`、`287` | 把「与产物同主机、同一 HTTPS 通道取回的哈希文档」称作**独立信任根**：`_fetch_official_sha256(url + DOC_SUFFIX)` 的 `url` 就是产物所在的 `www.gyan.dev`，期望值与实际文件同源，主机/CDN 被替换时两者一并被换、校验归零。这与同层 `node_install.py:34-42`（文档取 nodejs.org、产物走 npmmirror，「镜像只加速不背书」）以及 `build_exe.py:446-450`（同问题的正确自述）相互矛盾，会让后来者以为 Windows 运行期已具备来源认证 | 陈述降级为「同源一致性校验（防传输截断/缓存污染），不构成来源认证」，并在 AGENTS 三类钉定条目里注明「gyan.dev 无签名可用」对应的残余风险与可接受理由；若要真加固，可核对 gyan.dev 与 `build_exe` 已钉定的 `windows-x64/ffmpeg` 哈希是否同代，把发布面官方值作为第二通道 | 高（机制）/中（是否属有意接受） |
 | MIN-2259 | `scripts/douyin_live_recorder_standalone.py:1209` 对照同文件 `1399-1405` 与 `main.py:3185` | 副本的 `validate_stream_url` 判 `.m3u8` **大小写敏感**，而同文件命令构造两处已在 2026-09-12 审查改成 `.lower()` 并写明「大小写敏感致 HLS 挂起回归」→ 上游下发 `.M3U8` 时该 URL 落进非 m3u8 分支：走 content-type 启发式 + `_confirm_get_ok`，而 m3u8 在多家 CDN 上 HEAD 恒回 4xx，命中 AGENTS 记录的「探针误杀可用源」分支，非末位候选直接被拒、整轮回退或放弃。主程序侧不受影响，属**副本独有的行为漂移** | 与命令构造统一为 `".m3u8" in url.lower()`（两处共用一个小写化局部变量更佳）；`--selftest` 补一条 `.M3U8` 用例锁判定 | 中 |
-| MIN-2260 | `scripts/smoke_test.py:70-86`、`367-372`（消费点 `scripts/_ci_web_smoke.sh:85-88` → `ci.yml`） | 「零检查项」退 0：`load_config` 对 dict 形态取 `typed.get("checks", [])`，把键写成 `check`/`targets`、或 `checks` 整段被清空都是「合法但空」，脚本 0 断言、退 0，`_ci_web_smoke.sh` 原样透传 rc，CI 的「Web panel smoke test」步骤报成功。当前 `smoke_web.json` 确有 2 条检查，但面板真起不来时只有就绪等待那条 curl 能发现；一旦 `web_host`/端口口径改动使 `/health` 探针仍过而接口断言整段消失，门禁就查了个空气 | `main()` 里 `if not checks: sys.exit(2)`；`load_config` 要求 `"checks"` 键存在（缺键即 ValueError）；`_ci_web_smoke.sh` 侧断言报告 JSON 的 `summary.total > 0` | 高 |
+| MIN-2260 | `scripts/smoke_test.py:70-86`、`367-372`（消费点 `scripts/_ci_web_smoke.sh:85-88` → `ci.yml`） | 「零检查项」退 0：`load_config` 对 dict 形态取 `typed.get("checks", [])`，把键写成 `check`/`targets`、或 `checks` 整段被清空都是「合法但空」，脚本 0 断言、退 0，`_ci_web_smoke.sh` 原样透传 rc，CI 的「Web panel smoke test」步骤报成功。当前 `smoke_web.json` 确有 2 条检查，但面板真起不来时只有就绪等待那条 curl 能发现；一旦 `web_host`/端口口径改动使 `/health` 探针仍过而接口断言整段消失，检查就查了个空气 | `main()` 里 `if not checks: sys.exit(2)`；`load_config` 要求 `"checks"` 键存在（缺键即 ValueError）；`_ci_web_smoke.sh` 侧断言报告 JSON 的 `summary.total > 0` | 高 |
 | MIN-2261 | `scripts/check_coverage.py:80-85` | `MIN-19` 把「无数据」升级成 rc=2 是对的，但**只判数据文件是否存在**：「有数据且是上上周的」仍是通过路径（本工作区就同时存在 `.coverage` 与 `coverage.json` 两份历史产物）。删掉一批用例、或把某模块整体改名后（`_find_module_coverage` 的第②步后缀匹配还可能拿同名新路径顶替），只要旧数据里那 6 个路径的百分比还在就照报 PASSED。CI 里 rc 由前一步 `pytest --cov=src` 保证，故受害面是**本地 DoD 回路** | 加新鲜度断言：数据文件 mtime 早于 `src/`、`tests/` 下最新 `.py` 即 rc=2 并提示重跑 `pytest --cov=src`；可选再核对 coverage JSON 的 `timestamp` | 高 |
-| MIN-2262 | `scripts/check_version.py:189-195`（同形 `57-68` 的 Dockerfile 分支、`135-148` 的 po 分支） | 「检查对象消失」被判成 `[OK]`：`extract_webapi_version()` 只在匹配到 `FastAPI(... version=...)` 时产出结论，正则未命中即返回 None 并打印 `[OK] ...（跳过）` → 「把 `version=` 从 `FastAPI(...)` 里删掉」「把 LABEL 的 version 行整块删掉」这两种最省事的破坏都让门禁更绿。对照 `sync_version.py::check_all` 已按 2026-09-12 审查 6.7 修成「正则失配即判失败」——**同一仓内两条检查口径不一致** | None 分支进 `errors`（或要求 `--allow-absent` 才放行），与 `check_all` 的「先判命中再判等」同构；Dockerfile 分支同口径 | 高 |
+| MIN-2262 | `scripts/check_version.py:189-195`（同形 `57-68` 的 Dockerfile 分支、`135-148` 的 po 分支） | 「检查对象消失」被判成 `[OK]`：`extract_webapi_version()` 只在匹配到 `FastAPI(... version=...)` 时产出结论，正则未命中即返回 None 并打印 `[OK] ...（跳过）` → 「把 `version=` 从 `FastAPI(...)` 里删掉」「把 LABEL 的 version 行整块删掉」这两种最省事的破坏都让检查更绿。对照 `sync_version.py::check_all` 已按 2026-09-12 审查 6.7 修成「正则失配即判失败」——**同一仓内两条检查口径不一致** | None 分支进 `errors`（或要求 `--allow-absent` 才放行），与 `check_all` 的「先判命中再判等」同构；Dockerfile 分支同口径 | 高 |
 | MIN-2263 | `.github/workflows/ci.yml:398-399`（job env）与 `476-482`（消费点） | `CODECOV_TOKEN` 被放进 **job 级** env，而它只被 `Upload coverage to Codecov` 一步消费（那一步已单独写了 `token: ${{ secrets.CODECOV_TOKEN }}`）→ 该 secret 被注入「执行仓库测试代码 + pip 安装的第三方包」的整个进程树：任何用例、conftest、被 `pip install -r requirements.txt` 拉进来的包都能从 `os.environ` 读到并外发。fork PR 下 GitHub 不注入 secrets，所以同仓 push/PR（含被投毒的依赖，见 `deps-audit` 存在的原因）才是这条的暴露面 | 删掉 job 级 `env`，改步骤级传参（ci.yml 里 macOS brew 已是「消费点局部传参」的既有口径）；条件表达式若受 step-level `if` 的 secrets 可用性限制，用 `vars`/outputs 过渡 | 中 |
-| MIN-2264 | `.github/workflows/trivy.yml:25-36`、`43-52` | trivy 的 job 既无 `timeout-minutes`（`ci.yml` 顶部已把「每个 job 显式 timeout」列为统一策略）、也没有 `retry` 包装，而它偏偏做本仓最重的一次外网动作（完整 `docker build` + trivy 扫层），周一 cron 卡死即白烧额度。另一半更值得写进报告：trivy-action 的 `exit-code` 未设（默认 0），CRITICAL/HIGH 公告只进 Security 标签页、job 恒绿；又因 `ci-summary` 不含本 workflow，任何人把它当「镜像漏洞门禁」都是误读（真正的清单门禁是 `ci.yml` 的 `deps-audit`） | 补 `timeout-minutes: 30`；要当门禁就显式 `exit-code: 1` 并在文件头写明与 `deps-audit` 的分工，只当信息就在本文件与 AGENTS 注明「advisory only，不作 required check」 | 高 |
+| MIN-2264 | `.github/workflows/trivy.yml:25-36`、`43-52` | trivy 的 job 既无 `timeout-minutes`（`ci.yml` 顶部已把「每个 job 显式 timeout」列为统一策略）、也没有 `retry` 包装，而它偏偏做本仓最重的一次外网动作（完整 `docker build` + trivy 扫层），周一 cron 卡死即白烧额度。另一半更值得写进报告：trivy-action 的 `exit-code` 未设（默认 0），CRITICAL/HIGH 公告只进 Security 标签页、job 恒绿；又因 `ci-summary` 不含本 workflow，任何人把它当「镜像漏洞检查」都是误读（真正的清单检查是 `ci.yml` 的 `deps-audit`） | 补 `timeout-minutes: 30`；要当检查就显式 `exit-code: 1` 并在文件头写明与 `deps-audit` 的分工，只当信息就在本文件与 AGENTS 注明「advisory only，不作 required check」 | 高 |
 | MIN-2265 | `tests/test_start_record_command_golden.py:38`、`402-407`、`421-423` | 黄金基准的再生开关把「非空字符串」当「真」：`_REGEN = bool(os.environ.get("GOLDEN_REGEN"))`，于是 shell/CI 里导出 `GOLDEN_REGEN=0`、`=false`、`=off` 任取一值即 20 条比对全部走 `return` 判通过，并在 session 末尾**用当前实现覆盖 `tests/golden/start_record_commands.json`**——此后任何命令行错位（例如 `-segment_format` 两值再被互换，正是 09-04 的 P0 形态）都成为新的「基准」。且没有任何用例断言基准形状（键数、每条 command 非空且含 `-i`），「被重写成一堆空列表」也不会单独变红 | 判定改 `os.environ.get("GOLDEN_REGEN","").strip().lower() in ("1","true","yes")`（与 `src/config_bool.py` 同集合，别再造第三套布尔口径）；加 `test_golden_snapshot_shape_is_sane` 断言条数与非空命令含 `-i` | 高 |
-| MIN-2266 | `src/utils.py:99-106`；`tests/test_utils.py:759-775`；`tests/test_bili_e2e.py`；`tests/test_sync_http.py:20-35`；`tests/conftest.py:52-70` | 五条测试/钉定卫生问题合并：① JS 钉定的「未登记即放行」方向没有对账锁——`_check_js_hash` 首行 `if not expected: return`，两个分组独立指出用例只锁「表里的键都有文件」与「表 == 硬编码 5 项」，缺「目录里每个 `.js` 都在表里」→ 新增（或被投放）第 6 个签名脚本时静默不校验而门禁全绿（AGENTS 第③类钉定面悄悄缩小）；② `tests/test_bili_e2e.py` 实测 `test_` 函数数为 0，全部逻辑在 `main()` 里靠 `__main__` 守卫，而它**是离线用例**（自己 `struct.pack` 造 B站帧），与 AGENTS 允许「手动 + 需活房间」的 5 个 live_collector 不同类 → 帧协议→`_decode_packet`→collector→SrtWriter 的端到端串联无任何自动执行，断言可无人运行地腐烂，而文件存在继续向读者 advertise「e2e 已验证」；③ `TestGetOpener` 两条用例都只 `assert opener is not None`，把 `_get_opener` 两个分支合并成恒返回 insecure opener 也同时绿（所幸同文件 `334-344` 用对象同一性锁住了真正裁决，故属噪音用例 + 误导性命名而非唯一防线缺失）；④ `conftest` 的凭据缓存隔离 autouse fixture 用 `except Exception: return` 静默放弃重置 → `src.spider` 一旦 import 期异常或被摘出 `sys.modules`，四模块级 `_cached_*` 与紧随其后的 `_ttwid._cached_ttwid` **全部不重置且不报错**，去重类用例退化为跨用例命中旧值（H-2 要消灭的形态，只是从「没清」变成「清了一半且静默」）；⑤ `download_ffmpeg_master` 的头注释承诺「失败一律返回 False（不抛）」，而 `_stream_download` 只捕 `requests` 系异常，`open(zip_path,"wb")` 的 `OSError`（磁盘满/无权限/路径失效）会穿出 `except FfmpegDownloadError` → 传到 `install_ffmpeg_windows()` → 启动期 `check_ffmpeg()` | ① 补 `test_every_executable_js_is_pinned`（`glob("*.js") <= set(_JS_SHA256_EXPECTED)`，两侧相等）+ 未登记分支加 warning；② 把 `main()` 拆成 `test_bili_frame_to_srt_end_to_end(tmp_path)`（不再碰 `_out_e2e`），保留 `python <file>` 直跑入口调用该函数；③ 删两条或改 `is _opener_secure`/`is _opener_insecure` + `verify_mode` 断言；④ 改 `except ImportError: raise`（收集期真错就该红）或把 import 提到 fixture 顶部不做容错；⑤ 契约与实现对齐：`_stream_download` 外层再包 `except OSError` 归一为 `NetworkError`，或删去「不抛」承诺 | 高 |
+| MIN-2266 | `src/utils.py:99-106`；`tests/test_utils.py:759-775`；`tests/test_bili_e2e.py`；`tests/test_sync_http.py:20-35`；`tests/conftest.py:52-70` | 五条测试/钉定卫生问题合并：① JS 钉定的「未登记即放行」方向没有对账锁——`_check_js_hash` 首行 `if not expected: return`，两个分组独立指出用例只锁「表里的键都有文件」与「表 == 硬编码 5 项」，缺「目录里每个 `.js` 都在表里」→ 新增（或被投放）第 6 个签名脚本时静默不校验而检查全绿（AGENTS 第③类钉定面悄悄缩小）；② `tests/test_bili_e2e.py` 实测 `test_` 函数数为 0，全部逻辑在 `main()` 里靠 `__main__` 守卫，而它**是离线用例**（自己 `struct.pack` 造 B站帧），与 AGENTS 允许「手动 + 需活房间」的 5 个 live_collector 不同类 → 帧协议→`_decode_packet`→collector→SrtWriter 的端到端串联无任何自动执行，断言可无人运行地腐烂，而文件存在继续向读者 advertise「e2e 已验证」；③ `TestGetOpener` 两条用例都只 `assert opener is not None`，把 `_get_opener` 两个分支合并成恒返回 insecure opener 也同时绿（所幸同文件 `334-344` 用对象同一性锁住了真正裁决，故属噪音用例 + 误导性命名而非唯一防线缺失）；④ `conftest` 的凭据缓存隔离 autouse fixture 用 `except Exception: return` 静默放弃重置 → `src.spider` 一旦 import 期异常或被摘出 `sys.modules`，四模块级 `_cached_*` 与紧随其后的 `_ttwid._cached_ttwid` **全部不重置且不报错**，去重类用例退化为跨用例命中旧值（H-2 要消灭的形态，只是从「没清」变成「清了一半且静默」）；⑤ `download_ffmpeg_master` 的头注释承诺「失败一律返回 False（不抛）」，而 `_stream_download` 只捕 `requests` 系异常，`open(zip_path,"wb")` 的 `OSError`（磁盘满/无权限/路径失效）会穿出 `except FfmpegDownloadError` → 传到 `install_ffmpeg_windows()` → 启动期 `check_ffmpeg()` | ① 补 `test_every_executable_js_is_pinned`（`glob("*.js") <= set(_JS_SHA256_EXPECTED)`，两侧相等）+ 未登记分支加 warning；② 把 `main()` 拆成 `test_bili_frame_to_srt_end_to_end(tmp_path)`（不再碰 `_out_e2e`），保留 `python <file>` 直跑入口调用该函数；③ 删两条或改 `is _opener_secure`/`is _opener_insecure` + `verify_mode` 断言；④ 改 `except ImportError: raise`（收集期真错就该红）或把 import 提到 fixture 顶部不做容错；⑤ 契约与实现对齐：`_stream_download` 外层再包 `except OSError` 归一为 `NetworkError`，或删去「不抛」承诺 | 高 |
 | MIN-2267 | `src/ffmpeg_master_download.py:63-71`、`54-57`、`107-116`、`110`、`233-239`、`396` | 新模块的六条小缺陷合并：`ChallengePageError` 定义后**全仓零引用**（死码，探测路径改用字符串状态返回，该异常类是设计中途改向的残留）；`_PROBE_TIMEOUT = 20` 与紧邻注释「探测挑战页只需 1 字节；给短超时，失败即换源，不值得久等」不符（两候选串行 = 启动期最多阻塞 40 秒）；`_looks_like_html` 的 `except Exception: return False` 把**读失败**判成「不是 HTML」→ 探针误报 `ok`；首次 TOFU 记账只用 `logger.debug`（`:270`）而 `ffmpeg_install.py:250-252` 的同类降级按要求用 warning，同一天两份实现严重度口径不一致；TOFU 基准文件按 `build_id` 分文件、**永不修剪** → 程序目录无界增长（每次上游发新构建就多一个）；`import os` 在模块头与 `__main__` 块各一次。另 `download_ffmpeg_master` 的 `shutil.rmtree(target)` 在 copytree **之前**删除既有 `ffmpeg/` 目录（与 `ffmpeg_install.py:356-360` 同形，非新发明，但副本各一份意味着收口要改两处） | 删 `ChallengePageError`；`_PROBE_TIMEOUT` 降到 3-5s 或改注释；`_looks_like_html` 的 except 分支返回 True（读不通即不可信）；首次记账升 warning 并写明「本次安装无可比对期望值」；写新基准时删除同前缀旧文件（保留 1 份）；合并重复 import；把「先删旧目录再复制」下沉成两份共用的一个函数 | 高 |
 | MIN-2268 | 仓库状态（`git status` 实测） | 本轮取证时 `src/ffmpeg_master_download.py`（402 行，被 `src/ffmpeg_install.py:29` **模块级硬 import**，并经 `main.py:121` 进入主链）、`tests/test_ffmpeg_path_preference.py`、`tests/test_check_runtime_pins.py`、`scripts/spike_arm64_static_ffmpeg.sh` 四文件仍**未被 git 跟踪**。若此刻以 `git commit -am`（只提交已跟踪文件的修改）提交并推送，新克隆与 CI 会在 import 链上直接 `ModuleNotFoundError`，而本地一切正常——典型「本地绿、CI 红」 | 提交前 `git add` 这四个文件并核对 `.dockerignore`/打包 `datas` 是否需要相应条目（`src/` 不被排除 → 新模块会进镜像，须确认这是期望）；`scripts/spike_*.sh` 已在 `PROPOSAL` 与 `CODE_WIKI` 里论证为长期复用工具，按 AGENTS 口径不属一次性脚本，可保留 | 高（当前状态事实） |
 
@@ -938,14 +938,14 @@ def _candidate_urls(arch: str) -> list[str]:
 
 ### 6.1 优先级批次
 
-排序依据：**用户可见失效 > 凭据外泄 > 发布链可分发不可信产物 > 门禁假绿 > 静默降级 > 归因线索 > 文档与卫生**。同批内文件互不重叠，可按 `AGENTS.md`「并行分组修复」口径并行派发（单代理 ≤10 项、文件集互斥）。
+排序依据：**用户可见失效 > 凭据外泄 > 发布链可分发不可信产物 > 检查假绿 > 静默降级 > 归因线索 > 文档与卫生**。同批内文件互不重叠，可按 `AGENTS.md`「并行分组修复」口径并行派发（单代理 ≤10 项、文件集互斥）。
 
 | 批次 | 内容 | 项数 | 前置 / 依赖 | 验收判据 |
 | --- | --- | --- | --- | --- |
 | **第 0 批（提交前动作，阻塞一切）** | `MIN-2268`（四个新文件未 `git add`，模块级硬 import 会让新克隆 `ModuleNotFoundError`）；`SEV-2216` 的 `socksio` 声明与 `h2` 可用性自检 | 2 | 无 | `git status --short` 无未跟踪源文件；`python -c "import h2, socksio"` 通过或在缺位时产出 warning |
 | **第 1 批（正在发生的用户可见失效）** | `SEV-2201` 类型契约、`SEV-2202` `%` 模板、`SEV-2203` http:// 落不到解析器、`SEV-2204`/`SEV-2205` 静默漏录、`SEV-2206` 磁盘棘轮、`SEV-2227`/`SEV-2228` 面板不可用与假绿 | 8 | 无 | 每条按 6.3 补锁后 `pytest` 全绿 0 警告；**并跑真实 URL**（至少抖音/斗鱼各一，含一个开分段录制的房间） |
 | **第 2 批（凭据与 TLS 外泄面）** | `SEV-2210` 掩码 camelCase、`SEV-2211` 弱化原子写、`SEV-2212` SMTP 不校验证书、`SEV-2213` 打包带凭据、`SEV-2214` XHS 跳转、`SEV-2215` B站 WS 远端 host、`SEV-2217` 代理凭据入日志 | 7 | 无 | 覆盖面断言从「调用了掩码」升级为「值确实消失」；`PUT /api/config` 后 `config.ini` 的 mode 仍为 0600（POSIX 侧断言）；发布目录断言不含 `config/` |
-| **第 3 批（门禁假绿，决定后续所有批次的可信度）** | `SEV-2219` 丢退出码、`SEV-2220` 测试走真实网络、`SEV-2222` TOFU 失败开放、`SEV-2223`~`SEV-2226` 四条测试/文档可信度、`MID-2260`~`MID-2265` 六条锁缺口 | 12 | 第 0 批 | 每条都有「违规见证 + 合规反向见证 + 扫描根非空见证」三件套；`run_gates.py` 在故意制造收集错误时必须 rc≠0 |
+| **第 3 批（检查假绿，决定后续所有批次的可信度）** | `SEV-2219` 丢退出码、`SEV-2220` 测试走真实网络、`SEV-2222` TOFU 失败开放、`SEV-2223`~`SEV-2226` 四条测试/文档可信度、`MID-2260`~`MID-2265` 六条锁缺口 | 12 | 第 0 批 | 每条都有「违规见证 + 合规反向见证 + 扫描根非空见证」三件套；`run_gates.py` 在故意制造收集错误时必须 rc≠0 |
 | **第 4 批（供应链，需维护者决策）** | `SEV-2218` Windows 第二条下载源、`SEV-2221` GPG 验签不可达 | 2 | **须先由维护者在 6.4 的三个处置中选一** | 决策写进 `PROPOSAL_2026-09-22_binary-trust-policy.md` 并同步 `AGENTS.md`；锁的判定范围扩到「运行期可达的全部下载常量集合」 |
 | **第 5 批（录制链健壮性）** | `SEV-2207` 线程池 atexit 次序、`SEV-2208` SEV-N01 收尾、`SEV-2209` JS 无超时、`MID-2201`~`MID-2209` | 12 | 第 1 批（共用 `check_subprocess` 改动面，勿并行） | `tests/test_record_failure_feedback.py`、`test_ffmpeg_reconnect_args.py`、`test_record_container.py` 全绿；退出路径实测「归档先于清理完成」 |
 | **第 6 批（静默降级与归因）** | `MID-2210`~`MID-2226` 中未随第 1~2 批落地的条目、`MID-2242`~`MID-2247`、`MIN-2201`~`MIN-2222` | ≈40 | 各批之后 | 「未开播/已下播」正常轮次仍刻意静默（`test_documented_offline_stays_silent` 必须保持绿）——**新增告警前先判定该轮次是否属正常轮次** |
@@ -957,7 +957,7 @@ def _candidate_urls(arch: str) -> list[str]:
 
 1. **`SEV-2218` 的条款冲突**：现行条款写「Windows 运行期只有 gyan.dev 一条自动路径，新增第二条须先满足官方公布哈希判据」。代码已引入不满足该判据的默认源。**先由维护者决定改条款还是改代码**，两者一致后再落实现；无论何种处置，`src/ffmpeg_install.py:44-50` 的模块头陈述必须与实现相符。
 2. **`SEV-2226` 的两条安全辩护**：F-12 条目「`sync_req` 调用点全部位于 `src/spider.py`」与「依赖管理」用同一前提为 `urllib3>=2.7.0` 辩护，实测该模块生产不可达。按 AGENTS 自身的「被证伪的事实性陈述必须就地改正、不得保留错误版本 + 追加更正」口径改正文并保留一行 `[YYYY-MM-DD 修订：旧结论 X 已被推翻]`。
-3. **新增「下载源白名单」约定**：把「任何新的出站二进制/脚本下载点，必须登记进一份可机检的白名单常量，且门禁按该名单反查全仓 `http*` 字面量」写成硬约定。本轮 `SEV-2218`、`SEV-2220`、`MIN-2266`① 三个形态的共同成因就是「锁按文件而非按可达面」。
+3. **新增「下载源白名单」约定**：把「任何新的出站二进制/脚本下载点，必须登记进一份可机检的白名单常量，且检查按该名单反查全仓 `http*` 字面量」写成硬约定。本轮 `SEV-2218`、`SEV-2220`、`MIN-2266`① 三个形态的共同成因就是「锁按文件而非按可达面」。
 4. **新增「脱敏键表」约定**：`_SECRET_KEYS` 采用**黑名单 + 左边界断言**，天然漏 camelCase（`SEV-2210`）。应写明：新接入平台时若其凭据参数是 camelCase，必须同步该表并在 `TestMaskCredentialsCoverage` 增加「值必须消失」的断言；建议同时引入 camelCase 边界分支，把「记得加」变成结构保证。
 5. **新增「注释不得声明未做的修复」自检口径**：本轮 3 条（`SEV-2208` 说 stop 已进 finally、`SEV-2220` 的 hermetic 约定、`SEV-2225` 的「本仓未使用」）都是**注释自述与代码相反**误导了后续判断。建议在「完成定义」第 4 步加一句：修复类注释必须附可复核判据（grep 命令或断言名），否则不得写「已修」。
 6. **`补-N02` 遗留的三条约定仍未落笔**（代理归一只在构造前、凭据落盘值与 scheme 前缀二选一、`Set-Cookie` 只能合并不整体替换）：本轮 `SEV-2214`、`MID-2221` 表明这三条正是当前缺陷的直接成因，应优先写回。
@@ -985,37 +985,37 @@ def _candidate_urls(arch: str) -> list[str]:
 | 17 | `run_gates`：pytest 未跑/崩溃时必须非零退出 | 桩 pytest 返回 rc=4/5 两例 | `SEV-2219` |
 | 18 | 测试 hermetic：任何出站层都被 autouse fixture 桩掉 | 反向锁（真发请求即红）+ `.mjs` 的 skip 可见性 | `SEV-2220`、`MID-2264` |
 | 19 | 黄金快照须记录 `platform`/`danmaku_args`；`GOLDEN_REGEN` 只认显式真值 | 扩展快照字段 + 基准形状断言 | `SEV-2224`、`MIN-2265` |
-| 20 | 卫生门禁 R1 须能识别字符串形态 patch；并禁止「测试内自实现同名锁/限流」 | 违规 + 合规双向见证 | `SEV-2223`、`SEV-2225` |
+| 20 | 卫生检查 R1 须能识别字符串形态 patch；并禁止「测试内自实现同名锁/限流」 | 违规 + 合规双向见证 | `SEV-2223`、`SEV-2225` |
 | 21 | 跨文件同源锁：排除目录清单、下载源白名单、UA 常量、布尔 token 集合 | 键集对比用例（仿 `test_ffmpeg_path_preference.py`） | `MID-2256`、`MIN-2255`、`MID-2263` |
 
 ### 6.4 结构性建议（消除本报告的成因，而非只消除症状）
 
 1. **给「可达的下载/执行面」建立单一登记表**。本轮三条严重（`SEV-2218`、`SEV-2221`、`SEV-2222`）的共同成因是「下载源散落在多个模块、而所有锁都按文件与常量名设防」。建议一份 `DOWNLOAD_SOURCES` 表（键 = 运行时/槽位，值 = URL 白名单 + 完整性方式 ∈ {官方哈希, 官方签名, 第4类, TOFU} + 默认开关），`check_runtime_pins.py` 与测试都从该表反查全仓，使「新增一条源」无法只改一处。
 2. **把「唯一实现」的宣称变成可检的事实**。`config_io` 注释称 `utils.atomic_write_text` 是唯一实现，而 `web_config` 仍有第二份（`SEV-2211`）；`_pad_list`/`clean_name`/`should_prepend_bundled_ffmpeg_dir` 的孪生副本已由 `AGENTS` 用互点名 + 9 格矩阵锁住，是**本仓已验证有效的做法**——建议对「原子写、glob 匹配、m3u8 判定、UA 常量、bj_id 解析」这五处同样加跨文件等价锁。
-3. **门禁的默认失败方向应是「没查 → 红」**。`SEV-2219`、`MID-2261`、`MID-2262`、`MIN-2260`、`MIN-2261`、`MIN-2262` 六个形态都是「谓词拿不到输入时返回通过」。建议在 `AGENTS.md` 把「任何门禁脚本，凡存在『解析不到对象即视为合规』的分支，一律必须补一条命中数见证」写成硬约定，并让 `run_gates.py` 汇总时打印每条门禁的**扫描对象数量**（当前只打印 PASS/耗时，读者无法判断覆盖面）。
+3. **检查的默认失败方向应是「没查 → 红」**。`SEV-2219`、`MID-2261`、`MID-2262`、`MIN-2260`、`MIN-2261`、`MIN-2262` 六个形态都是「谓词拿不到输入时返回通过」。建议在 `AGENTS.md` 把「任何检查脚本，凡存在『解析不到对象即视为合规』的分支，一律必须补一条命中数见证」写成硬约定，并让 `run_gates.py` 汇总时打印每条检查的**扫描对象数量**（当前只打印 PASS/耗时，读者无法判断覆盖面）。
 4. **前端与录制端之间的字符串契约需要一层机器可读协议**。`SEV-N06` 三轮未落地、`SEV-2228`/`MID-2240`/`MID-2239` 的假绿，共同点是「面板靠解析文本/猜测后端语义」。建议后端状态与日志一律携带**结构化字段**（如 `status="unavailable"`、`engine_alive`、画质降级事件用 `#DLRQ|` 前缀键），前端只按字段判、永不按自然语言子串判。
 5. **`async_req` 的返回契约应区分「无内容」与「发不出去」**。`SEV-2216`、`MID-2212`、`MIN-2225` 的共同根因是失败被归一成 `""`，而 `""` 又被上游解读成「风控/未开播」。建议返回 `(content, error_kind)` 或让调用方显式声明失败语义；至少把 `ImportError`/`UsageError`/超时/DNS/TLS 五类与「200 空 body」区分开。
 
 ---
 
-## 七、门禁与测试可信度专项结论
+## 七、检查与测试可信度专项结论
 
-1. **门禁基线**：`PYTHONUTF8=1 python scripts/run_gates.py --keep-going` 于本轮取得 **8/8 全绿（28.1s）**，其附带的 pytest 告警摘要兜底亦 PASS（183.4s，0 条）。**本章的前提是：以上全部 28 项严重结论都是在该绿色状态下取得的。**
-2. **逐门禁可见性评估**：
+1. **检查基线**：`PYTHONUTF8=1 python scripts/run_gates.py --keep-going` 于本轮取得 **8/8 全绿（28.1s）**，其附带的 pytest 告警摘要兜底亦 PASS（183.4s，0 条）。**本章的前提是：以上全部 28 项严重结论都是在该绿色状态下取得的。**
+2. **逐检查可见性评估**：
 
-| 门禁 | 能查什么 | **查不到什么（本轮实证）** |
+| 检查 | 能查什么 | **查不到什么（本轮实证）** |
 | --- | --- | --- |
 | black / isort（含 `PYTHONUTF8=1` 与 silent-skip 判失败） | 格式、导入序、静默跳文件 | 语义完全无关：`SEV-2201`~`SEV-2205` 全部能通过 |
 | mypy（不带路径，`[tool.mypy].files` 全量）+ `--platform linux` | 类型、未绑定名、Any 泄漏 | `play_url_list` 被 `cast` 为 `list[dict[str,str]]` 而**实际装 str**（`SEV-2201`）；`cast` 不做运行时检查是设计，但意味着 cast 密集区的契约完全无守护 |
 | `check_annotations.py`（注释密度 + 符号可达性） | docstring、密度、被删符号的残留调用点 | 被 `cast`/`getattr`/动态引用掩盖的契约错配；其排除表落后 13 项目录（`MID-2256`），且第三方目录同名绑定会**削弱**可达性判定 |
 | `compile_po.py --check` / `check_version.py` / `check_runtime_pins.py` | `.po`↔`.mo` 同步、版本动态化、钉定表结构 | 「运行时新增模板未落目录」只由 `test_i18n_migration` 不变量③ 兜；`check_version` 把「检查对象消失」判 `[OK]`（`MIN-2262`）；`check_runtime_pins` 的矩阵解析在测试里被 autouse 整体桩掉（`MID-2260`） |
-| `run_gates.py` 自身 | 逐字执行「格式化命令」清单 | **不检查 pytest 是否真的跑了**（`SEV-2219`）；不打印各门禁的扫描对象数，覆盖面不可自证 |
-| `pytest` + 逐模块覆盖率 | 单元行为 | ① 402 行的新下载模块**零引用**且自动豁免覆盖率门禁（`MID-2259`）；② 8 个平台的解析结果与流层取值之间的**接缝**无测试（`SEV-2201`）；③ 覆盖率表只列 6 个模块且**无回归锁**（`MID-2261`） |
+| `run_gates.py` 自身 | 逐字执行「格式化命令」清单 | **不检查 pytest 是否真的跑了**（`SEV-2219`）；不打印各检查的扫描对象数，覆盖面不可自证 |
+| `pytest` + 逐模块覆盖率 | 单元行为 | ① 402 行的新下载模块**零引用**且自动豁免覆盖率检查（`MID-2259`）；② 8 个平台的解析结果与流层取值之间的**接缝**无测试（`SEV-2201`）；③ 覆盖率表只列 6 个模块且**无回归锁**（`MID-2261`） |
 | `basedpyright`（本地补充，CI 不跑） | 未绑定、可能为假、冗余 ignore | 与 mypy 同受 `cast` 遮蔽；且不在 CI 回路，漂移只在本地可见 |
 | CI 新增的两条「warnings summary 即失败」 | 告警出现但 rc=0 | 该步自身的失败（`|| true` + `2>/dev/null`）——见 `SEV-2219` |
 | 前端 `.mjs` 行为锁 | 面板 DOM 行为 | **在 CI 上可能整体 skip 而与 pass 不可区分**（`MID-2264`）；掩码用例只断言调用形状（`SEV-2210`） |
 
-3. **「测试自实现被测逻辑」仍存在活违例**：`tests/test_concurrency.py` 是本仓明令禁止形态的当前实例（`SEV-2222`），且其取代者 `test_concurrency_rate_limit.py` 已存在——即该文件是「被取代后遗留却仍在计数」。卫生门禁 R1/R2/R3 有双向见证（值得肯定），但对字符串形态 patch 与「测试内定义同名锁/限流」两条规则**不判**（`SEV-2225`）。
+3. **「测试自实现被测逻辑」仍存在活违例**：`tests/test_concurrency.py` 是本仓明令禁止形态的当前实例（`SEV-2222`），且其取代者 `test_concurrency_rate_limit.py` 已存在——即该文件是「被取代后遗留却仍在计数」。卫生检查 R1/R2/R3 有双向见证（值得肯定），但对字符串形态 patch 与「测试内定义同名锁/限流」两条规则**不判**（`SEV-2225`）。
 4. **值得保留并推广的做法**（本轮实测确认有效）：`test_run_gates.py` 的正反两例 + 真实子进程驱动；`test_ffmpeg_reconnect_args.py` 与 `test_record_container.py` 的 AST 语义锁 + 命中数见证；`test_spider_hardening.py` 的双向棘轮（`BARE_JSON_LOADS_CEILING` 与「`_safe_loads` 内仍有 `json.loads`」）；`test_concurrency_rate_limit.py` 只打桩网络层、驱动真实限流与去重；`test_ffmpeg_path_preference.py` 的 9 格判据矩阵（每条「不让位」判据都配「只缺它」的格子）；`test_srt_writer.py` 的真实 `-->` 注入断言。**这些是 6.3 那 21 条锁应当长成的样子，直接照抄即可。**
 5. **本轮的一个方法论提醒**：某分组在其「已核实不构成问题」清单中，按 `main.py:991` 的注释把 `SEV-N01` 判为已修，而主会话读回源码后推翻（`SEV-2208`）。**修复类注释不可作为回归判据**，只可作为线索。
 
@@ -1078,7 +1078,7 @@ def _candidate_urls(arch: str) -> list[str]:
 
 ## 十、总结性结论
 
-1. **架构层面未见劣化，缺陷集中在「接缝」与「自证」两处**。`AGENTS.md` 沉淀的并发模型、探针语义、四类单一定义点、发布链钉定、门禁 UTF-8 覆盖在代码中逐条成立（第九章 24 组）。本轮 28 项严重没有一项是「设计错」，但其中 **12 项是「验证体系以为已经管住、实际管不到」**——这是本仓当前最主要的风险形态。
+1. **架构层面未见劣化，缺陷集中在「接缝」与「自证」两处**。`AGENTS.md` 沉淀的并发模型、探针语义、四类单一定义点、发布链钉定、检查 UTF-8 覆盖在代码中逐条成立（第九章 24 组）。本轮 28 项严重没有一项是「设计错」，但其中 **12 项是「验证体系以为已经管住、实际管不到」**——这是本仓当前最主要的风险形态。
 2. **最高优先级是三件事**：① `SEV-2201`（8 个以上平台目前在播也永远录不上，且写入侧契约被测试钉死，必须改读取侧）；② `SEV-2202`（主播名含 `%` 时开分段录制 100% 失败，并把健康线路推进退避与熔断，本机 ffmpeg 已复现）；③ `SEV-2216`（`h2`/`socksio` 缺失时全部平台解析静默失败，且 `AGENTS.md` 自己的 venv 恢复命令就会造出该状态——本工作区当前正处于这一状态）。三者都会以「主播没开播 / 网络异常」的假象掩盖，用户与日志都看不出根因。
 3. **安全侧必须优先处置的六项**：`SEV-2210`（脱敏黑名单被 camelCase 绕过，斗鱼完整拉流直链与嗨秀私有凭据长期落盘）、`SEV-2211`（面板每次写配置都把 `config.ini` 权限退回 umask）、`SEV-2212`（邮件推送的 TLS 完全不校验服务器证书，授权码可被 MITM）、`SEV-2213`（本地打包把真实凭据复制进对外 zip）、`SEV-2214`/`SEV-2215`（两条「响应决定目标主机 + 携带用户凭据」的外泄链）。共同点是**上一轮为「房间 URL」建立的收口口径没有覆盖到「响应派生地址」与「写盘/打包面」**——建议按 6.2 第 3、4 条把「可达的下载/执行面/外发面」登记成单一事实源。
 4. **`SEV-N06` 三轮未闭环，且本轮在其同族又发现新实例（`MID-2253`）**。它不是「难修」，而是「需要先定义一个跨模块的机器可读契约」（6.4 第 4 条）。建议本轮起把它从「代码待办」提升为「约定先行」：`AGENTS.md` 定义前缀/字段协议 → `recorder_status.py`/`main.py`/`gui.py`/`web/app.js` 同批改 → 补锁。若继续留在「已知未修」清单里，下一轮审查还会再报一次。

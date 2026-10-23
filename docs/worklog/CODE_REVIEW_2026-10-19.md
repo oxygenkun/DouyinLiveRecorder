@@ -311,7 +311,7 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 
 ### 5.8 脚本与构建（4 项）
 
-**M-41 `build_exe.py:1996`｜逻辑错误（门禁假绿）**
+**M-41 `build_exe.py:1996`｜逻辑错误（检查假绿）**
 `if expect_alive and not still_running and proc.returncode not in (0, None):` —— `expect_alive=True` 只在"进程非 0 退出"时才报错；进程**提前以 rc=0 退出**时同样判通过并打印"通过 ✅"。而 `smoke_cli()`（`:2002-2009`）的语义是"跑满 25s 进入监控循环"，若 CLI 因配置为空、URL 全注释而秒退 0，冒烟仍报绿。影响：三入口冒烟对"应用根本没起来"这一最严重形态完全失明，参数名与实际判据不符。修复：把"仍存活"本身作为判据，rc=0 早退单独归类为"未进入主循环"。
 
 **M-42 `build_exe.py:1380-1405`、`:1604-1658`｜资源泄漏 / 分发污染**
@@ -329,10 +329,10 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 `patch("<被测模块>.<stdlib>.<属性>")` 这类**深路径**替身，`mock` 的 `_get_target` 会解析出中间那个 stdlib 模块对象并把属性写在其**本体**上。已抽查确认 `test_stream_select.py:843` 为 `patch("src.stream_select.httpx.Client", cls), patch("src.stream_select.time.sleep")`。影响：替身生效窗口内全进程所有 `time.sleep`/`asyncio.sleep`/`urllib.request.urlopen` 调用方都被换成 Mock——loguru enqueue 线程、conftest 守护线程、其它并发用例的协程都会吃到假实现（`time.sleep` 变成立刻返回的 Mock 可引发忙等）。R1 的文件头注释自己承认这是缺口（"已知未覆盖面…不覆盖 ≠ 合规"），数量已从 11 涨到 20。修复：按既定范式改浅拷贝 shim（`test_cookie_cache.py:66` 的 `fake_clock` 是现成样本），并给 R1 补"中间段命中 stdlib"的判据。
 
 **M-46 6 个测试文件全文｜空测试文件（收集 0 条，断言永不执行）**
-`tests/test_bili_live_collector.py`、`test_douyin_live_collector.py`、`test_douyu_live_collector.py`、`test_huya_live_collector.py`、`test_douyu_danmaku.py`、`test_douyu_stream_url.py` 无任何 `test_` 函数。影响：R9 用 `_R9_ZERO_COLLECTION_SANCTIONED` 白名单登记了它们，门禁是绿的——但这只是把缺陷写进白名单：R9 自己在条目里写明"改造为离线收集型用例…不得长期赖在本表"。文件里的真机断言（token/WS 握手/STT 编解码/SRT 落盘）永不自动执行，可无限腐烂。修复：按 `tests/test_bilibili_danmaku.py` 的形态改造（保留 `_xxx()` 断言主体 + `main()` 手动通道，再补离线收集型 `test_xxx(tmp_path)` 入口），每改好一个从白名单删一行。
+`tests/test_bili_live_collector.py`、`test_douyin_live_collector.py`、`test_douyu_live_collector.py`、`test_huya_live_collector.py`、`test_douyu_danmaku.py`、`test_douyu_stream_url.py` 无任何 `test_` 函数。影响：R9 用 `_R9_ZERO_COLLECTION_SANCTIONED` 白名单登记了它们，检查是绿的——但这只是把缺陷写进白名单：R9 自己在条目里写明"改造为离线收集型用例…不得长期赖在本表"。文件里的真机断言（token/WS 握手/STT 编解码/SRT 落盘）永不自动执行，可无限腐烂。修复：按 `tests/test_bilibili_danmaku.py` 的形态改造（保留 `_xxx()` 断言主体 + `main()` 手动通道，再补离线收集型 `test_xxx(tmp_path)` 入口），每改好一个从白名单删一行。
 
 **M-47 `tests/test_node_install.py:312`、`:334`｜状态泄漏（改写 stdlib `platform` 本体）**
-`monkeypatch.setattr(node_install.platform, "machine", lambda: "ARM64")` —— `node_install.platform` 就是 stdlib `platform` 模块对象，不在 R1 的 `_MUTABLE_MODULE_NAMES` 里故门禁不拦（与已按 MT-13 修成 shim 的 `test_web_tray.py:150` 同形，这两处漏改）。修复：改为替换 `node_install` 命名空间内的 `platform` 引用（shim）。
+`monkeypatch.setattr(node_install.platform, "machine", lambda: "ARM64")` —— `node_install.platform` 就是 stdlib `platform` 模块对象，不在 R1 的 `_MUTABLE_MODULE_NAMES` 里故检查不拦（与已按 MT-13 修成 shim 的 `test_web_tray.py:150` 同形，这两处漏改）。修复：改为替换 `node_install` 命名空间内的 `platform` 引用（shim）。
 
 **M-48 `tests/test_regression_2026_09_22_gates.py:479`｜安全锁条件跳过**
 `test_config_sanitizer_removes_every_sensitive_value`（SEV-2213 主锁：真实凭据不得被整目录复制）在 `config/config.ini` 不存在时 `pytest.skip`。已核实该文件当前被 git 跟踪（不会触发），但一旦有人误删，这条主锁会**静默跳过而非判红**。修复：把 skip 换成 `pytest.fail`，或在文件缺失时回落到合成样本走完同一判据。
@@ -447,7 +447,7 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 | LT-09 | `test_spider_hardening.py:198` | 覆盖面 | 基类按 `silent_body is None` 跳过会悄悄缩小平台覆盖面；统计实际跳过数量并在报告显式化 |
 | LT-10 | 43 处 skip（26 命令式 + 17 `skipif`），`xfail` 0 | 登记 | 全部带环境理由、无长期挂起；仅作登记，不需处理 |
 | LT-11 | `test_regression_2026_09_22_spider.py:586`、`test_regression_2026_09_22_utils.py:289`、`test_regression_2026_09_22_infra.py:213` | 补丁路径 | 三处直改 stdlib 本体（`asyncio.sleep`、`msg_push.smtplib`、`os.rename`）；改 shim 浅拷贝 |
-| LT-12 | `test_cookie_cache.py:248/259`、`test_async_http_lock.py:62/133`、`test_async_http.py:140`、`test_concurrency*.py` 等 | 登记 | join 未校验已根治（44 处 join 全配 `assert not t.is_alive()`，R10 门禁 + 文件内注释双保险）；仅登记确认 |
+| LT-12 | `test_cookie_cache.py:248/259`、`test_async_http_lock.py:62/133`、`test_async_http.py:140`、`test_concurrency*.py` 等 | 登记 | join 未校验已根治（44 处 join 全配 `assert not t.is_alive()`，R10 检查 + 文件内注释双保险）；仅登记确认 |
 
 ---
 
@@ -502,7 +502,7 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 9. **凭据泄露口径**：M-02（Cookie 进命令行）、M-27（推送异常未脱敏）、M-39（liveme 密钥打 stdout）、L-52/L-53（异常文本未过码）——建议新增一条全局检查：所有日志与 print 的异常插值必须过 `mask_credentials`。
 10. **GUI 生命周期**：M-33、M-34、L-66——补"停止异常注入"与"退出流程后事件循环返回"两组离屏回归用例。
 11. **前端一致性与资源**：M-37（第四条按需链代次）、M-38（大文件 blob）、M-40（CSP/TLS）、L-71（动效无兜底）。
-12. **门禁可信度**：M-41（冒烟假绿）、M-42（残留进分发 zip）、M-43（smoke_test 形态校验）。
+12. **检查可信度**：M-41（冒烟假绿）、M-42（残留进分发 zip）、M-43（smoke_test 形态校验）。
 13. **测试有效性**：M-45（20 处深路径 stdlib 改写，数量在扩散）、M-46（6 个 0 收集文件）、M-48（安全锁条件 skip）。
 
 ### P2（后续迭代按需消化）
@@ -513,9 +513,9 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 ### 机制性建议
 
 - **把"防线声明"与"防线实现"绑定**：本轮 S-01、M-16、M-41 三处的共同点是"文件头声明的覆盖面 > 实现覆盖面"。建议对每条守卫（命令守卫、响应体上限、冒烟判据）在注释里写明"已知未覆盖形态"清单，并由一条用例反向验证该清单（即：清单里的形态必须真的被拦住/被拒绝）。
-- **新增"变形语料"门禁**：`scripts/agent_hook_guard.py` 的 `run_self_test()` 应含不少于 10 条变形语料（引号、尾随空格、参数分写、别名、PowerShell 形态），否则守卫强度无法随维护迭代保持。
+- **新增"变形语料"检查**：`scripts/agent_hook_guard.py` 的 `run_self_test()` 应含不少于 10 条变形语料（引号、尾随空格、参数分写、别名、PowerShell 形态），否则守卫强度无法随维护迭代保持。
 - **上限类修复必须附实测读数**：建议在回归锁中记录 `tracemalloc` 峰值（如"200MB 炸弹 → 峰值 ≤ 2×上限"），避免"设了上限但强度不足"被当成已修复。
-- **测试卫生门禁补两条**：R1 增加"深路径中间段命中 stdlib"判据（对应 M-45）；新增"收集数为 0 的测试文件必须有已登记排期"（对应 M-46，当前白名单只能防赖着不走，不能推动改造）。
+- **测试卫生检查补两条**：R1 增加"深路径中间段命中 stdlib"判据（对应 M-45）；新增"收集数为 0 的测试文件必须有已登记排期"（对应 M-46，当前白名单只能防赖着不走，不能推动改造）。
 
 ---
 
@@ -531,7 +531,7 @@ Windows 官方源在"取不到官方 `.sha256` 文档"时**无条件退回 TOFU 
 
 **（3）声明与实现的落差是最高杠杆的治理点。** S-01、M-16、M-41、M-43 四处都是"文件头写了覆盖面、代码只覆盖一部分"，且都在最需要报警的时刻失效。建议把"已知未覆盖形态"显式写进守卫注释并用反向用例钉住，这比逐条修补更能防止同类问题回潮。
 
-建议按第 8 节优先级推进：P0 五项均为"低成本、高确定性收益"的修复（其中 S-01/S-03/S-05 各为单点改动，S-02/S-04 需各配两条回归锁）；P1 建议按"内存上限 → 供应链校验 → 写路径返回值 → 凭据泄露口径 → GUI 生命周期 → 测试有效性"六个专项集中治理；P2 随迭代消化。修复完成后建议针对本报告所列各项补充回归测试，并将第 8 节的机制性建议固化为长期门禁。
+建议按第 8 节优先级推进：P0 五项均为"低成本、高确定性收益"的修复（其中 S-01/S-03/S-05 各为单点改动，S-02/S-04 需各配两条回归锁）；P1 建议按"内存上限 → 供应链校验 → 写路径返回值 → 凭据泄露口径 → GUI 生命周期 → 测试有效性"六个专项集中治理；P2 随迭代消化。修复完成后建议针对本报告所列各项补充回归测试，并将第 8 节的机制性建议固化为长期检查。
 
 ---
 

@@ -1,4 +1,4 @@
-# 版本一致性门禁（CI 可调用）。
+# 版本一致性检查（CI 可调用）。
 #
 # 单一事实源 = pyproject.toml 的 version 字段。各消费方一律**动态读取**，所以本脚本查的不是
 # 「各处版本号字符串是否相等」，而是「动态化是否还在、有没有人重新写死」：
@@ -11,7 +11,7 @@
 #   - i18n/zh_CN.po   不再携带版本号
 # README.md / CODE_WIKI.md 是文档、版本由人工维护，刻意不在校验范围内。
 # 退出码：0 一致；1 任一消费方写死/消失；2 连基准都取不到（pyproject.toml 无 version 字段）
-#         ——「门禁没有可判定的数据」，与 run_gates.py 同口径，不得与「代码不合格」混为一谈。
+#         ——「检查没有可判定的数据」，与 run_gates.py 同口径，不得与「代码不合格」混为一谈。
 #
 
 import re
@@ -71,7 +71,7 @@ def check_dockerfile_arg_order() -> str | None:
     # 若 LABEL version="${APP_VERSION}" 写在 `ARG APP_VERSION` 之前，构建期该变量尚未声明，
     # 标签会被固化成空串——`--build-arg APP_VERSION=4.3.0` 看着成功、实际毫无效果。
     # 而上面的 extract_dockerfile_version() 只正则匹配「有没有 version="${APP_VERSION}" 这个字面」，
-    # 顺序颠倒时它照样判 DYNAMIC，即门禁对这一整类失效**永久失明**。
+    # 顺序颠倒时它照样判 DYNAMIC，即检查对这一整类失效**永久失明**。
     # 多行续写（行尾 `\`）要回溯到指令起始行：ARG 写在 LABEL 的续写行之间同样是错的，
     # 因为该指令在第一行就已经开始求值。
     lines = (ROOT / "Dockerfile").read_text(encoding="utf-8").splitlines()
@@ -138,7 +138,7 @@ def extract_po_version() -> str | None:
     #   None       -> 未携带版本号（正确）
     po_path = ROOT / "i18n" / "zh_CN" / "LC_MESSAGES" / "zh_CN.po"
     if not po_path.exists():
-        # 文件缺席也返回 None，但**不**是「查不到就算通过」：同一条缺失会被门禁块里的
+        # 文件缺席也返回 None，但**不**是「查不到就算通过」：同一条缺失会被检查块里的
         # scripts/compile_po.py 以 rc=2 拦下（它找不到 PO_PATH），不必在这里重复报一份。
         return None
     text = po_path.read_text(encoding="utf-8")
@@ -160,7 +160,7 @@ def main() -> int:
         print("  [OK]   Dockerfile: 版本号经 APP_VERSION 构建参数从 pyproject.toml 动态注入")
     elif docker_status is None:
         # MIN-2262（2026-09-23）：None 原样打印 [OK] 属「检查对象消失即通过」——把
-        # `LABEL version=...` 整块删掉是本项最省事的破坏方式，删完门禁反而更绿。
+        # `LABEL version=...` 整块删掉是本项最省事的破坏方式，删完检查反而更绿。
         # 与 scripts/sync_version.py::check_all 的「先判命中再判等」同构：未命中一律判失败。
         errors.append("  [FAIL] Dockerfile: 未找到任何 version 标签（检查对象消失，不得当作通过）")
     else:

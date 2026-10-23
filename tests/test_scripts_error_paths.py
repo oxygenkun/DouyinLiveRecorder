@@ -196,7 +196,7 @@ class TestSyncMetadataUvDegradation:
         assert fake.calls[-1] == ("call", fake.egg_calls()[0])
 
     def test_check_path_spawns_no_subprocess(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        # --check 是 CI static job 的门禁：纯读三张文件，**绝不允许**调 subprocess / 联网。
+        # --check 是 CI static job 的检查：纯读三张文件，**绝不允许**调 subprocess / 联网。
         # 本用例把子进程入口全换成 tripwire，任何一次调用都会当场红（M-32① 的修复把 which
         # 引入 regenerate 一侧，这里锁住它没有被 --check 路径顺带牵进来）。
         def boom(*args: Any, **kwargs: Any) -> Any:
@@ -335,11 +335,11 @@ def _spawn_smoke_child(cfg_path: Path) -> subprocess.CompletedProcess[bytes] | N
     # 「起不来」刻意用 Optional 返回值交调用方 skip，而不是在辅助函数里直接 pytest.skip：
     # 按 AGENTS.md 口径辅助函数的终态不依赖 pytest 的 NoReturn 可见性（CI typecheck job
     # 装不装 pytest 结论都该一致），可省形态也免掉「不可达语句」那类二次告警。
-    # 走 skip 的边界（不是放宽门禁）：
+    # 走 skip 的边界（不是放宽检查）：
     #   · 被跳过的只有「进程边界」这一层；rc=2 + 无崩溃栈的判定在进程内由
     #     test_main_exits_two_without_traceback 全量覆盖（SystemExit.code 即退出码），
     #     故本机跳这条不会让任何一条畸形形态失去用例。
-    #   · CI（ubuntu runner）能稳定起子进程，本条在门禁面上恒为真实执行，不存在
+    #   · CI（ubuntu runner）能稳定起子进程，本条在检查面上恒为真实执行，不存在
     #     「靠 skip 让 CI 少跑一段平台分支」的那种静默失效（AGENTS.md 反对的是那一类）。
     #   · skip reason 会出现在 `-rs`/汇总里，本机不会形成「全绿但其实没跑」的错觉。
     # 具体异常类型（FileExistsError 之外的 OSError 家族，实测为 PermissionError 型拦截与

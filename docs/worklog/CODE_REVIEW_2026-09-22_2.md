@@ -5,14 +5,14 @@
 | 文档编号 | CODE_REVIEW_2026-09-22_3 |
 | 生成时间 | 2026-09-23（本文件为**最终结论**，取代 `_1.md` 的「进展快照」定位） |
 | 核对对象 | `CODE_REVIEW_2026-09-22.md`（161 项：严重 28 / 中等 65 / 轻微 68）× `CODE_REVIEW_2026-09-22_1.md`（进展快照）× **当前工作树源码** |
-| 核对方式 | 12 个按文件所有权切分的只读核查代理逐条回源 + 主会话对**争议项与全部「不成立」结论**独立复测 + 分组修复代理落地 + 门禁/测试实测 |
-| 判定口径 | 只有「代码已落实 **且** 有能因该修复被破坏而变红的锁 **且** 门禁全绿」才记 `已修复`；代理汇报一律不作为事实，需主会话复测 |
+| 核对方式 | 12 个按文件所有权切分的只读核查代理逐条回源 + 主会话对**争议项与全部「不成立」结论**独立复测 + 分组修复代理落地 + 检查/测试实测 |
+| 判定口径 | 只有「代码已落实 **且** 有能因该修复被破坏而变红的锁 **且** 检查全绿」才记 `已修复`；代理汇报一律不作为事实，需主会话复测 |
 
 ---
 
 ## 一、总体结论
 
-**本轮 161 项中，绝大多数已落地；剩余缺口全部集中在两类**：① 需维护者决策的供应链/覆盖率长期问题（已给取证与选项）；② 历史低覆盖率模块在新门禁下暴露的测试债（非本轮引入，但被本轮的第一条严格规则照出来）。
+**本轮 161 项中，绝大多数已落地；剩余缺口全部集中在两类**：① 需维护者决策的供应链/覆盖率长期问题（已给取证与选项）；② 历史低覆盖率模块在新检查下暴露的测试债（非本轮引入，但被本轮的第一条严格规则照出来）。
 
 ### 1.1 必须先记录的三个元问题
 
@@ -26,7 +26,7 @@
 | --- | --- | --- | --- |
 | **SEV-2206 的修复本身是 P0 缺陷** | `main.py` 把磁盘判据 `if disk_free_gb < disk_space_limit:` **整条删掉**，只剩 `if not disk_limited:` → 主循环**第一轮必进**该分支，置 `exit_recording=True`，而启动瞬间 `recording` 为空即 `sys.exit(-1)`：**任何磁盘空间下程序都在启动首轮自行退出** | 上一轮加 `disk_limited` 时误删进入条件；`tests/` 内 `disk_limited`/`disk_space_limit` 零引用，无锁可拦 | 本会话恢复进入条件、补 `test_disk_limited_is_recoverable` 并**额外锁住「进入条件仍在位」**（见 §2） |
 | MID-2250 连带断线 | `gui.py:_danmaku_tail_loop` 新增必填形参 `stop_event`，而 `tests/test_danmaku_monitor.py:523` 仍按旧签名只传 `stub` → 线程起即 `TypeError`，1 条用例红 | 跨文件签名改动未同步调用点 | 本会话修正测试接线（19 passed） |
-| 门禁红点来自残留临时脚本 | `check_annotations.py` 判红：根目录 `_probe_g.py` 注释密度 4.3% < 13% | 上一轮收尾未删 | 按 `AGENTS.md` 收尾约定删除（本会话收尾清单见 §6） |
+| 检查红点来自残留临时脚本 | `check_annotations.py` 判红：根目录 `_probe_g.py` 注释密度 4.3% < 13% | 上一轮收尾未删 | 按 `AGENTS.md` 收尾约定删除（本会话收尾清单见 §6） |
 
 ### 1.3 完成度计数（截至本文件生成）
 
@@ -36,7 +36,7 @@
 | 中等（MID） | 65 | 62 | 1（`MID-2235` 原形态前提经实测不成立，已按真实缺陷修：画质前缀房间删不掉） | 2（`MID-2241` 后端复验在途、`MID-2253` gui 侧待 `#DLRQ` 契约） |
 | 轻微（MIN） | 68 | 66 | 1（`MIN-2255` 报告的 typings 缺失方向经复核成立，已按其实修） | 1（`MIN-2268` git 损坏，须用户处置） |
 
-> 数字按 §2–§4 逐行状态汇总，并已计入 2026-09-23 下午的三项收口（用例污染根因修复 + R6 门禁、覆盖率分层白名单、中英日志）。
+> 数字按 §2–§4 逐行状态汇总，并已计入 2026-09-23 下午的三项收口（用例污染根因修复 + R6 检查、覆盖率分层白名单、中英日志）。
 > 与 `_1.md` 的计数差异全部来自**按内容重判**：快照登记的「已修复确认」中有 14 项实为其条目未做（编号错位所致，见 §1.1-2）。
 
 ---
@@ -140,9 +140,9 @@
 | MID-2256 | `scripts/check_annotations.py` | 已修复 | `EXCLUDE_DIRS` 补齐到与 pyproject/coverage 同源，加跨文件键集对比锁（防 `check_dangling_symbols` 漏报被削弱） |
 | MID-2257 | `scripts/douyin_live_recorder_standalone.py` | 已修复 | `PlatformBreaker` 已回灌为与 `src/scheduler.py` **完全等价**：`_samples` 改 `deque(maxlen=40)`、新增 `deque`/`threading` import、`__init__` 增 `_probing/_probe_owner/_probe_seq`、half-open 加 `_grant_probe` 门控、record 首行 `_end_probe`、补 `_grant_probe/_end_probe/error_rate/backoff_seconds`；两侧注释互相点名。剩余不等价点已写入 `AGENTS.md`（本会话按实测更新，方法数不写死） |
 | MID-2258 | `src/log_archive.py:91-152` | 已修复 | 重开失败回退 `os.devnull` 并照常 `rebind_console_sink()`，`_web_console_rebind_pending` 支持下轮重试；断言后续 `print()` 不抛 |
-| MID-2259 | `scripts/check_coverage.py` + master 模块测试 | 部分修复 | 覆盖率门禁已改为「扫描 `src/` 全部模块 + 全局下限 + 显式豁免清单（仅 1 条：protoc 桩）」。代价是**照出 26 个历史低覆盖模块**（含 `src/video_postprocess.py` 0%）——这是 MID-2259 要的真相而非新缺陷，见 §7-2 |
+| MID-2259 | `scripts/check_coverage.py` + master 模块测试 | 部分修复 | 覆盖率检查已改为「扫描 `src/` 全部模块 + 全局下限 + 显式豁免清单（仅 1 条：protoc 桩）」。代价是**照出 26 个历史低覆盖模块**（含 `src/video_postprocess.py` 0%）——这是 MID-2259 要的真相而非新缺陷，见 §7-2 |
 | MID-2260 | `tests/test_check_runtime_pins.py` | 已修复 | 补不套 fixture 的真解析用例（三平台 / 未登记标签 / 无 `- os:`）+ 「真 workflow 解析 == `_MATRIX_KEYS`」同源锁 |
-| MID-2261 | `tests/test_check_coverage.py` | 已修复 | 新建该门禁的回归锁（rc=0/1/2 三类 + 新鲜度）；**本会话另派修其「同一用例两次 `_main()`」竞态**（首轮假失败 4 条） |
+| MID-2261 | `tests/test_check_coverage.py` | 已修复 | 新建该检查的回归锁（rc=0/1/2 三类 + 新鲜度）；**本会话另派修其「同一用例两次 `_main()`」竞态**（首轮假失败 4 条） |
 | MID-2262 | `tests/test_decorator_contract.py` | 已修复 | 加命中数见证（`n_decorated >= 40` / `len(files) > 100`），`except` 改为记入 `unscanned` 后断言为空 |
 | MID-2263 | `tests/frontend/test_quality_ui.mjs` | 已修复 | 由包装层把 `TRUE_TOKENS/FALSE_TOKENS` 传给 node 与 `CONFIG_*_TOKENS` 做集合相等双向断言 + 行为级同布尔锁 |
 | MID-2264 | `.github/workflows/ci.yml` | 已修复 | `test` job 补 `setup-node@v7`（与 `node_version` 同源）+ 断言前端锁未被 skip |
@@ -265,11 +265,11 @@
 
 ## 六、验证读数（Definition of Done）
 
-### 6.1 门禁与测试
+### 6.1 检查与测试
 
-### 6.1 门禁与测试（2026-09-23 收尾读数；**读数不收敛，本报告不宣布完成**）
+### 6.1 检查与测试（2026-09-23 收尾读数；**读数不收敛，本报告不宣布完成**）
 
-**关键事实**：本会话派出的修复代理**仍在并发写入**（Web 认证测试对齐、i18n 中央合并、`test_concurrency` 真实现改造三个任务未终结），因此门禁读数在几分钟内自行变化。**任何单次读数都不是终态**，以下两次实录仅作为趋势证据：
+**关键事实**：本会话派出的修复代理**仍在并发写入**（Web 认证测试对齐、i18n 中央合并、`test_concurrency` 真实现改造三个任务未终结），因此检查读数在几分钟内自行变化。**任何单次读数都不是终态**，以下两次实录仅作为趋势证据：
 
 | 时刻 | `run_gates.py --keep-going` | 备注 |
 | --- | --- | --- |
@@ -283,7 +283,7 @@
 | `python scripts/compile_po.py --check` | `OK: zh_CN.mo 与 .po 同步（663 条）`——四语目录**未被半写**，中央合并尚未落盘 |
 | `python scripts/check_version.py` | **PASS**（含本会话改的「检查对象消失即失败」两处分支） |
 | `python scripts/check_runtime_pins.py` | **PASS**（2 矩阵内 + 2 矩阵外槽位仍占位，按设计本地放行、`--strict` 拦发布） |
-| `pytest tests/test_check_coverage.py tests/test_test_hygiene.py` | **347 passed**（覆盖率门禁与测试卫生锁均有效） |
+| `pytest tests/test_check_coverage.py tests/test_test_hygiene.py` | **347 passed**（覆盖率检查与测试卫生锁均有效） |
 | `pytest tests/test_i18n.py` / `test_ffmpeg_install.py` / `test_regression_2026_09_22_main.py` / `test_danmaku_monitor.py` | 39 / 108 / 62 / 19 passed（各自单文件独立跑，0 警告） |
 | `pytest tests/test_web_api.py` / `tests/test_regression_2026_09_22_web_g.py` | **163 passed + 40 passed，0 警告**（各自单文件独立两次）。中途读数曾是 263 passed/**10 failed**——那 10 条经复测确认是**既有测试仍按旧语义**（MID-2241 后端强制复验实现正确，日志 `auth_reauth_denied`），已为每条补「无复验 → 403 且配置字节不变」的 deny 锁后转绿 |
 | `node --test tests/frontend/test_regression_2026_09_22_gates.mjs` | **32 tests / 30 pass / 2 fail**（见 §7-9） |
@@ -306,35 +306,35 @@
 
 **i18n 中央合并结果**：`.mo` 663 → **784**、四目录键数 **783 且四向相等**（+121 条）；4 份目录逐键占位符集合比对 **0 不一致 / 0 空值**；`en_US` 与 `en_GB` 120/121 同文（唯一差异 artifact/artefact，沿用既有惯例）。合并工具幂等、dry-run 可复核，用完已按收尾约定删除。
 
-> **结论修正**：格式化/类型/目录类门禁**已全绿**，但按 `AGENTS.md`「完成定义」，全量 `pytest` 尚有 15 条污染型失败 + 覆盖率门禁按设计为红，**仍不得宣布第 1→6 步完成**。剩余动作清单见 §7-10 与 §7-11。
+> **结论修正**：格式化/类型/目录类检查**已全绿**，但按 `AGENTS.md`「完成定义」，全量 `pytest` 尚有 15 条污染型失败 + 覆盖率检查按设计为红，**仍不得宣布第 1→6 步完成**。剩余动作清单见 §7-10 与 §7-11。
 
 
 
 
 #### 6.1.1 本报告生成后（2026-09-23 下午）追加完成的三项
 
-① §7-10 的 13 条全量失败已逐条归因并修完（1 处漏 `undo()` 的跨文件补丁泄漏导致 11 条假失败 + **一次真实出站请求**、2 条断言过时），并新增卫生门禁 R6 防复发；② §7-2 的覆盖率白名单以「分层机制 + 表默认空 + 到期即失败」落地，配 11 条用例与 5 项变异验证；③ 两项变更的中英更新日志已写入 `CODE_WIKI.md` / `CODE_WIKI_EN.md` 的 `v4.3.0-dev (2026-09-23)` 条目（结构、表格、读数逐条对应）。
+① §7-10 的 13 条全量失败已逐条归因并修完（1 处漏 `undo()` 的跨文件补丁泄漏导致 11 条假失败 + **一次真实出站请求**、2 条断言过时），并新增卫生检查 R6 防复发；② §7-2 的覆盖率白名单以「分层机制 + 表默认空 + 到期即失败」落地，配 11 条用例与 5 项变异验证；③ 两项变更的中英更新日志已写入 `CODE_WIKI.md` / `CODE_WIKI_EN.md` 的 `v4.3.0-dev (2026-09-23)` 条目（结构、表格、读数逐条对应）。
 
-#### 6.1.2 最终门禁读数（2026-09-23 下午，全部在途写入停止后一次性复测）
+#### 6.1.2 最终检查读数（2026-09-23 下午，全部在途写入停止后一次性复测）
 
 | 命令 | 读数 |
 | --- | --- |
-| `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` | **门禁全绿：8 条全部通过（25.9s）** |
+| `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` | **检查全绿：8 条全部通过（25.9s）** |
 | 同上的 pytest 兜底（SEV-2219 修复后的形态） | **`[PASS] pytest 3185 passed 且 warnings summary 为空 (149.2s)`** —— 这条兜底现在既查真实 rc 又查告警，本轮它先如实报红、修完后如实报绿，即是它自身生效的证据 |
 | 全量 `pytest -q --cov=src --cov-report=json` | **3185 passed / 13 skipped / 0 failed**，总覆盖率 **83.91%**（`fail_under 50` 达成） |
 | `python scripts/check_coverage.py` | **PASSED: All 42 module(s) meet coverage threshold**（判定面 = `src/` 全部 43 个模块，1 个 protoc 桩走结构豁免） |
 | `mypy` + `mypy --platform linux` | 各 **Success: no issues found in 156 source files**（本会话从 44 处清零，零 `# type: ignore`） |
 | `black --check` / `isort --check-only` | 166/167 文件 unchanged（收尾格式化后复跑一致），`*.isorted` 残留 0 |
-| `basedpyright`（CI 不跑的本地附加门禁） | **未执行**：`basedpyright` 不在本机 PATH。不谎称通过；需要它的请在装了该工具的环境跑 `basedpyright`（无参，范围取 `pyproject [tool.basedpyright]`） |
+| `basedpyright`（CI 不跑的本地附加检查） | **未执行**：`basedpyright` 不在本机 PATH。不谎称通过；需要它的请在装了该工具的环境跑 `basedpyright`（无参，范围取 `pyproject [tool.basedpyright]`） |
 
-> **结论修正（最终）**：`AGENTS.md`「完成定义」第 1 步（本地门禁 8 条 + `pytest` 0 警告 + `check_coverage.py`）**已达成**。
+> **结论修正（最终）**：`AGENTS.md`「完成定义」第 1 步（本地检查 8 条 + `pytest` 0 警告 + `check_coverage.py`）**已达成**。
 > 第 2 步端到端真机验证仍为 `SKIP(本机无活房间)`（见 §6.2），第 4 步中「161 项修复本身」的 CODE_WIKI 条目、
 > 第 6 步的当日 memory 日志尚未补写，第 5 步收尾已核对（无 `_tmp_*` / `_out_*` / `*.isorted` 残留）。
 > 因此**仍不得宣布第 1→6 步全部完成**，缺的是文档与真机两项，不是代码。
 
 ### 6.2 端到端真机验证：**未执行**
 
-本轮改动集中在解析容错、凭据脱敏、WS/边车生命周期、门禁与测试可信度，**未触碰 URL 解析主链与 ffmpeg 参数**（唯一例外 `MIN-2230` 的 `.m3u8` 判定与 `MID-2231` 的探针 Cookie 分支，二者均有行为级锁）。按 `AGENTS.md`「完成定义」第 2 步的口径如实记：
+本轮改动集中在解析容错、凭据脱敏、WS/边车生命周期、检查与测试可信度，**未触碰 URL 解析主链与 ffmpeg 参数**（唯一例外 `MIN-2230` 的 `.m3u8` 判定与 `MID-2231` 的探针 Cookie 分支，二者均有行为级锁）。按 `AGENTS.md`「完成定义」第 2 步的口径如实记：
 
 - **状态**：`SKIP(本机无活房间 + 沙箱不宜发起外网拉流)`
 - **交回用户的动作**：在有活房间时各跑一次受影响平台的采集脚本并回填读数 ——
@@ -354,13 +354,13 @@
 ## 七、交回维护者的未决项（每项附取证）
 
 1. **SEV-2221 验签层不可达**：`build_exe.py:993/1022` 调 `_download_file` 时不传 `verify_sig`/`require_pinned`，且 `_download_file:754-759` 只在 `_is_pinned(expected)` 分支内验签，而 `:434/:441` 两个 macOS 槽位恒为 `UNVERIFIED_PIN`；`check_runtime_pins.py` 不交叉校验签名登记表与钉定表。取证：`grep -n "_is_pinned(expected)" build_exe.py`、`grep -n "UNVERIFIED_PIN" build_exe.py | head`。**根因是 4 个 macOS/Linux ffmpeg 槽位至今无官方公布值**（见 `AGENTS.md` SEV-10 条目与 `docs/agent-reference/measured-evidence.md`），需先决定「第 4 类源码构建凭证」还是「人工核对钉值」，再谈验签接线。
-2. ~~**MID-2259 覆盖率真相**~~ **已闭合并机制化（2026-09-23 下午）**：`check_coverage.py` 改扫全 `src/` 后曾照出 26 个历史低覆盖模块；本轮补测试后**实测已无一项低于下限**（43 个模块：42 达标 + 1 个 protoc 桩豁免），故**无需任何债务条目**。落地的不是「一次性放宽」而是分层机制本身：`登记阈值 > 债务基线(COVERAGE_DEBT) > 全局下限` + 豁免理由机检，且 `DEBT_CEILING = 0` 把「表必须为空」钉成事实——将来加条目必须同时上调上限并在 `AGENTS.md` 写理由。11 条新用例 + 5 项变异验证；详见 `CODE_WIKI.md` / `CODE_WIKI_EN.md` 的 v4.3.0-dev (2026-09-23)「覆盖率门禁引入分层白名单」条目。
+2. ~~**MID-2259 覆盖率真相**~~ **已闭合并机制化（2026-09-23 下午）**：`check_coverage.py` 改扫全 `src/` 后曾照出 26 个历史低覆盖模块；本轮补测试后**实测已无一项低于下限**（43 个模块：42 达标 + 1 个 protoc 桩豁免），故**无需任何债务条目**。落地的不是「一次性放宽」而是分层机制本身：`登记阈值 > 债务基线(COVERAGE_DEBT) > 全局下限` + 豁免理由机检，且 `DEBT_CEILING = 0` 把「表必须为空」钉成事实——将来加条目必须同时上调上限并在 `AGENTS.md` 写理由。11 条新用例 + 5 项变异验证；详见 `CODE_WIKI.md` / `CODE_WIKI_EN.md` 的 v4.3.0-dev (2026-09-23)「覆盖率检查引入分层白名单」条目。
 3. **MID-2253 / SEV-N06 跨进程字符串契约**：`gui.py:879/884/891/2982` 四条简中子串判定在非 `zh_CN` 语言下恒假（画质表永久「暂无」、降级告警丢失、`recording` 标记不清），第 4 轮未落地。已落地的部分是 `web.py` 的实参本地化。**剩余部分需先在 `AGENTS.md` 定机器可读前缀契约（如 `#DLRQ|`）再改 `recorder_status.py`/`main.py`/`gui.py`**，属设计决策而非缺陷修复，故未自行推进。
 4. ~~**SEV-2223 的 `tests/test_concurrency.py`**~~ **已完成，无需决策**：3 条自实现用例已改为驱动 `_douyin_rate_limit` / `get_ttwid` / `singleflight`，`xfail` 登记改硬断言，6 项变异逐条红（详见 §2 该行）。留下一条**方法论教训**：新写的「串行化」锁首版自己就是假绿（锁失效变异 3/3 漏检），**锁必须被自己的变异验证跑过才算存在**——与 `AGENTS.md` 关键约定第 12 条同源。
 5. **Web 面板在途项**：`MID-2235`（面板与录制端行解析同源 + 带画质前缀房间删不掉）、`MIN-2245`（`/api/login`、`/api/config` 缓存化 + 免鉴权端点 per-IP 预算）、`MIN-2246②`（`read_config_safe` 注释改正）。取证：`grep -n "_is_url(parts\[0\])" src/web_config.py`、`grep -n "_read_web_config_cached" src/web_api.py`。
 6. **MID-2244（twitch 行缓冲上限）/ MID-2246 之外的零星项**：以 §6.1 全量 `pytest` 与 `mypy` 读数为最终裁定依据；若某项在本文件写作「已修复」而 §6.1 未能覆盖，视为未完成。
 7. **MIN-2268 + 仓库完整性**：`.git/HEAD` 已损坏（`fatal: bad object HEAD`），本会话无法用 `git status/diff` 取证，也**未尝试修复**（属高风险操作）。请用户先修 git，再把上述 4 个未入索引文件 `git add`。在此之前，任何 `git commit -am` 都会造成「本地绿、新克隆与 CI 直接 `ModuleNotFoundError`」。
-8. **把它跑绿的唯一顺序（三步，勿并行）**：① 等在途三代理终结（Web 认证测试对齐 / i18n 中央合并 / `test_concurrency` 真实现改造）；② 再跑一次 `black .` + `isort .` 写型纠正（本会话已跑过一次，被并发写入再次打破；`find *.isorted` 实测 0 残留）；③ 最后按顺序跑 `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` → 全量 `pytest`（须 0 警告）→ `python scripts/check_coverage.py`，并把三条读数回填本文件 §6.1。**在 ① 之前重复跑门禁没有意义**——读数不收敛不是回归，是并发写入。
+8. **把它跑绿的唯一顺序（三步，勿并行）**：① 等在途三代理终结（Web 认证测试对齐 / i18n 中央合并 / `test_concurrency` 真实现改造）；② 再跑一次 `black .` + `isort .` 写型纠正（本会话已跑过一次，被并发写入再次打破；`find *.isorted` 实测 0 残留）；③ 最后按顺序跑 `PYTHONUTF8=1 python scripts/run_gates.py --keep-going` → 全量 `pytest`（须 0 警告）→ `python scripts/check_coverage.py`，并把三条读数回填本文件 §6.1。**在 ① 之前重复跑检查没有意义**——读数不收敛不是回归，是并发写入。
 9. **前端 `.mjs` 锁现存 2 条红（本会话收尾实测 `node --test tests/frontend/test_regression_2026_09_22_gates.mjs` = 32 tests / 30 pass / **2 fail**）**：其中一条已确证形态为 `actual: '/api/danmaku?since=0'` vs `expected: /since=7$/`（弹幕增量游标未随该轮 `MID-2240`/日志轮询改造一起推进）。本会话已顺手消掉另一条**自我矛盾**的红：`web_api.py:1390` 的注释原样引用了 `_read_main_loop_alive()` 这个符号名，而该 `.mjs` 用例正用 `doesNotMatch(WEB_API_PY, /_read_main_loop_alive|…/)` 断言「探针已撤下」——注释里出现名字即被打红（该用例自己的注释声明「断言的是代码引用而不是文件里出现过这个名字」，实现与声明不符）。处置取向：**改用词「主循环存活探针」避开符号名，保留锁的锋利**，不去放宽断言。剩余 1 条需在 `web/app.js` 侧决定：是补上 `since` 游标推进，还是改断言——属功能语义判断，未自行拍板。取证：`node --test tests/frontend/test_regression_2026_09_22_gates.mjs`。
 10. ~~**全量 pytest 的 15 条污染型失败**~~ **已闭合（2026-09-23 下午）**：根因不是环境，而是本轮新增的
     `tests/test_regression_2026_09_22_net.py` 里 **8 个手工 `pytest.MonkeyPatch()` 只配了 7 个 `undo()`**——
@@ -372,7 +372,7 @@
     按真实语义改写并补「必须走带上报的 fail()」断言——只断言 `closed` 会放过退回 `close()` 的实现。
     防复发：`tests/test_test_hygiene.py` 新增 R6（手工 MonkeyPatch 创建数必须 ≤ `undo()` 数）+ 双向见证，
     实测全仓无第二例。取证：`pytest tests/test_regression_2026_09_22_net.py tests/test_sync_http.py -q`。
-11. **两处人工收尾（门禁拦不住）**：① i18n 合并后遗留 **9 条孤儿 msgid**（`…错误信息:{e}` 7 条 + `[web] 清理 ffmpeg 进程失败: {e}` + `[web] 清理 HTTP 连接池失败: {e}`），需从四目录删除并重编 `.mo`；② `gui.py:762/887/2035/2059/2526/2786` **6 处 f-string messagebox 正文**（`messagebox` 不在提取器扫描面内，见 `AGENTS.md` 第 14 条），需登记四目录后改 `tr()`。另 MID-2253 的 gui 侧已实测确认**无法只做局部改写**：`没有正在录制` 不是任何一门目录的键，套 `tr()` 也无效，必须先定 `#DLRQ|` 契约并同改 `recorder_status.py`/`main.py`/`gui.py`（§7-3）。
+11. **两处人工收尾（检查拦不住）**：① i18n 合并后遗留 **9 条孤儿 msgid**（`…错误信息:{e}` 7 条 + `[web] 清理 ffmpeg 进程失败: {e}` + `[web] 清理 HTTP 连接池失败: {e}`），需从四目录删除并重编 `.mo`；② `gui.py:762/887/2035/2059/2526/2786` **6 处 f-string messagebox 正文**（`messagebox` 不在提取器扫描面内，见 `AGENTS.md` 第 14 条），需登记四目录后改 `tr()`。另 MID-2253 的 gui 侧已实测确认**无法只做局部改写**：`没有正在录制` 不是任何一门目录的键，套 `tr()` 也无效，必须先定 `#DLRQ|` 契约并同改 `recorder_status.py`/`main.py`/`gui.py`（§7-3）。
 
 
 ---
@@ -381,4 +381,4 @@
 
 1. **两份文档的交叉比对结论**：`_1.md` 的进度自述**方向正确但数字不可信**——它按偏移后的编号登记条目，且「E 组已全盘完成」掩盖了 `src/spider.py` 的 14 项、`main.py` 的 9 条注释声称了并不存在的锁。本文件按内容重新判定，已把上述缺口全部落地或明确列为未决。
 2. **修复完成度**：161 项中，代码已落实并有真实锁的约占 **九成**；其余分为「需维护者决策」（供应链、覆盖率测试债、跨进程契约）与「环境受限」（git 损坏、无活房间）两类，全部在 §6.2/§7 逐条注明取证命令与交回动作。
-3. **本轮最重要的单条结论**：上一轮自称「已修复确认」的 `SEV-2206` 实际把磁盘判据整条删除，导致**程序在启动首轮自行退出**，而 `tests/` 内对该变量零引用、门禁 8/8 全绿。这不是又一个 bug，而是「修复被记为已验证、但没有任何锁」这一流程缺陷的必然产物——`AGENTS.md` 关键约定第 12 条（修复类注释必须附可复核判据）即为针对它设立的门禁。
+3. **本轮最重要的单条结论**：上一轮自称「已修复确认」的 `SEV-2206` 实际把磁盘判据整条删除，导致**程序在启动首轮自行退出**，而 `tests/` 内对该变量零引用、检查 8/8 全绿。这不是又一个 bug，而是「修复被记为已验证、但没有任何锁」这一流程缺陷的必然产物——`AGENTS.md` 关键约定第 12 条（修复类注释必须附可复核判据）即为针对它设立的检查。

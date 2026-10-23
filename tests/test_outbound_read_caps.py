@@ -1,4 +1,4 @@
-# 常驻门禁：出站响应体读取必须落在「已登记且带上限」的函数里（CODE_REVIEW_2026-10-18 §7.11 第①条）。
+# 常驻检查：出站响应体读取必须落在「已登记且带上限」的函数里（CODE_REVIEW_2026-10-18 §7.11 第①条）。
 #
 # 立规背景：该轮审查一次性报出三条同形态缺陷——M-03（sync_http 的 400 分支全量 `e.read()`）、
 # M-04（async_http 主请求路径非流式全量读 + httpx 自动解压无上限，压缩炸弹可直接打爆内存）、
@@ -139,7 +139,7 @@ def test_httpx_read_sites_match_the_registered_ledger(files: list[Path]) -> None
 
 def test_ledger_is_not_a_vacuous_empty_table() -> None:
     # 反向见证：扫描面必须真的看到 async_http 与 stream_select 两个受管读点，
-    # 否则「集合相等」在两边都空时也成立——那正是本门禁最坏的失效形态。
+    # 否则「集合相等」在两边都空时也成立——那正是本检查最坏的失效形态。
     rels = {key[0] for key in _HTTPX_READERS}
     assert {"src/async_http.py", "src/stream_select.py"} <= rels, f"登记表把受管读点弄丢了: {rels}"
     assert len(_HTTPX_READERS) >= 3, f"登记表条目异常收缩: {len(_HTTPX_READERS)}"

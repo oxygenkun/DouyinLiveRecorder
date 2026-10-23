@@ -2,7 +2,7 @@
 # i18n 待翻译串提取器：AST 扫描运行时代码（main/gui/web/msg_push/i18n + src/ 全部 .py），
 # 提取 print() 的全部常量实参、logger.*() 与 i18n.tr() 的首参（常量串或 f-string 模板底稿），
 # 与四语目录（zh_CN.po / en_US.json / en_GB.json / zh_TW.yaml）比对并打印缺失清单。
-# 只读工具、仅供维护期使用：不进运行时链路，也不在 AGENTS.md 的门禁命令块里（缺失靠人工跟进）。
+# 只读工具、仅供维护期使用：不进运行时链路，也不在 AGENTS.md 的检查命令块里（缺失靠人工跟进）。
 #
 # 三个**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
 # 目录并重编 .mo，否则本脚本会一直报「0 缺失」的假绿：
@@ -46,7 +46,7 @@ SCAN_FILES = [
 ] + sorted((ROOT / "src").rglob("*.py"))
 
 # 只有这些 logger 方法名的首参被视为「可翻译串」。tests/test_i18n_migration.py 里另有一份
-# 同名集合并注明与之同口径——改这里必须同时改那里，否则门禁判的与提取的又是两套。
+# 同名集合并注明与之同口径——改这里必须同时改那里，否则检查判的与提取的又是两套。
 LOGGER_METHODS = {
     "debug",
     "info",
@@ -195,12 +195,12 @@ def load_catalog_keys() -> dict[str, set[str]]:
 
 def parse_keys(compile_po: object) -> dict[str, str]:
     # 复用 compile_po 的权威 po 解析（多行 msgid / 转义还原均正确）。
-    # 经 getattr 动态取属性调用返回 Any，cast 收敛回声明类型（warn_return_any 门禁）
+    # 经 getattr 动态取属性调用返回 Any，cast 收敛回声明类型（warn_return_any 检查）
     return cast(dict[str, str], getattr(compile_po, "parse_po")(getattr(compile_po, "PO_PATH")))
 
 
 def main() -> int:
-    # 恒退 0：本脚本是「报告器」而不是门禁判据（AGENTS.md 的门禁命令块里也没有它），
+    # 恒退 0：本脚本是「报告器」而不是检查判据（AGENTS.md 的检查命令块里也没有它），
     # 缺失条目由维护者跟进；真正会让 CI 变红的是 tests/test_i18n_migration.py 的三条不变量。
     runtime_strings: set[str] = set()
     for path in SCAN_FILES:

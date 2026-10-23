@@ -1,4 +1,4 @@
-# 静态守卫：全仓 tests/*.py 的「测试可信度」门禁（MID-64/65/66/67 沉淀，2026-09-20）。
+# 静态守卫：全仓 tests/*.py 的「测试可信度」检查（MID-64/65/66/67 沉淀，2026-09-20）。
 #
 # 为什么用 AST 而不是运行时用例：这几类缺陷的共同征兆是「用例全绿但什么都没证明」
 # 或「用一例拖挂整个会话」，征兆只在**别的**用例身上显现（进程级 stdlib 被改写、GC 延迟
@@ -24,7 +24,7 @@
 #   R6 手工 pytest.MonkeyPatch() 实例必须配对 undo()：pytest 不会自动还原它们，
 #      漏 undo 的用例**单独运行**永远是对的，只有全量跑才暴露成跨文件假失败。
 #   R7（2026-09-30 新增）真机 collector 脚本 `tests/test_*_live_collector.py` 必须守「双模式模板」四条，
-#      逐条 AST 判定（不用自然语言子串，改文案不会让门禁失效）：
+#      逐条 AST 判定（不用自然语言子串，改文案不会让检查失效）：
 #      ① 模块级存在 `if __name__ == "__main__":` 守卫（左右互换写法都算）且守卫体内真的调用 main()；
 #      ② 守卫之外的模块级零副作用（只允许导入 / 常量赋值 / sys.path 注入 / def / class /
 #         导入保护 try / docstring 与注释；表达式调用、循环、with、raise、sys.exit、真机连接一律违例）；
@@ -44,7 +44,7 @@
 #      `_has_literal_equality` 同一档口径），构造出来的对抗样本仍可绕过，但会改坏模板的真实回归跑不掉。
 #
 # 例外表 _SANCTIONED 逐条给出理由：AGENTS.md 亲自规定的跨平台写法（config_io.os.replace 的
-# 「文件只读」用例）与被守卫的形态同形，门禁不得推翻文档级约定。
+# 「文件只读」用例）与被守卫的形态同形，检查不得推翻文档级约定。
 # 例外表的键空间（2026-09-30 补）：R1 用「被改模块.属性名」（如 os.replace），R7 用规则标签
 # "R7①"…"R7④"，两套形态天然不相交，共用一张表不会互相放行；R7 现无条目（5 个真机脚本逐条实测
 # 全绿或已修到全绿）。新增条目必须同时写清「为什么这是合规写法」，不得用来掩盖判据自身的误报。
@@ -103,7 +103,7 @@ _KAT_NAME_PREFIXES = ("test_known_hash", "test_known_answer", "test_kat", "test_
 # 五个 `test_*_live_collector.py` 双模式脚本（含真机验证）仍往该目录写 SRT。
 # 注意（避免误读成本次改动有行为变化）：下方 R4 的谓词只筛 `.is_file()` 且 `suffix == ".py"`
 # 的条目，目录名在此处不参与判定（它们只在 `_TEST_OUT_DIRS` 那边才承担清理语义），
-# 所以本项收敛是「名单与实际写入方对齐」，不是放宽门禁。
+# 所以本项收敛是「名单与实际写入方对齐」，不是放宽检查。
 _ALLOWED_TESTS_ENTRIES = frozenset({"__init__.py", "conftest.py", "__pycache__", "golden", "frontend", "_out_live"})
 _SANCTIONED: dict[str, frozenset[str]] = {
     # AGENTS.md「『文件只读』用例不能只靠 chmod(0o444)」条目明文规定的写法：
@@ -114,7 +114,7 @@ _SANCTIONED: dict[str, frozenset[str]] = {
 
 
 def _test_files() -> list[Path]:
-    # 只扫 tests/ 顶层正式用例；tests/frontend/*.mjs 是 Node 用例，不在本门禁范围内
+    # 只扫 tests/ 顶层正式用例；tests/frontend/*.mjs 是 Node 用例，不在本检查范围内
     return sorted(p for p in _TESTS_DIR.glob("test_*.py") if p.is_file())
 
 
@@ -296,7 +296,7 @@ def test_no_broad_filterwarnings(path: Path) -> None:
 @pytest.mark.parametrize("path", _test_files(), ids=lambda p: p.name)
 def test_digest_reference_tests_pin_concrete_values(path: Path) -> None:
     # R3 回归锁（MID-67）：SM3 那条假绿已补真值，此处防同类「只断长度」再出现
-    # （函数名刻意不以 test_known_hash 开头，否则本门禁会扫到自己）
+    # （函数名刻意不以 test_known_hash 开头，否则本检查会扫到自己）
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     hits = _fake_kat_funcs(tree)
     assert not hits, f"{path.name} 的 known-hash/KAT 用例没有字面值断言（任何实现都能过）: " + ", ".join(
@@ -306,7 +306,7 @@ def test_digest_reference_tests_pin_concrete_values(path: Path) -> None:
 
 def test_no_stray_debug_artifacts_in_tests_dir() -> None:
     # R4：一次性排查产物（_exc.log / *.tmp / 临时脚本）不得留在 tests/。
-    # 本条同时是自我约束——门禁自身若开始写文件，下一轮就会变红。
+    # 本条同时是自我约束——检查自身若开始写文件，下一轮就会变红。
     stray = [
         p.name
         for p in _TESTS_DIR.iterdir()
@@ -318,7 +318,7 @@ def test_no_stray_debug_artifacts_in_tests_dir() -> None:
 
 
 def test_guard_actually_catches_the_patterns() -> None:
-    # 自检：门禁不得退化成「扫不到任何东西的绿灯」。用等价违规片段逐条验证能报。
+    # 自检：检查不得退化成「扫不到任何东西的绿灯」。用等价违规片段逐条验证能报。
     bad_r1 = ast.parse('monkeypatch.setattr(main.time, "sleep", lambda s: None)\n')
     bad_r2 = ast.parse('@pytest.mark.filterwarnings("ignore::RuntimeWarning")\ndef test_x():\n    pass\n')
     bad_r3 = ast.parse(
@@ -443,7 +443,7 @@ def test_manual_monkeypatch_instances_are_undone(path: Path) -> None:
 
 
 def test_guard_r6_actually_catches_a_leaked_monkeypatch() -> None:
-    # 反向见证（防空门禁）：合成一段「创建了却从不 undo」的源码，判据必须报出来；
+    # 反向见证（防空检查）：合成一段「创建了却从不 undo」的源码，判据必须报出来；
     # 再给一段配对正确的，必须不报——否则 R6 只是摆设。
     bad = ast.parse("def test_x():\n    mp = pytest.MonkeyPatch()\n    mp.setattr(a, 'b', 1)\n")
     assert _manual_monkeypatch_violations(bad), "R6 判据失效：漏 undo 的形态没被抓到"
@@ -451,7 +451,7 @@ def test_guard_r6_actually_catches_a_leaked_monkeypatch() -> None:
     assert not _manual_monkeypatch_violations(good), "R6 误报：配对 undo() 的合规写法被拦"
 
 
-# ---- R7：真机 collector 脚本的「双模式模板」门禁（2026-09-30 新增，S-2 的跨文件收口）----
+# ---- R7：真机 collector 脚本的「双模式模板」检查（2026-09-30 新增，S-2 的跨文件收口）----
 # 扫描根与 _test_files() 分开：这四条只对 tests/test_*_live_collector.py 生效。普通用例没有
 # 「既被 pytest 收集、又能被 `python <文件> <URL> <秒数>` 直接跑真机」的双重身份，套上去会大面积误报。
 _LIVE_COLLECTOR_GLOB = "test_*_live_collector.py"
@@ -461,14 +461,14 @@ _R7_SYS_PATH_CALLS = frozenset({"sys.path.insert", "sys.path.append"})
 # R7②：模块级赋值的「常量名」形态（AGENTS 双模式模板里的 URL / SECONDS / _SECONDS_RAW 全在此列）。
 _R7_CONSTANT_NAME_RE = re.compile(r"^_?[A-Z][A-Z0-9_]*$")
 # R7③：把 sys.argv 取来的值转成数值时**必须**出现的「数值性判定」（或等价的 try/except ValueError 包裹）。
-# 为什么门禁切在「数值性」而不是 AGENTS 样例里的「非选项」判定：2026-09-30 实测——
+# 为什么检查切在「数值性」而不是 AGENTS 样例里的「非选项」判定：2026-09-30 实测——
 # `python -m pytest tests/test_test_hygiene.py tests/test_bili_live_collector.py …` 一次点多个文件时
 # sys.argv[2] 是**下一个测试文件的路径**，`not sys.argv[2].startswith("-")` 判它合规、随后
 # `int('tests/test_bili_live_collector.py')` 当场抛 ValueError，4 个兄弟脚本集体
 # 「4 errors during collection」。与 test_twitch_live_collector.py 里
 # 「兄弟脚本仍有此坑，建议同批跟进」那条注释同源。isdigit/isnumeric/isdecimal 同时挡住选项串与路径，
 # 所以判据要求这一类；单靠 startswith("-") 视为**不足**（不是合规）。
-# 已知残留边界：`"²".isdigit()` 为真而 int("²") 抛错——上标数字属人为构造，不在本门禁射程内。
+# 已知残留边界：`"²".isdigit()` 为真而 int("²") 抛错——上标数字属人为构造，不在本检查射程内。
 _R7_NUMERIC_CHECKS = frozenset({"isdigit", "isnumeric", "isdecimal"})
 # R7③：数值转换外面包一层 try 时，能真正兜住 int('…') 抛错的异常类型。
 # 只认 ValueError/Exception/BaseException——`except TypeError` 兜不住 `int('x')`（那是 ValueError），
@@ -640,7 +640,7 @@ def _r7_module_stmt_offense(node: ast.stmt) -> str | None:
     # `X = int(sys.argv[2]) if <非选项判定> else N`，把它判成副作用等于推翻文档级约定。
     # 故与 test_twitch_live_collector.py 里 S-2 那条文件内结构锁同口径：**只看最外层节点是不是调用**，
     # `X = os.makedirs(...)` 与 `os.makedirs(...)` 在收集期完全等价、都要拦；三元式右值内部的 int()/
-    # len()/isdigit() 属纯取值、放行（两条门禁不得互相矛盾，否则后来者只能删掉其中一条）。
+    # len()/isdigit() 属纯取值、放行（两条检查不得互相矛盾，否则后来者只能删掉其中一条）。
     if isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
         return None
     if isinstance(node, ast.Pass):
@@ -729,7 +729,7 @@ def _numeric_guard_present(guards: list[ast.expr]) -> bool:
 
 def _wrapped_in_valueerror_try(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> bool:
     # 等价写法之二：转换整段包在 `try: … except ValueError:`（Exception/BaseException 同认）里——
-    # 判据要认这种形态，否则后来者只能去放宽门禁而不是改写法；只捕 TypeError 不算（兜不住 int('x')）。
+    # 判据要认这种形态，否则后来者只能去放宽检查而不是改写法；只捕 TypeError 不算（兜不住 int('x')）。
     current: ast.AST = node
     while True:
         parent = parents.get(current)
@@ -1219,10 +1219,10 @@ def test_guard_r7_red_when_real_script_cleanup_is_blind() -> None:
 # 「摘掉 except RedirectHopRejected 的 re-raise」变异，跑到轮次上限中断，把带标记的 pass 原样留在了
 # 生产代码里。后果不是「少一条注释」：seg_resp 因此未赋值 → UnboundLocalError 被外层
 # except Exception 当「探测异常」吞掉 → 末位候选 return True，内网地址被交给 ffmpeg -i。
-# 三面门禁（black / mypy / 注释检查）对这种形态全部隐形——语法合法、类型不报错、注释反而更多。
+# 三面检查（black / mypy / 注释检查）对这种形态全部隐形——语法合法、类型不报错、注释反而更多。
 # 唯一可靠的收口是「标记不得存活到收尾」：做在盘变异时必须给改动行加标记 + 短 id，还原后标记随之
 # 消失；忘了还原即由本条点名。判据只认标记本身，不猜改动内容。
-# 标记字面量刻意拆成两段拼接：本文件若含完整字面量会被自己判红（自指门禁的通用做法）。
+# 标记字面量刻意拆成两段拼接：本文件若含完整字面量会被自己判红（自指检查的通用做法）。
 _R8_MUTATION_MARKER = "MUT" + "ATION-"
 _R8_SOURCE_SUFFIXES = (".py", ".js", ".mjs", ".yml", ".yaml", ".sh", ".html", ".css")
 # 与 pyproject/black 排除集同源：第三方与运行期产物目录不参与本判据。
@@ -1295,9 +1295,9 @@ def _r8_scan_repo(paths: list[Path] | None = None) -> list[tuple[str, int, str]]
 
 def test_no_unrestored_mutation_markers() -> None:
     # 全仓扫描：任何源文件里留着变异标记，就说明某次变异验证没有还原。
-    # 自证覆盖（缺它就是一条会空转的门禁）：先断言遍历面不为零，再谈「无违例」。
+    # 自证覆盖（缺它就是一条会空转的检查）：先断言遍历面不为零，再谈「无违例」。
     # 阈值取 200 而非精确文件数——本仓源文件数随功能增长，钉精确值会把「新增文件」误报成
-    # 门禁失效；但扫描根写错/目录改名会让遍历悄悄归零，那时必须由这条点名。
+    # 检查失效；但扫描根写错/目录改名会让遍历悄悄归零，那时必须由这条点名。
     paths = _r8_iter_source_files()
     assert len(paths) > 200, (
         f"R8 遍历面异常（{len(paths)} 个文件），判据即将空转：检查 _R8_SCAN_ROOTS / _R8_SOURCE_SUFFIXES"
@@ -1306,13 +1306,13 @@ def test_no_unrestored_mutation_markers() -> None:
     detail = [chr(34) + "发现未还原的变异验证改动（代码被留在变异态）:" + chr(34)]
     for name, line_no, snippet in offenders:
         detail.append("  " + name + ":" + str(line_no) + ": " + snippet)
-    detail.append("处置: 把代码改回目标形态并删除标记，再复跑门禁。")
+    detail.append("处置: 把代码改回目标形态并删除标记，再复跑检查。")
     assert not offenders, chr(10).join(detail)
 
 
 def test_guard_r8_red_when_marker_survives() -> None:
     # 反向见证（三条缺一不可）：
-    # ① 内存里造一段「带标记的 pass 分支」，判据必须点名它——证明本门禁不是空转；
+    # ① 内存里造一段「带标记的 pass 分支」，判据必须点名它——证明本检查不是空转；
     # ② 同一段去掉标记后必须干净——证明判据只认标记，不会把普通 pass 误报成变异残留；
     # ③ 本守卫文件自身不得含完整字面量——否则 R8 会把自己判红（拆分写法的必要性由这条自证）。
     marker_line = "            pass  # " + _R8_MUTATION_MARKER + "M4c remove re-raise"
@@ -1428,7 +1428,7 @@ def test_guard_r9_red_for_a_module_without_cases() -> None:
 # 断言会替它遮丑（本仓出现过同文件另一条用例里有 is_alive 的形态）。
 # 线程对象识别刻意保守：只认 ① `X = threading.Thread(...)` 直接绑定 ② 由 Thread 构造填充的
 # 容器被 `for X in <容器>` 迭代。识别不到的 join（跨文件传进来的线程句柄等）漏报——
-# 宁可漏报也不把 `"\n".join(lines)` 与 `queue.Queue.join()` 报成违例，那才是真正会让门禁
+# 宁可漏报也不把 `"\n".join(lines)` 与 `queue.Queue.join()` 报成违例，那才是真正会让检查
 # 被静音的噪声源（MID-2264 同族：判据一旦天天误报，人就把它设成 skip）。
 _R10_FACTORY = "Thread"
 

@@ -2,7 +2,7 @@
 #
 # 组 F 回归锁（2026-09-22 审查报告：SEV-2213 / SEV-2216 / SEV-2222 / SEV-2223）。
 #
-# 本文件只锁「本轮报告点名的那几种失效形态本身」，不复述被测实现的门禁语义——
+# 本文件只锁「本轮报告点名的那几种失效形态本身」，不复述被测实现的检查语义——
 # 复述型断言（「调用了 X」）在实现被改坏后照样能过，抓不住真失效。
 #
 import ast
@@ -293,7 +293,7 @@ def test_concurrency_rate_limit_case_drives_src_not_a_local_copy() -> None:
 
 
 # ────────────────────────────── SEV-2223 ──────────────────────────────
-# 形态：门禁步骤「只扫 stderr 不判 rc」/「退出码被丢弃」，于是子进程以非 0 退出但门禁仍判通过。
+# 形态：检查步骤「只扫 stderr 不判 rc」/「退出码被丢弃」，于是子进程以非 0 退出但检查仍判通过。
 
 
 def test_run_gates_run_command_surfaces_nonzero_rc() -> None:
@@ -308,11 +308,11 @@ def test_run_gates_run_command_surfaces_nonzero_rc() -> None:
 def test_run_gates_failed_command_is_reported_as_failure() -> None:
     # 上一条锁的是 run_command 的返回值；这条锁**收集判据**：
     # main() 用 `if rc == 0 and not hits:` 判通过，故 rc!=0 必须落到「失败」分支。
-    # 直接复现该判据（而非跑整个 main()，那会连带跑全量门禁）。
+    # 直接复现该判据（而非跑整个 main()，那会连带跑全量检查）。
     run_gates = _load_script_module("run_gates")
     rc, _dur, hits = run_gates.run_command('"{}" -c "raise SystemExit(3)"'.format(sys.executable))
     passed = rc == 0 and not hits
-    assert not passed, "rc!=0 的步骤被判为通过：门禁丢失退出码（SEV-2223 的原始形态）"
+    assert not passed, "rc!=0 的步骤被判为通过：检查丢失退出码（SEV-2223 的原始形态）"
 
 
 def test_run_gates_keep_going_does_not_affect_exit_code_semantics() -> None:
@@ -393,14 +393,14 @@ def test_run_gates_fatal_patterns_reach_stderr_channel() -> None:
 
 
 def test_run_gates_parses_all_gate_commands_and_env() -> None:
-    # 门禁清单来源锁：AGENTS.md「格式化命令」章节必须仍能被解析出全部命令、
+    # 检查清单来源锁：AGENTS.md「格式化命令」章节必须仍能被解析出全部命令、
     # 且行首 `PYTHONUTF8=1` 前缀被正确解析为子进程环境变量（MID-63 的语义载体）。
-    # 这条同时防「章节标题被改 → 解析静默返空 → 门禁 rc=2 或跑空清单」的漂移。
+    # 这条同时防「章节标题被改 → 解析静默返空 → 检查 rc=2 或跑空清单」的漂移。
     run_gates = _load_script_module("run_gates")
     agents = ROOT / "AGENTS.md"
     cmds = run_gates.extract_gate_commands(agents)
-    assert cmds, "未能从 AGENTS.md 解析出任何门禁命令（章节标题/围栏可能已改）"
-    # 本仓声明的全部门禁都应在清单内（抽查关键项，避免只断言「非空」）
+    assert cmds, "未能从 AGENTS.md 解析出任何检查命令（章节标题/围栏可能已改）"
+    # 本仓声明的全部检查都应在清单内（抽查关键项，避免只断言「非空」）
     joined = "\n".join(cmds)
     for expected in (
         "ruff format --check",
@@ -408,11 +408,11 @@ def test_run_gates_parses_all_gate_commands_and_env() -> None:
         "check_annotations.py",
         "check_runtime_pins.py",
     ):
-        assert expected in joined, f"门禁清单缺少 {expected!r}（AGENTS.md 章节可能被改）"
+        assert expected in joined, f"检查清单缺少 {expected!r}（AGENTS.md 章节可能被改）"
     # 写型命令兜底拦截仍生效（清单里不得出现不带 --check 的 black/isort）
     assert not [c for c in cmds if run_gates.is_write_command(c)], "清单里出现了写型格式化命令"
     assert run_gates.extract_gate_env(agents).get("PYTHONUTF8") == "1", (
-        "门禁块行首的 PYTHONUTF8=1 前缀未被解析出：isort 会在非 UTF-8 locale 下静默跳文件"
+        "检查块行首的 PYTHONUTF8=1 前缀未被解析出：isort 会在非 UTF-8 locale 下静默跳文件"
     )
 
 

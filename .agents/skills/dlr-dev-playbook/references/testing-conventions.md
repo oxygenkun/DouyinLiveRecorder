@@ -180,7 +180,7 @@ proc = subprocess.run(cmd, capture_output=True, text=True)  # 绝不
 写完测试后：
 
 1. `pytest tests/test_<module>.py -v` —— 确认 **0 warnings**。
-2. 全量门禁：`python scripts/run_gates.py`（唯一入口，见 SKILL.md「统一验证门禁」）。
+2. 全量检查：`python scripts/run_gates.py`（唯一入口，见 SKILL.md「统一验证检查」）。
 3. 覆盖率：`python scripts/check_coverage.py`。
 4. 涉及子进程输出时，**单独再跑一次该文件**（抓 GBK/UTF-8 代码页问题）。
 5. 安全不变量类测试补做**变异验证**：改坏生产代码确认转红。

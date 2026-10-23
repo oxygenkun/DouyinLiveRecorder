@@ -48,7 +48,7 @@ pytestmark = pytest.mark.skipif(_NODE_BIN is None, reason="Node.js 运行时不�
 def _popen_session_kwargs() -> dict[str, Any]:
     # 让子进程自成一组，超时后才能整棵树回收；Windows 没有 setsid，等价手段是
     # CREATE_NEW_PROCESS_GROUP（回收走 taskkill /T，见 _kill_process_tree）。
-    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台门禁要求）
+    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台检查要求）
         return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
     return {"start_new_session": True}
 
@@ -56,7 +56,7 @@ def _popen_session_kwargs() -> dict[str, Any]:
 def _kill_process_tree(proc: "subprocess.Popen[Any]") -> None:
     # 回收 node --test 及其 worker 孙进程。整棵树杀不掉时只忽略不抛错——
     # 用例此时已经判定失败，收尾异常会掩盖真正的断言输出。
-    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台门禁要求）
+    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台检查要求）
         try:
             subprocess.run(
                 ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
@@ -71,7 +71,7 @@ def _kill_process_tree(proc: "subprocess.Popen[Any]") -> None:
     else:
         try:
             # 9 = SIGKILL：刻意写字面量而不是 signal.SIGKILL——该符号在 Windows typeshed 中不存在，
-            # 引用它会让本仓 mypy（Linux CI）与 basedpyright（Windows 本地）双平台门禁不对称。
+            # 引用它会让本仓 mypy（Linux CI）与 basedpyright（Windows 本地）双平台检查不对称。
             os.killpg(os.getpgid(proc.pid), 9)
         except OSError:
             pass
@@ -129,13 +129,13 @@ def _pid_alive(pid: int) -> bool:
     #
     # 为什么按**字节**判定而不是 text=True 解码（MID-64 ② 的补集，2026-09-22 实测）：
     # 中文 Windows 上 tasklist 对「无匹配任务」输出 GBK 消息（首字节 b'\xd0\xc5\xcf\xa2'），
-    # 而门禁口径要求 PYTHONUTF8=1 → UTF-8 模式下 text=True 按 utf-8 解码该字节流，subprocess 的
+    # 而检查口径要求 PYTHONUTF8=1 → UTF-8 模式下 text=True 按 utf-8 解码该字节流，subprocess 的
     # reader 线程直接抛 UnicodeDecodeError，communicate() 返回 stdout=None，`str(pid) in None` 即
     # TypeError，并额外产生一条 PytestUnhandledThreadExceptionWarning（违反本仓「0 警告」）。
     # 该缺陷只在单独跑本文件时显现：全量跑时 main.py 的模块级 SetConsoleOutputCP(65001) 已把码页
     # 切成 UTF-8，tasklist 改吐 UTF-8 而侥幸可解（即「全量绿、单跑红」）。字节包含判定与码页
     # 彻底解耦：PID 出现在 tasklist 表格里 ⟺ 进程存活，与消息语言无关。
-    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台门禁要求）
+    if sys.platform == "win32":  # 平台门控一律用 sys.platform 字面量（mypy 跨平台检查要求）
         probe = subprocess.run(
             ["tasklist", "/FI", "PID eq %d" % pid, "/NH"],
             stdin=subprocess.DEVNULL,
@@ -299,6 +299,6 @@ def test_no_subprocess_call_in_this_module_decodes_output() -> None:
         for kw in node.keywords:
             if kw.arg in ("text", "encoding", "universal_newlines"):
                 offenders.append(f"{target.attr}() at line {node.lineno}: {kw.arg}= 会让解码参与判定")
-    # 断言「扫到了调用点」再断言「无违规」，否则正则/AST 落空会造出恒绿的假绿门禁
+    # 断言「扫到了调用点」再断言「无违规」，否则正则/AST 落空会造出恒绿的假绿检查
     assert probed_calls >= 3, f"AST 未覆盖到本文件的子进程调用点（实际 {probed_calls} 处），本用例前提失效"
     assert not offenders, "进程检查调用点须按字节捕获输出（MID-64 ②）:\n" + "\n".join(offenders)

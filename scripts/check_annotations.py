@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# 注释规范检查 + 逻辑等价性校验工具（CI 可调用，常驻门禁）
+# 注释规范检查 + 逻辑等价性校验工具（CI 可调用，常驻检查）
 #
 # 三种模式，对应两类互不相干的用途：
 #
@@ -18,7 +18,7 @@
 #   另含一项常驻结构检查（随模式一一起跑）：**符号可达性**。删除模块级函数/常量时只删
 #   定义、留下调用点，会让 mypy / basedpyright / pytest 三面同时转红；调用点落在 `and`
 #   右侧时短路还会遮住它，肉眼极易误判成「纯静态问题」。该检查把「引用了全仓都没有绑定
-#   的名字」变成门禁里的一条明确违规（细则见 check_dangling_symbols）。
+#   的名字」变成检查里的一条明确违规（细则见 check_dangling_symbols）。
 #
 # 为什么用 ast.dump 而不是逐行 diff：注释不进抽象语法树，而三引号 docstring 会作为 Expr 节点
 # 进入 AST。因此 AST 全等可同时证明：① 可执行逻辑一字未动；② 没有误插 docstring。
@@ -61,7 +61,7 @@ MODULE_HEADER_SCAN_LINES = 30
 #
 # 这份清单承重：它同时是 check_dangling_symbols() 经 iter_source_files 聚合「全仓绑定名」的
 # 扫描面。**任何一个未排除的第三方目录里出现同名绑定，就会让「被删符号的残留调用点」被判成
-# 「全仓有绑定」而漏报**——悬空符号门禁就此静默失效。
+# 「全仓有绑定」而漏报**——悬空符号检查就此静默失效。
 # 跨文件回归锁见 tests/test_run_gates.py：
 #   ::test_check_annotations_exclude_dirs_cover_pyproject_excludes（逐名比对 pyproject 三处清单）
 #   ::test_check_annotations_scan_face_still_includes_tests_and_src（反向兜底：src/tests/scripts/web 不得被排掉）
@@ -200,8 +200,8 @@ def find_docstrings(src: str) -> list[str]:
 # 时只删定义、留下调用点，mypy 报 name-defined、basedpyright 报 reportUndefinedVariable、
 # pytest 在触达该分支时抛 NameError；而调用点若在 `and` 右侧
 # （`(not os.path.isdir(...)) and (_deleted(proc))`），短路会在多数场景遮住它，于是「红着的
-# 门禁」被误读成纯静态噪音，新改动继续往上叠。mypy 本就能报，但它不是「删除动作」的回路：
-# 本检查在门禁里给出带文件路径与行号的明确违规，并把「删前先 grep 全部调用点」写进提示。
+# 检查」被误读成纯静态噪音，新改动继续往上叠。mypy 本就能报，但它不是「删除动作」的回路：
+# 本检查在检查里给出带文件路径与行号的明确违规，并把「删前先 grep 全部调用点」写进提示。
 # 判据刻意保守（宁漏勿噪）：只报「本文件内没有任何绑定」**且**「全仓其它文件也没有同名绑定」
 # 的 Load 名。后者用于放行 `from x import *`、monkeypatch 注入、globals() 动态写入等合法来源；
 # 漏报仍由 mypy / basedpyright 兜底，本检查只负责把「删了一半」挡在回路之外。
@@ -361,7 +361,7 @@ def check_conventions(root: Path, min_density: float) -> int:
             if not has_module_header(src):
                 problems.append(f"[模块头] {rel}: 前 {MODULE_HEADER_SCAN_LINES} 行内无说明注释")
 
-    # 符号可达性（与注释规范同批输出，共用 problems 计数：命中即门禁变红）
+    # 符号可达性（与注释规范同批输出，共用 problems 计数：命中即检查变红）
     scanned, dangling = check_dangling_symbols(root)
     for item in dangling:
         problems.append(f"[悬空符号] {item}")

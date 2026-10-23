@@ -194,7 +194,7 @@ class TestRealWindowWidgets:
     # Tcl 事件循环，无头环境无法等价驱动；tk_root fixture 形态取
     # tests/test_ui_theme.py::TestApplyTtk.tk_root。
     # [历史注 MT-12 2026-10-18] 此前「无显示即 skip」是空头承诺：三条用例裸 tk.Tk()，
-    # 无显示器时抛 TclError 以 ERROR 形态进门禁、把「没显示设备」伪装成「代码回归」，故补 fixture。
+    # 无显示器时抛 TclError 以 ERROR 形态进检查、把「没显示设备」伪装成「代码回归」，故补 fixture。
     # 与 AGENTS「平台专属分支的测试不得靠 skipif 让 CI 跳过」不冲突：那条禁的是按
     # sys.platform 跳过**代码分支**（Windows/POSIX 两侧逻辑都得在 CI 真跑），本处缺的是
     # **显示设备**本身；CI 侧仍由 xvfb-run 提供虚拟显示让这些用例常态执行（见 ci.yml 的

@@ -17,7 +17,7 @@
 
 1. **未发现「防线缺失」型严重漏洞**。两项严重问题均为「防线已建但接线错位」（SR-01）或「主线防线未回灌孪生副本」（SR-02），修复面都很小（分别为两处分支返回值与一个重定向复检 handler）。
 2. **凭据脱敏防线存在实测可复现的键型缺口**（M-01）：`mask_credentials` 对 B 站最高价值凭据键 `SESSDATA`/`bili_jct` 与抖音键 `sessionid_ss`/`sid_tt` 原样放行，属 AGENTS.md 关键约定 #11（camelCase 家族）之后又一同源缺口，本轮以实际执行验证。
-3. 工具侧信号干净：`basedpyright` 0 error / 0 warning / 0 notes，与既有门禁基线一致；Mimosa 深度安全扫描 40 项原始告警经逐类裁断后**零新增确认漏洞**（裁断过程见第 7 章）。
+3. 工具侧信号干净：`basedpyright` 0 error / 0 warning / 0 notes，与既有检查基线一致；Mimosa 深度安全扫描 40 项原始告警经逐类裁断后**零新增确认漏洞**（裁断过程见第 7 章）。
 4. 测试代码抽查健康：无 MUTATION 标记残留、无真实形态凭据、`tmp_path` 纪律良好、未发现「掩盖真实 bug」的过宽 mock 或恒真断言。
 
 ## 2. 审查范围
@@ -328,14 +328,14 @@
 
 | 告警类 | 数量 | 裁断 |
 | --- | ---: | --- |
-| 命令注入 HIGH | 3 | `scripts/run_gates.py:268` 的 `shell=True` 为开发期门禁工具、输入是仓库自身文档解析出的命令行（`NAME=value cmd` 形态需要 shell 语义），属**受控输入，信息级**（见下方记录③）；`src/javascript/haixiu.js:518`、`liveme.js:349` 为签名脚本内字符串拼接的形态误报，浏览器/Node 沙箱内无进程派生面，**误报** |
+| 命令注入 HIGH | 3 | `scripts/run_gates.py:268` 的 `shell=True` 为开发期检查工具、输入是仓库自身文档解析出的命令行（`NAME=value cmd` 形态需要 shell 语义），属**受控输入，信息级**（见下方记录③）；`src/javascript/haixiu.js:518`、`liveme.js:349` 为签名脚本内字符串拼接的形态误报，浏览器/Node 沙箱内无进程派生面，**误报** |
 | 硬编码凭据 HIGH | 3 | `src/spider.py:4774` 是从 API 响应读取 `token` 字段（`_access.get("value")`），**误报**；`src/spider.py:5846`、`:5848` 为海秀/LiveMe 平台内置**匿名访问票据**（URL 编码的不透明串，任何访客浏览器同持，非用户凭据），带 env/config.ini 覆盖通道、注释明示「改动会导致 401」，**信息级**（记录②） |
 | 不安全随机数 LOW | 14 | 全部为签名脚本 nonce、设备 ID、探针节流抖动等**非安全用途**随机（无会话/凭据生成场景）；`ab_sign.py` 随机前缀按 F-19 刻意使用真随机并带回退开关。**误报/接受** |
 | 路径穿越 HIGH | 11 | 全部为内部路径拼接（构建产物目录、日志归档、备份文件），路径分量来自常量或用户自身配置，无外部攻击者可控输入进入路径分量。**误报** |
 | SSRF HIGH | 7 | `build_exe.py`/`ffmpeg_install.py`/`node_install.py` 的下载 URL 均为**钉定常量**且受 `_ALLOWED_HOSTS` 主机白名单 + SHA256 钉定（fail-closed）+ 官方签名档三重补偿控制；`sync_http.py:23` 为 opener 构造层（当前无生产 importer）。**接受性风险（补偿控制完备）** |
 
 - **裁断结论**: 40 项原始告警中 **0 项构成新增确认漏洞**；3 项降为信息级记录：
-  - ① `scripts/run_gates.py:268` 使用 `shell=True`——输入面是仓库自身 AGENTS.md 门禁块，属受控输入；如需进一步收紧可改 argv 列表 + 环境变量注入，非必须。
+  - ① `scripts/run_gates.py:268` 使用 `shell=True`——输入面是仓库自身 AGENTS.md 检查块，属受控输入；如需进一步收紧可改 argv 列表 + 环境变量注入，非必须。
   - ② `src/spider.py:5846/5848` 平台匿名票据硬编码——属平台前端公开匿名态复刻，建议在注释中补充「匿名票据、非凭据」定性以免后续审计反复误报。
   - ③ 依赖离线情报匹配 1 包：与 AGENTS.md「安全下限」节既有结论一致（下限抬升策略已覆盖），无新增行动项。
 

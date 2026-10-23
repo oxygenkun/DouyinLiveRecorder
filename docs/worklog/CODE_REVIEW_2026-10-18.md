@@ -2,7 +2,7 @@
 
 ## 1. 审查概述与背景
 
-本报告为对 DouyinLiveRecorder 工作空间（`d:\DouyinLiveRecorder`）内全部自研源代码的一次全面代码审查。该项目为基于 Python 的多平台直播录制工具，主运行环境为 Windows，由以下部分组成：命令行/引擎入口（根目录 `main.py` 等）、Tkinter 旧版 GUI（`gui.py`）、PySide6 新版桌面 GUI（`src/gui_qt/`）、Web 管理面板（`src/web_api.py`、`web/` 前端）、多平台直播流解析（`src/platforms/`、`src/spider.py`）、录制与后处理（`ffmpeg_*`、`video_postprocess.py`）、以及 CI 门禁与构建脚本（`scripts/`、`build_exe.py`）。
+本报告为对 DouyinLiveRecorder 工作空间（`d:\DouyinLiveRecorder`）内全部自研源代码的一次全面代码审查。该项目为基于 Python 的多平台直播录制工具，主运行环境为 Windows，由以下部分组成：命令行/引擎入口（根目录 `main.py` 等）、Tkinter 旧版 GUI（`gui.py`）、PySide6 新版桌面 GUI（`src/gui_qt/`）、Web 管理面板（`src/web_api.py`、`web/` 前端）、多平台直播流解析（`src/platforms/`、`src/spider.py`）、录制与后处理（`ffmpeg_*`、`video_postprocess.py`）、以及 CI 检查与构建脚本（`scripts/`、`build_exe.py`）。
 
 **审查目标**：排查代码质量、潜在缺陷、安全漏洞与逻辑错误，逐文件记录问题并给出修复建议，为后续修复排期提供依据。
 
@@ -275,7 +275,7 @@
 
 **MT-13 直接改写 stdlib ctypes 本体**
 - 位置：`tests/test_web_tray.py:128` ｜ 类型：补丁路径
-- 说明：`monkeypatch.setattr(ctypes, "WinDLL", boom)` 直接改写 stdlib ctypes 模块本体（因容器是裸 Name 逃过静态门禁）。
+- 说明：`monkeypatch.setattr(ctypes, "WinDLL", boom)` 直接改写 stdlib ctypes 模块本体（因容器是裸 Name 逃过静态检查）。
 - 修复：浅拷贝 shim 后替换 `web_tray` 命名空间内的 ctypes 引用。
 
 ## 6. 轻微问题（48 项）
@@ -313,7 +313,7 @@
 | L-27 | `web/style.css:405`（另 :411） | 死代码 | `.dm-time`/`.dm-empty` 选择器从未命中（前端不产出对应类名）；删除或补齐类名 |
 | L-28 | `web/style.css:16` | 死代码 | `--sidebar` 变量在两套主题定义但全文件无 `var(--sidebar)` 引用；删除或落地使用 |
 | L-29 | `scripts/check_runtime_pins.py:113` | 错误处理 | 直接取 `build_exe` 私有属性，属性缺失时以 rc=1 崩溃栈退出，与"结构缺陷=rc=2"契约冲突；getattr 探测缺失统一 `sys.exit(2)` |
-| L-30 | `scripts/run_gates.py:296` | 跨平台 | venv 路径含空格时 `cmd.exe /c` 会剥掉恰好两层引号致门禁命令解析失败；整条命令再包一层引号或改参数列表执行 |
+| L-30 | `scripts/run_gates.py:296` | 跨平台 | venv 路径含空格时 `cmd.exe /c` 会剥掉恰好两层引号致检查命令解析失败；整条命令再包一层引号或改参数列表执行 |
 | L-31 | `scripts/smoke_test.py:289` | 错误处理 | `expect_contains` 不校验元素类型，元素非 str 时抛 TypeError 穿透 main 变 rc=1 崩溃栈；校验元素必须为 str |
 | L-32 | `.agents/.../server.cjs:129` | 错误处理 | `getNewestScreen` 的 statSync/readFileSync 无异常处理且 http server 无 error 兜底，竞态删除文件即崩整个 Node 进程；包 try/catch 返回 4xx/5xx |
 | L-33 | `.agents/.../server.cjs:167` | 安全 | WebSocket 升级不校验 Origin 也无鉴权，任意网页可跨源连 127.0.0.1 服务伪造事件；校验 Origin 或启动时生成 token |
@@ -351,16 +351,16 @@
 5. **数据完整性类**：M-07（update_file 假成功）、M-08（重复键静默失败）、M-10（备份失败不重试）、M-06/L-12（UnicodeDecodeError 漏接，两处同形态建议一并修）。
 6. **GUI 稳定性类**：M-11（跨线程启定时器）、M-12（模态重入）、M-15/M-16（定时器与高亮器泄漏）、M-13/M-14（重译覆盖盲区，建议一次性梳理登记体系）。
 7. **前端体验/正确性**：M-17（切语言清空表单——数据丢失路径，优先）、M-18（竞态代次）、M-19（下拉重建）。
-8. **测试有效性**：MT-01/02/03（无效与恒真测试，使保护失效）、MT-05（环境变量污染）、MT-09/10/11/13（stdlib 本体补丁，建议在 `test_test_hygiene` 静态门禁中补规则覆盖 shim 形态）。
+8. **测试有效性**：MT-01/02/03（无效与恒真测试，使保护失效）、MT-05（环境变量污染）、MT-09/10/11/13（stdlib 本体补丁，建议在 `test_test_hygiene` 静态检查中补规则覆盖 shim 形态）。
 9. **脚本可用性**：M-21/M-22（补丁脚本不可用）、M-23（基线防呆误拒）。
 
 ### P2（后续迭代）
 
 10. 其余轻微项按模块顺手修复；建议优先处理带安全属性的 L-05（凭据日志）、L-08（buvid3 明文）、L-21（敏感节大小写）、L-24（样本素材替换）、L-33（dev 工具 WS 鉴权），其余作为日常技术债清理。
 11. **机制性建议**：
-    - 建立"响应体读取上限"与"异常文本过 mask_credentials"两条全局静态检查（可纳入现有 `scripts/check_annotations.py` 或 pre-commit 门禁），防止新增代码再次引入同类问题。
+    - 建立"响应体读取上限"与"异常文本过 mask_credentials"两条全局静态检查（可纳入现有 `scripts/check_annotations.py` 或 pre-commit 检查），防止新增代码再次引入同类问题。
     - 为 PEP 758 语法在 CI 中固化一条说明性检查（`except A, B as e` 非法的形态已有注释约定，可加 lint 规则防误改）。
-    - 测试门禁中增加"收集数=0 即失败"（针对 MT-02 类空测试文件）与"join 后必须断言线程退出"的约定检查。
+    - 测试检查中增加"收集数=0 即失败"（针对 MT-02 类空测试文件）与"join 后必须断言线程退出"的约定检查。
 
 ## 8. 总结性结论
 
@@ -368,7 +368,7 @@
 
 整体而言，该项目安全工程基础扎实：SSRF 协议白名单、Zip Slip/解压炸弹防护、下载哈希校验与 TOFU 基准、Web 鉴权与同源校验、敏感信息脱敏等机制普遍存在且大多有配套测试；错误处理与日志规范在主线代码中执行较好。主要风险集中在三类：**（1）新增 Qt GUI 的集成断路**（S-01，唯一严重项）；**（2）异常与边界路径的健壮性缺口**（响应体无上限、配置/备份静默失败、归档窗口竞态等）；**（3）测试自身的有效性**（恒真断言、空测试文件、stdlib 本体补丁——这些会削弱上述安全机制的保护力）。
 
-建议按第 7 节优先级推进修复：P0 三项均为低成本高收益的一级修复；P1 建议按"内存上限→数据完整性→GUI 稳定性→测试有效性"四个专项集中治理；P2 项可随迭代消化。修复完成后建议针对本报告所列各项补充回归测试，并将第 7.11 节的机制性检查固化为长期门禁，防止同类问题回潮。
+建议按第 7 节优先级推进修复：P0 三项均为低成本高收益的一级修复；P1 建议按"内存上限→数据完整性→GUI 稳定性→测试有效性"四个专项集中治理；P2 项可随迭代消化。修复完成后建议针对本报告所列各项补充回归测试，并将第 7.11 节的机制性检查固化为长期检查，防止同类问题回潮。
 
 ---
 *审查方式：全量逐文件人工式审查 + 关键发现二次核验（字节级/逐行）；审查过程只读，未改动任何代码。*

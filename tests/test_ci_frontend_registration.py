@@ -197,16 +197,16 @@ def test_registered_entries_are_not_dangling() -> None:
 
 def test_lock_itself_runs_inside_the_frontend_gate() -> None:
     # 从清单里摘掉本文件不会让上面几条变红（正向差集依旧成立），所以「本锁随 CI 执行」必须单独钉。
-    # 这一步同时也是本锁的第二条执行回路：全量 pytest 那一步跑的是 tests/ 收集，改由前端门禁步骤
+    # 这一步同时也是本锁的第二条执行回路：全量 pytest 那一步跑的是 tests/ 收集，改由前端检查步骤
     # 显式点名后，清单与目录的漂移会在**同一个步骤**里报出来，而不是等到下一位贡献者手跑。
     node_ids = _registered_node_ids()
     assert SELF_NODE_ID in node_ids, (
-        f"完备性锁自身未进清单（应含 {SELF_NODE_ID}）。它不跑在前端门禁那一步里，"
+        f"完备性锁自身未进清单（应含 {SELF_NODE_ID}）。它不跑在前端检查那一步里，"
         f"「{GATE_STEP_NAME}」就仍只是一个靠人记住的约定。"
     )
 
 
-# ───────────────────────── 门禁自检：差集判据不得是「扫不到东西的绿灯」 ─────────────────────────
+# ───────────────────────── 检查自检：差集判据不得是「扫不到东西的绿灯」 ─────────────────────────
 
 
 def _synthetic_case(stem: str) -> str:

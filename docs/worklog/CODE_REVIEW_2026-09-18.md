@@ -863,9 +863,9 @@ async def get_haixiu_stream_url(
 | --- | --- | --- |
 | WD-13 | 「熔断样本把『主播未开播』计为失败，离线房间多的 host 被长期熔断」 | **不成立**。`main.py` 在解析成功时（无论是否开播）已调用 `record_success(record_host)`，`record_error` 只在 `anchor_name` 为空（≈解析失败）时触发。原审查未看到这两行的配对关系，故未做改动。 |
 
-### A.4 验证结果（门禁全绿）
+### A.4 验证结果（检查全绿）
 
-| 门禁 | 结果 |
+| 检查 | 结果 |
 | --- | --- |
 | `pytest`（全量） | **1042 passed, 2 skipped, 0 failed**（53.96s） |
 | `black --check --line-length 120` | 136 个文件无差异 |

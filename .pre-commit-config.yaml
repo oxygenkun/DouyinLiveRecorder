@@ -1,12 +1,12 @@
-# pre-commit hooks — 自动化 AGENTS.md 核心门禁（Ruff）
-# [2026-10-02 扩展] 同日追加仓库级门禁 hook：check_annotations / compile_po --check /
+# pre-commit hooks — 自动化 AGENTS.md 核心检查（Ruff）
+# [2026-10-02 扩展] 同日追加仓库级检查 hook：check_annotations / compile_po --check /
 # check_version / check_runtime_pins / check_skill_agents_consistency（与 AGENTS.md
-# 「格式化命令（门禁唯一基准）」后 5 行同源），
+# 「格式化命令（检查唯一基准）」后 5 行同源），
 # 同一目录下的 Ruff 行不再重复。回归锁：tests/test_pre_commit_config.py
 # 将 AGENTS.md 章节清单与本文件的 hook entry 两侧同时钉住，任一边新增而另一边缺失即红。
 # 安装: pip install pre-commit && pre-commit install
 # 手动全量跑: pre-commit run --all-files
-# 一次性本地门禁入口：python scripts/run_gates.py（与本章 hook 互斥使用，避免 Ruff 跑两遍）
+# 一次性本地检查入口：python scripts/run_gates.py（与本章 hook 互斥使用，避免 Ruff 跑两遍）
 # 工具配置（line-length / target-version / exclude 等）统一读 pyproject.toml，此处不重复。
 
 default_language_version:
@@ -40,13 +40,13 @@ repos:
         entry: uv run --locked --extra dev ruff format
         language: system
         types: [python]
-  # ── 仓库级门禁（AGENTS.md「格式化命令（门禁唯一基准）」bash 块的后 5 条）──
+  # ── 仓库级检查（AGENTS.md「格式化命令（检查唯一基准）」bash 块的后 5 条）──
   # 全部使用项目解释器：language: system + pass_filenames: false，脚本自己按仓库根遍历；
   # always_run: true 保证「改了非 Python 文件也照样触发」——这五个脚本跨文件比对
   # （i18n .po/.mo、pyproject/main.py/Dockerfile 版本号、build_exe.py 钉定表、
   # .agents/skills/ 目录与 AGENTS.md「项目级 Skill」表），
   # 只看 staged 类型会漏查；require_serial: true 按仓库级范围执行。
-  # 事实源仍是 AGENTS.md 那一节：新增/删除门禁须同步本块与 tests/test_pre_commit_config.py 的回归锁。
+  # 事实源仍是 AGENTS.md 那一节：新增/删除检查须同步本块与 tests/test_pre_commit_config.py 的回归锁。
   - repo: local
     hooks:
       - id: check-annotations

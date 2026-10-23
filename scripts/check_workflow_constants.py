@@ -1,4 +1,4 @@
-# CI / Build-Release 版本常量一致性门禁。
+# CI / Build-Release 版本常量一致性检查。
 #
 # ci.yml 的 setup job 与 build-release.yml 的 prepare job 各自在 consts 步骤声明
 # python_build / node_version 两个运行环境常量。AGENTS.md「CI / workflow 约定」要求
@@ -8,7 +8,7 @@
 # 提取策略：正则匹配 `echo "key=value"` 形态（GitHub Actions 的 GITHUB_OUTPUT 写入惯例），
 # 刻意不引入 PyYAML 依赖——两份文件都只在一个 consts 步骤内写这些 key，精确匹配 key= 前缀即可。
 #
-# 退出码：0 一致；1 常量不一致；2 workflow 文件缺失或提取失败（门禁本身没数据可判）。
+# 退出码：0 一致；1 常量不一致；2 workflow 文件缺失或提取失败（检查本身没数据可判）。
 #
 
 import re

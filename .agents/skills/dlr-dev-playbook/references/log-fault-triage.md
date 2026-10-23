@@ -34,7 +34,7 @@
 
 ### Step 5 — 验证
 
-走 SKILL.md「统一验证门禁」：`py_compile` 改动文件 → `pytest -q` → `python scripts/run_gates.py` → 涉及平台分支时增跑 `mypy --platform linux`。
+走 SKILL.md「统一验证检查」：`py_compile` 改动文件 → `pytest -q` → `python scripts/run_gates.py` → 涉及平台分支时增跑 `mypy --platform linux`。
 
 **补一条测试锁住新行为**（重试后成功、缓存命中、探针仅对 m3u8 生效）。**这条是要入库的回归测试，不属于临时文件，不要清理。**
 

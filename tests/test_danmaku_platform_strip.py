@@ -21,7 +21,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAIN_FILE = REPO_ROOT / "main.py"
 CONFIG_FILE = REPO_ROOT / "config" / "config.ini"
-# utf-8-sig：与本仓其它直接读 main.py 源码的门禁用例同口径（BOM 存在时不污染首行 token）。
+# utf-8-sig：与本仓其它直接读 main.py 源码的检查用例同口径（BOM 存在时不污染首行 token）。
 MAIN_SRC = MAIN_FILE.read_text(encoding="utf-8-sig")
 
 _ASSIGNS: dict[str, list[ast.Assign]] | None = None

@@ -524,7 +524,7 @@ class TestRunJsAsyncTimeoutBudget:
     ) -> None:
         # 外层预算先到位、execjs 侧稍后才失败（两条 timeout 竞态的常见形态）时，异常落在一支已无人
         # 等待的 future 上。不主动取用的话，asyncio 会在该 future 被 GC 时向事件循环报 "Future
-        # exception was never retrieved"——污染「pytest 0 警告」门禁与用户日志，且真正归因被埋掉。
+        # exception was never retrieved"——污染「pytest 0 警告」检查与用户日志，且真正归因被埋掉。
         ctx = _JsCtxAcceptingTimeout(raise_after=0.4)
         monkeypatch.setattr(utils_module, "get_compiled_js", lambda _js_path: ctx)
         loop = asyncio.get_running_loop()

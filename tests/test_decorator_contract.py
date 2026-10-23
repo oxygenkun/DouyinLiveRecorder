@@ -100,7 +100,7 @@ def test_trace_error_decorator_contract_across_repo() -> None:
     violations: list[str] = []
     # MID-2262（2026-09-23）：本用例原本是「扫到了多少」零见证的纯遍历——两个 `except …: continue`
     # 让出问题的文件静默出局，且只断言 violations 为空，于是给两个装饰器改名（含全部调用点）会让
-    # 扫描命中数归零、violations 恒空、门禁全绿而 CR-12 的两条防线同时消失。现固定三件见证：
+    # 扫描命中数归零、violations 恒空、检查全绿而 CR-12 的两条防线同时消失。现固定三件见证：
     # 扫描文件数、命中装饰器的函数数、未能读取/解析的文件数。阈值取现实测值的保守下界
     # （2026-09-23 实测：文件 >150、装饰函数 86），放宽不误红，收紧到「扫不到东西」时才红。
     unscanned: list[str] = []
@@ -164,7 +164,7 @@ def test_trace_error_decorator_contract_across_repo() -> None:
     # 装饰器改名或 _DEC_NAMES 被清空都会立刻让它变红。
     assert decorated_functions >= 40, (
         f"只扫到 {decorated_functions} 个挂了兜底装饰器的函数（下界 40）："
-        "装饰器被改名、_DEC_NAMES 与源码脱节，或扫描面被排除规则吃掉——本门禁已在自我证明之外"
+        "装饰器被改名、_DEC_NAMES 与源码脱节，或扫描面被排除规则吃掉——本检查已在自我证明之外"
     )
     assert not violations, "兜底装饰器契约违规：\n" + "\n".join(violations)
 

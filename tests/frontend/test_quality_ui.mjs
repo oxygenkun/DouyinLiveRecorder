@@ -16,7 +16,7 @@
 // GET /api/language 控制，四语文案走行为级断言而非源码静态扫描。
 //
 // 覆盖范围：画质切换（本文件起点）、MID-37 掩码凭据、MID-38 登出入口、MID-39 错误体解析、
-// MID-2263 前后端布尔解析不变量、M-17/M-18/M-19 动态容器与代次竞态、MIN-10 四语目录门禁。
+// MID-2263 前后端布尔解析不变量、M-17/M-18/M-19 动态容器与代次竞态、MIN-10 四语目录检查。
 // 新增用例沿用同一 harness，不另开 .mjs——另开会脱离 tests/test_frontend_quality_ui.py 的
 // 单文件驱动与 ci.yml 的 node 清单，导致 CI 静默漏跑。
 //
@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
 const APP_JS = readFileSync(new URL('../../web/app.js', import.meta.url), 'utf8');
-// MIN-10 门禁需要静态读取面板 HTML（data-i18n 键清单 / 硬编码文案扫描），见文件末尾该段说明
+// MIN-10 检查需要静态读取面板 HTML（data-i18n 键清单 / 硬编码文案扫描），见文件末尾该段说明
 const INDEX_HTML = readFileSync(new URL('../../web/index.html', import.meta.url), 'utf8');
 
 // —— DOM 桩 ——————————————————————————————————————————————
@@ -972,11 +972,11 @@ test('M-19：房间消失后重建下拉，选中项回落「全部房间」而�
     assert.equal(sel.value, '', '已消失的房间仍被当作选中项（筛选会恒无匹配）');
 });
 
-// —— MIN-10：前端内嵌四语目录的机械化门禁 ————————————————————————
+// —— MIN-10：前端内嵌四语目录的机械化检查 ————————————————————————
 
 //
 // web/app.js 自带一套与后端 i18n/ 独立的四语目录（面板文案）。本段把「新增/修改翻译串须同步
-// 多处」的人记约定变成门禁：前端语言集合 == 后端 i18n 实测集合、四目录键集逐一相等、
+// 多处」的人记约定变成检查：前端语言集合 == 后端 i18n 实测集合、四目录键集逐一相等、
 // index.html 的 data-i18n* 与 app.js 的 t('字面量') 键全部命中、无空值/键名回显、同模板占位符
 // 一致、HTML 无未入目录的硬编码中文。目录直接从 app.js 源码截取字面量求值，不复制第二份清单。
 function extractI18nCatalogs() {

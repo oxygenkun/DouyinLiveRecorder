@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Qoder 项目级 Hook 执行体：把 AGENTS.md「风险控制（前置）」的红线与「对门禁三面隐形」的约束，
+# Qoder 项目级 Hook 执行体：把 AGENTS.md「风险控制（前置）」的红线与「对检查三面隐形」的约束，
 # 落到工具生命周期上的确定性检查点。
 #
 # 为什么需要 Hook（而不是只靠 AGENTS.md 文字）：那几条约束原本是「prose + 每次人工执行」的形态，
@@ -9,7 +9,7 @@
 # （`node --test <文件>` 不会顺带发现同级其他 .mjs）；运行时钉定表（`build_exe.py` 的
 # `_PINNED_RUNTIME_SHA256` / `scripts/check_runtime_pins.py`）改后不跑 check 同理（SEV-10）。
 # 这类判据每次都要执行又容易被忘，正是 Hook 的适用面；本文件只做**判定与反馈**，不引入第二套
-# 门禁清单。
+# 检查清单。
 #
 # 事实源关系：约束本体仍是 AGENTS.md。下面的目录名集合、命令形态、登记位置都逐字取自对应条目；
 # 改判据时先改 AGENTS.md，再由 tests/test_agent_hook_guard.py 把两侧一致性钉成回归锁
@@ -22,7 +22,7 @@
 #     PostToolUse 非阻断——写入已发生、不可撤销；官方退出码表注明 exit 2 的 stderr 注入
 #     「only for blockable events」，故走文档化出口：exit 0 + stdout JSON
 #     `hookSpecificOutput.feedback` 即时回传，让 agent 当场修。
-#   - 「当轮还原」的真正切断点因此不在 Post 一站，而在仍可判红的收尾门禁
+#   - 「当轮还原」的真正切断点因此不在 Post 一站，而在仍可判红的收尾检查
 #     （tests/test_test_hygiene.py R8 全仓扫描、run_gates.py / CI）——feedback 被忽略时由它们兜住。
 #   - 拒绝/反馈消息**不得**回显完整命令原文、prompt 或环境变量值（官方 hook 安全口径），
 #     只给规则短 id 与命中的目录名/文件名。
@@ -31,7 +31,7 @@
 #     仍由 run_gates.py / CI 承担。
 #   - 覆盖边界：PostToolUse 的 matcher 是写入类工具（Write|Edit|SearchReplace|MultiEdit），判定
 #     只认 tool_input 的 file_path 类字段；Bash/Shell 内的文件写入不经该事件——已知边界而非漏洞，
-#     相关约束由收尾门禁（R8 全仓扫描 / run_gates.py / CI）在入库前兜底。
+#     相关约束由收尾检查（R8 全仓扫描 / run_gates.py / CI）在入库前兜底。
 #   - UTF-8：拒绝理由与反馈都是中文，中文 Windows（cp936）下写 stderr 会抛 UnicodeEncodeError
 #     炸掉 Hook 进程（与 MID-63 同根因），故 stdout/stderr 都要 reconfigure 并显式给 errors。
 #
@@ -61,7 +61,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PROTECTED_RUNTIME_DIRS: tuple[str, ...] = ("downloads", "logs", "backup_config", "recordings")
 
 # AGENTS.md「测试收尾清理临时脚本」的第二条禁区：`**不要**动 scripts/ 下正式维护脚本`。
-# 与运行期产物分开建模——它不是产物目录，而是「长期复用代码的家」，误删后果是门禁本身失效。
+# 与运行期产物分开建模——它不是产物目录，而是「长期复用代码的家」，误删后果是检查本身失效。
 PROTECTED_MAINTENANCE_DIR = "scripts"
 
 # 删除动作的动词面：PowerShell / cmd / POSIX shell / Python 单行写法都要覆盖。
@@ -122,12 +122,12 @@ _RECURSIVE_FORCE_RE = re.compile(
 _BARE_WIDE_TOKENS: frozenset[str] = frozenset({".", "./", ".\\", "*", "./*", ".\\*", "$PWD", "%CD%", "\\"})
 
 # 变异验证标记（AGENTS.md「变异验证的一次性改动必须当轮还原，并给改动行加变异标记」那条）。
-# R8 全仓扫描是**事后**兜底；本 Hook 在写入当下就报，避免残留活到下一次门禁。
+# R8 全仓扫描是**事后**兜底；本 Hook 在写入当下就报，避免残留活到下一次检查。
 # 刻意不在守卫里写完整字面量拼接形态，与 tests/test_test_hygiene.py 的自指规避同理。
 _MUTATION_MARK = "MUTA" + "TION-"
 
 # AGENTS.md「注释检查工具·三个盲点」第 3 条的原文判据，逐字复现给 agent（不自己发明新命令，
-# 否则反馈里的命令与实际门禁口径会漂移）。写成拼接形式只为不超过 black 的 120 行宽，
+# 否则反馈里的命令与实际检查口径会漂移）。写成拼接形式只为不超过 black 的 120 行宽，
 # 转义后的字面量与文档里那条一致。
 LINE_ENDING_PROBE = (
     'python -c "import pathlib;b=pathlib.Path(f).read_bytes();'
@@ -141,8 +141,8 @@ _CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 # P-RUNTIME-PIN 的反馈文案：两个命中分支共用一份定义，改文案只改这一处（2026-10-17 审查：
 # 原实现两个分支各抄一遍约 6 行消息，单边修改会静默漂移）。命中文件名由调用方拼入——与
 # P-MJS-REGISTER 同口径，且符合模块头「只回显规则短 id 与命中的文件名」的官方 hook 安全约定。
-# 文案里的命令形态逐字取自 AGENTS.md 门禁清单（`python scripts/check_runtime_pins.py`），
-# 不自己发明新命令，避免反馈与实际门禁口径漂移。
+# 文案里的命令形态逐字取自 AGENTS.md 检查清单（`python scripts/check_runtime_pins.py`），
+# 不自己发明新命令，避免反馈与实际检查口径漂移。
 _RUNTIME_PIN_MESSAGE = (
     "本次写入涉及运行时钉定表（`build_exe.py` 的 `_PINNED_RUNTIME_SHA256` 或"
     " `scripts/check_runtime_pins.py`）。AGENTS.md 要求收尾时必须执行"
@@ -592,7 +592,7 @@ def main() -> int:
         elif name == "PostToolUse":
             # 非阻断事件：exit 2 的 stderr 注入按官方文档仅对 blockable 事件生效，这里不得依赖它。
             # 文档化通道是 exit 0 + stdout JSON `hookSpecificOutput.feedback`——即时回传「当场修」，
-            # 撤销写入由收尾门禁（R8 / run_gates.py / CI）在入库前兜底。
+            # 撤销写入由收尾检查（R8 / run_gates.py / CI）在入库前兜底。
             # file_path 的字段名在不同写入工具间不统一（file_path / path / notebook_path），逐一取。
             for key in ("file_path", "filePath", "path", "notebook_path"):
                 value = payload.get(key)

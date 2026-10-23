@@ -772,7 +772,7 @@ def create_app(
     # 探活端点：进程存活 + ASGI/路由已就绪 + 应用版本可读（_APP_VERSION 在模块导入期即从
     # pyproject.toml 解析，读不到会回退 "0.0.0" 而非抛异常），故本端点**不**探测录制引擎、磁盘、
     # 平台接口等外部依赖——那些不健康时面板仍应可访问（用户需进面板改配置），把它们纳入探活只会让
-    # 门禁误红。字段为对外契约：scripts/smoke_web.json 与 CI 冒烟步骤按 {"status": "ok"} 断言，
+    # 检查误红。字段为对外契约：scripts/smoke_web.json 与 CI 冒烟步骤按 {"status": "ok"} 断言，
     # 新增字段可以、改名或改值不行。
     @_route(app, ["GET"], "/health")
     async def health() -> dict[str, str]:

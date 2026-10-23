@@ -1,14 +1,14 @@
 # scripts/run_gates.py 的回归用例。
 #
 # 覆盖三类必须锁住的行为：
-#   1) 门禁清单从 AGENTS.md「格式化命令」章节解析（唯一事实源，不得漂移成脚本内清单）；
+#   1) 检查清单从 AGENTS.md「格式化命令」章节解析（唯一事实源，不得漂移成脚本内清单）；
 #   2) 写型 black/isort 的兜底拦截判定（含 `--profile black` 参数值误报的历史坑）；
 #   3) 回路安全不变量：--list 输出的每一条命令都必须是 --check 型，且清单缺失/被污染时
-#      以非 0 退出——「门禁没跑」绝不能被报告成「门禁通过」。
+#      以非 0 退出——「检查没跑」绝不能被报告成「检查通过」。
 #
-# 全部离线：不执行任何真实门禁命令。
+# 全部离线：不执行任何真实检查命令。
 # 现被测面 = 解析/判定纯函数 + run_command 的真实子进程行为 + ensure_utf8_streams 的崩溃恢复
-# 分支。仍不跑任何**仓库门禁**：run_command 的用例一律驱动 tmp_path 下的一次性子进程脚本，
+# 分支。仍不跑任何**仓库检查**：run_command 的用例一律驱动 tmp_path 下的一次性子进程脚本，
 # 既快又与本机装了什么工具无关。
 # [2026-09-23 扩展] 新增两块被测面（SEV-2219 / MID-2256）：
 #   - gate_pytest_warnings_summary 的三条 fail-closed 判据（rc 参与判定、stderr 参与回路、
@@ -46,13 +46,13 @@ def _load_run_gates() -> ModuleType:
 
 run_gates = _load_run_gates()
 
-# 「格式化命令」章节 bash 代码块声明的门禁条数（2026-09-20 基线：black/isort/mypy×2/注释/po/版本）。
+# 「格式化命令」章节 bash 代码块声明的检查条数（2026-09-20 基线：black/isort/mypy×2/注释/po/版本）。
 # 断言用 >=：章节将来增行属放宽，不应弄红本用例；减少则说明清单被截断，必须拦。
 MIN_GATE_COMMANDS = 7
 
 
 def test_extract_matches_agents_section() -> None:
-    # 真源解析：首条必须是 black 的逐字门禁命令（含显式传参），证明清单来自章节而非脚本内复制
+    # 真源解析：首条必须是 black 的逐字检查命令（含显式传参），证明清单来自章节而非脚本内复制
     cmds = run_gates.extract_gate_commands(ROOT / "AGENTS.md")
     assert len(cmds) >= MIN_GATE_COMMANDS
     assert cmds[0] == "python -m ruff format --check --diff ."
@@ -109,7 +109,7 @@ def test_list_mode_emits_only_check_commands() -> None:
 
 
 def test_missing_source_exits_nonzero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 清单来源缺失时 main() 必须 rc=2：门禁「没跑」不得被当成「跑过且通过」
+    # 清单来源缺失时 main() 必须 rc=2：检查「没跑」不得被当成「跑过且通过」
     monkeypatch.setattr(run_gates, "ROOT", tmp_path)
     assert run_gates.main(["--list"]) == 2
 
@@ -117,11 +117,11 @@ def test_missing_source_exits_nonzero(tmp_path: Path, monkeypatch: pytest.Monkey
 # ---------------------------------------------------------------------------
 # run_command / ensure_utf8_streams 用例（2026-09-22 补，AGENTS.md「完成定义」点名的缺口）
 #
-# 一律驱动 tmp_path 下的一次性子进程脚本，不跑任何真实门禁命令；被测面按 run_gates 的
+# 一律驱动 tmp_path 下的一次性子进程脚本，不跑任何真实检查命令；被测面按 run_gates 的
 # 四条回路语义组织：① 退出码原样透传（异常退出/信号死亡都必须非 0，绝不判 PASS）；
 # ② stderr 边转发边扫描（不得吞输出，也不得只看 rc —— MID-63 的假绿形态）；
 # ③ 子进程环境分层（GATE_CHILD_ENV 硬默认 > 父环境，extra_env 再覆盖）与解释器换绑；
-# ④ 本进程输出流必须先 UTF-8 化，否则门禁会因转发 emoji 而自炸（2026-09-21 实测）。
+# ④ 本进程输出流必须先 UTF-8 化，否则检查会因转发 emoji 而自炸（2026-09-21 实测）。
 # ---------------------------------------------------------------------------
 
 
@@ -149,12 +149,12 @@ def test_run_command_zero_rc_forwards_stderr_verbatim(tmp_path: Path, capsys: py
 def test_run_command_propagates_nonzero_rc(tmp_path: Path) -> None:
     script = _child_script(tmp_path, "fail.py", "import sys\nsys.exit(3)\n")
     rc, _dur, hits = run_gates.run_command(_gate_cmd(script))
-    assert rc != 0, f"子进程 sys.exit(3) 被吞成 rc={rc}，门禁会把它报成 PASS"
+    assert rc != 0, f"子进程 sys.exit(3) 被吞成 rc={rc}，检查会把它报成 PASS"
     assert hits == []
 
 
 def test_run_command_flags_fatal_pattern_despite_zero_rc(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # MID-63 核心不变量：isort 静默跳文件时 rc 恒 0，只认退出码即门禁假绿。
+    # MID-63 核心不变量：isort 静默跳文件时 rc 恒 0，只认退出码即检查假绿。
     # 故意打两次同一告警，顺带锁定 hits 去重（否则一条告警会被汇总成两条失败）。
     body = (
         "import sys\n"
@@ -170,7 +170,7 @@ def test_run_command_flags_fatal_pattern_despite_zero_rc(tmp_path: Path, capsys:
 
 def test_run_command_child_env_layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # GATE_CHILD_ENV 是兜底硬默认：父环境把 PYTHONUTF8 设成 0 也必须被覆盖成 1（MID-63），
-    # extra_env（来自门禁块行首前缀）则叠加自己的键。
+    # extra_env（来自检查块行首前缀）则叠加自己的键。
     monkeypatch.setenv("PYTHONUTF8", "0")
     probe = tmp_path / "env.txt"
     body = (
@@ -188,7 +188,7 @@ def test_run_command_child_env_layers(tmp_path: Path, monkeypatch: pytest.Monkey
 
 
 def test_run_command_rebinds_interpreter_to_current_python(tmp_path: Path) -> None:
-    # 清单里的 `python` 必须换绑到**当前解释器**：否则本地门禁可能跑在与 pytest 不同的
+    # 清单里的 `python` 必须换绑到**当前解释器**：否则本地检查可能跑在与 pytest 不同的
     # 解释器上（venv/py 启动器混用），正是「本地绿、CI 红」的成因之一。
     probe = tmp_path / "exe.txt"
     body = f"import sys\nopen(r'{probe}', 'w', encoding='utf-8').write(sys.executable)\n"
@@ -199,7 +199,7 @@ def test_run_command_rebinds_interpreter_to_current_python(tmp_path: Path) -> No
 
 def test_run_command_does_not_inherit_stdin(tmp_path: Path) -> None:
     # stdin=DEVNULL：管道/IDE harness 下父 stdin 可能已关闭，子进程 site 初始化碰它即
-    # OSError WinError 6；读它也只能拿到 EOF，绝不能挂住门禁。
+    # OSError WinError 6；读它也只能拿到 EOF，绝不能挂住检查。
     probe = tmp_path / "stdin.txt"
     body = f"import sys\nopen(r'{probe}', 'w', encoding='utf-8').write(repr(sys.stdin.read()))\n"
     rc, _dur, _hits = run_gates.run_command(_gate_cmd(_child_script(tmp_path, "stdin.py", body)))
@@ -243,7 +243,7 @@ def test_run_command_tolerates_absent_stderr(monkeypatch: pytest.MonkeyPatch, tm
 
 
 def test_run_command_missing_gate_cwd_raises_not_silently_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # cwd 不存在属「门禁工具本身坏了」，必须显式失败而不是返回 rc=0 让人以为检查过了。
+    # cwd 不存在属「检查工具本身坏了」，必须显式失败而不是返回 rc=0 让人以为检查过了。
     # 刻意取 tmp_path 下一个**没建过**的子目录：跨平台都保证不存在，且不会碰到只读根目录。
     monkeypatch.setattr(run_gates, "ROOT", tmp_path / "no-such-gate-cwd-dir")
     with pytest.raises(OSError):
@@ -251,7 +251,7 @@ def test_run_command_missing_gate_cwd_raises_not_silently_zero(tmp_path: Path, m
 
 
 # ---------------------------------------------------------------------------
-# L-30（2026-10-18 审查）：门禁命令的执行形态
+# L-30（2026-10-18 审查）：检查命令的执行形态
 #
 # 缺陷面：shell=True 时 Python 把整条命令再包一层引号并把内层引号转义成 `\"`，交 cmd.exe /c；
 # cmd 对 /c 后面那段有「首尾引号成对就剥一层」的规则，于是 _rebind_interpreter 拼出的
@@ -291,7 +291,7 @@ def test_run_command_uses_argv_list_for_plain_commands(monkeypatch: pytest.Monke
     run_gates.run_command("python -m ruff format --check --line-length 120 .")
     assert len(calls) == 1
     args, kwargs = calls[0]
-    assert kwargs.get("shell") is False, "普通门禁命令仍经 cmd.exe/sh 二次解释 = L-30 的引号层还在"
+    assert kwargs.get("shell") is False, "普通检查命令仍经 cmd.exe/sh 二次解释 = L-30 的引号层还在"
     assert isinstance(args, list), f"应传参数列表，实际 {type(args).__name__}: {args!r}"
     assert args[0] == sys.executable, "行首解释器必须仍是当前解释器（换绑语义不得随形态改动丢失）"
     assert all('"' not in token for token in args), f"argv 里不该再有任何引号层：{args}"
@@ -316,7 +316,7 @@ def test_run_command_falls_back_to_shell_only_when_needed(monkeypatch: pytest.Mo
 
 def test_build_gate_argv_keeps_backslashes_and_quotes_stripped() -> None:
     # posix=False 的意义就在这里：默认模式会把反斜杠当转义吃掉，Windows 绝对路径被切成
-    # `C:venvScriptspython.exe`（argv[0] 不存在，门禁会「跑不起来却报成通过」）。
+    # `C:venvScriptspython.exe`（argv[0] 不存在，检查会「跑不起来却报成通过」）。
     argv = run_gates.build_gate_argv(r'python -m ruff format --exclude "C:\path\to\x" .')
     assert argv is not None
     assert r"C:\path\to\x" in argv, f"反斜杠被吃掉或引号没剥净：{argv}"
@@ -332,9 +332,9 @@ def test_build_gate_argv_keeps_backslashes_and_quotes_stripped() -> None:
     ],
 )
 def test_every_gate_command_shape_is_argv_executable(cmd: str) -> None:
-    # 回路锁：AGENTS.md 门禁块里的每一条形态都必须能按参数列表跑起来（拆不出来即说明改动
-    # 让某条门禁静默退回旧形态，本机看不出来、换机器才发现）。
-    assert run_gates.build_gate_argv(cmd) is not None, f"{cmd!r} 拆不出 argv：门禁仍要走 cmd.exe 引号层"
+    # 回路锁：AGENTS.md 检查块里的每一条形态都必须能按参数列表跑起来（拆不出来即说明改动
+    # 让某条检查静默退回旧形态，本机看不出来、换机器才发现）。
+    assert run_gates.build_gate_argv(cmd) is not None, f"{cmd!r} 拆不出 argv：检查仍要走 cmd.exe 引号层"
 
 
 def test_run_command_drives_spaced_script_path_without_shell(
@@ -346,7 +346,7 @@ def test_run_command_drives_spaced_script_path_without_shell(
     spaced_dir.mkdir()
     script = _child_script(spaced_dir, "ok.py", "import sys\nsys.stderr.write('spaced line\\n')\n")
     rc, _dur, hits = run_gates.run_command(_gate_cmd(script))
-    assert rc == 0, f"带空格路径的门禁命令被判成 {rc}（cmd.exe 引号剥层形态回归）"
+    assert rc == 0, f"带空格路径的检查命令被判成 {rc}（cmd.exe 引号剥层形态回归）"
     assert hits == []
     assert "spaced line" in capsys.readouterr().out, "argv 形态下 stderr 仍须逐行原样转发（MID-63）"
 
@@ -354,7 +354,7 @@ def test_run_command_drives_spaced_script_path_without_shell(
 @pytest.mark.parametrize("stream_factory", ["no_reconfigure", "value_error", "os_error"], ids=lambda v: v)
 def test_ensure_utf8_streams_never_raises(monkeypatch: pytest.MonkeyPatch, stream_factory: str) -> None:
     # 崩溃恢复分支：本函数只改善输出、不参与判定。三种「改不动」的形态都必须静默放过，
-    # 否则「输出流被重定向到已关闭句柄」会把门禁进程炸在还没有任何结论之前。
+    # 否则「输出流被重定向到已关闭句柄」会把检查进程炸在还没有任何结论之前。
     class _NoReconfigure:
         pass
 
@@ -378,7 +378,7 @@ def test_ensure_utf8_streams_never_raises(monkeypatch: pytest.MonkeyPatch, strea
 
 def test_ensure_utf8_streams_makes_unencodable_emoji_survivable(monkeypatch: pytest.MonkeyPatch) -> None:
     # 2026-09-21 实测崩溃：中文 Windows（cp936）下 black **通过**时那行 `All done! ✨ 🍰 ✨`
-    # 让转发语句抛 UnicodeEncodeError，rc=1 且只剩一段 Traceback——比不跑门禁更糟。
+    # 让转发语句抛 UnicodeEncodeError，rc=1 且只剩一段 Traceback——比不跑检查更糟。
     out = io.TextIOWrapper(io.BytesIO(), encoding="gbk", errors="strict")
     err = io.TextIOWrapper(io.BytesIO(), encoding="gbk", errors="strict")
     monkeypatch.setattr(sys, "stdout", out)
@@ -405,7 +405,7 @@ def _fake_agents(tmp_path: Path) -> Path:
 
 def test_main_fails_on_fatal_pattern_even_with_zero_rc(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # 回路级闭环：rc=0 但 stderr 命中致命告警 → 该条判 FAIL → 整体 rc=1；
-    # 且默认首个失败即停（--keep-going 才跑完），门禁块行首前缀必须作为子进程环境透下去。
+    # 且默认首个失败即停（--keep-going 才跑完），检查块行首前缀必须作为子进程环境透下去。
     monkeypatch.setattr(run_gates, "ROOT", tmp_path)
     _fake_agents(tmp_path)
     calls: list[tuple[str, dict[str, str] | None]] = []
@@ -422,7 +422,7 @@ def test_main_fails_on_fatal_pattern_even_with_zero_rc(monkeypatch: pytest.Monke
 
     calls.clear()  # 第二次跑只看本轮次数，不与上一轮的 fail-fast 计数混在一起
     assert run_gates.main(["--keep-going"]) == 1
-    assert len(calls) == 2, "--keep-going 必须跑完剩余门禁再汇总"
+    assert len(calls) == 2, "--keep-going 必须跑完剩余检查再汇总"
 
 
 def test_main_exits_3_when_gate_tool_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -458,7 +458,7 @@ def test_check_executables_accepts_module_fallback_without_path_scripts(monkeypa
 #   ③ 必须看到「N passed」且 N > 0。
 # 全部离线：subprocess 只替换 run_gates 模块全局引用（SimpleNamespace 副本），
 # 不改 stdlib 本体（AGENTS.md「patch main.py 的 subprocess 必须替换全局引用」同源约束，
-# 本仓 tests/ 卫生门禁 R1 也会把改本体的写法判红）。
+# 本仓 tests/ 卫生检查 R1 也会把改本体的写法判红）。
 # ---------------------------------------------------------------------------
 
 
@@ -525,7 +525,7 @@ def test_warnings_gate_fails_when_no_test_count_in_stdout(monkeypatch: pytest.Mo
     # （报告 §6.3 第 17 条点名的形态：一条用例都没跑到却判 PASS）。
     _stub_pytest_run(monkeypatch, rc=0, stdout="no tests ran in 0.05s\n")
     ok, msg = run_gates.gate_pytest_warnings_summary()
-    assert ok is False, "门禁没跑到用例却判通过"
+    assert ok is False, "检查没跑到用例却判通过"
     assert "没跑到用例" in msg or "0）" in msg, msg
 
 
@@ -586,8 +586,8 @@ def test_pytest_rc_semantics_table_covers_documented_codes() -> None:
 # ---------------------------------------------------------------------------
 # 跨文件同源锁（MID-2256）：scripts/check_annotations.py 的 EXCLUDE_DIRS
 #
-# 为什么放在本文件：check_annotations.py 是「格式化命令」门禁块里的一条（run_gates 逐字
-# 执行该块），它的扫描面就是这条门禁的覆盖面；清单漂移会让「被删符号的残留调用点」
+# 为什么放在本文件：check_annotations.py 是「格式化命令」检查块里的一条（run_gates 逐字
+# 执行该块），它的扫描面就是这条检查的覆盖面；清单漂移会让「被删符号的残留调用点」
 # 被判成「全仓有绑定」而漏报（check_dangling_symbols 经 iter_source_files 聚合 global_bound）。
 # 方向刻意只做「pyproject 有、清单必须也有」——反向（清单更严）是允许的保守侧。
 # ---------------------------------------------------------------------------
@@ -666,7 +666,7 @@ def test_check_annotations_scan_face_still_includes_tests_and_src() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     for keep in ("src", "tests", "scripts", "web"):
-        assert keep not in module.EXCLUDE_DIRS, f"{keep}/ 被排除出注释/悬空符号检查，门禁覆盖面已塌陷"
+        assert keep not in module.EXCLUDE_DIRS, f"{keep}/ 被排除出注释/悬空符号检查，检查覆盖面已塌陷"
     files = module.iter_source_files(ROOT)
     assert len(files) > 100, f"扫描面异常（{len(files)} 个文件），排除清单可能过宽"
     assert any(p.name == "spider.py" for p in files), "src/spider.py 不在扫描面内"
@@ -677,8 +677,8 @@ def test_check_annotations_scan_face_still_includes_tests_and_src() -> None:
 # [tool.mypy].exclude 失明回归锁（2026-10-03，随「exclude 目录名锚定」批次落地）
 #
 # mypy 的 exclude 是 re.search 对「相对路径 + 正斜杠归一、目录补尾 /」的子串匹配：裸目录名
-# （修复前的 "ffmpeg"/"node"）会把模块名含该词的源码整个排除出门禁。危险之处在于这些文件
-# 后来被修干净了，改回裸名 mypy 照样全绿——失明只会静默复发，靠门禁自身发现不了。
+# （修复前的 "ffmpeg"/"node"）会把模块名含该词的源码整个排除出检查。危险之处在于这些文件
+# 后来被修干净了，改回裸名 mypy 照样全绿——失明只会静默复发，靠检查自身发现不了。
 # 锁的是语义不变量（files 扫描面内任何源文件都不得被任何 exclude 模式命中），不钉具体写法：
 # `^ffmpeg/` 与 `(^|/)ffmpeg/` 等价形态都放行；「exclude 不得覆盖源文件」才是承重判据。
 def test_ruff_discovery_keeps_product_and_test_files() -> None:

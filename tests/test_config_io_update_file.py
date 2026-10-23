@@ -298,7 +298,7 @@ class TestPermissionHardening:
             raise OSError("unsupported")
 
         # 按仓内约定走浅拷贝 shim：monkeypatch.setattr(config_io.os, "chmod", ...) 改的是
-        # 全进程唯一的 os 模块本体，会波及 harness 守护线程与其他用例（R1 门禁）。
+        # 全进程唯一的 os 模块本体，会波及 harness 守护线程与其他用例（R1 检查）。
         shim = types.SimpleNamespace(**vars(os))
         shim.chmod = deny
         monkeypatch.setattr(config_io, "os", shim)

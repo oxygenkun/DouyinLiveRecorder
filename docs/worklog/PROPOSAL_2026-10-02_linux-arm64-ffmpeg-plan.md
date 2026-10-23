@@ -21,7 +21,7 @@ pytest 9 + PyYAML / buildx + GHCR。
 
 - **不执行任何 `git commit`**（用户 2026-10-02 明确指令：在当前 89 个文件 staged 未提交的状态上开工）。
   本计划所有 Task 的收尾步骤是「记录改动三元组」而非提交。
-- **门禁唯一入口**：`python scripts/run_gates.py`；命令清单的事实源是 `AGENTS.md`「格式化命令（门禁唯一基准）」，
+- **检查唯一入口**：`python scripts/run_gates.py`；命令清单的事实源是 `AGENTS.md`「格式化命令（检查唯一基准）」，
   **不得**在任何文件里复制一套 black/isort/mypy 参数。mypy 一律**不带路径**。
 - **Python 3.14 venv**：语法/编译检查必须用项目 venv 的 3.14（3.13 会把 `except A, B:` 误报成 SyntaxError）。
 - **多异常写法**：新增/修改代码写无括号 `except A, B:`（PEP 758）；需要 `as` 绑定时才加括号。
@@ -29,7 +29,7 @@ pytest 9 + PyYAML / buildx + GHCR。
 - **行宽 120**（black + isort）。
 - **形参日志一律 `i18n.tr(常量模板, **kw)`，禁止 f-string**；新模板**同批**补进
   `i18n/zh_CN/LC_MESSAGES/zh_CN.po`、`i18n/en_US.json`、`i18n/en_GB.json`、`i18n/zh_TW.yaml`
-  四目录并 `python scripts/compile_po.py` 重编 `.mo`（`tests/test_i18n_migration.py` 是硬门禁）。
+  四目录并 `python scripts/compile_po.py` 重编 `.mo`（`tests/test_i18n_migration.py` 是硬检查）。
 - **异常日志必须带 `{type_name}` 与 `{masked_url}`**，URL/代理进日志前一律过 `utils.mask_credentials()`。
 - **下载源三处同改**（AGENTS.md 关键约定 #10）：源码 URL 常量 + `tests/test_ffmpeg_install.py::DOWNLOAD_SOURCES`
   + `DOWNLOAD_MODULES`；缺一即锁红。完整性方式取值域 = `{"官方哈希","官方签名","第4类","TOFU"}`。
@@ -200,7 +200,7 @@ Expected: rc=0（该键已钉定）。**反向见证**：临时把 `build_exe._P
 **本 Task 的 import 段只写** `platform` / `types` / `typing.Any` / `pytest` / `requests` /
 `import src.ffmpeg_linux_download as fld`；`hashlib/io/subprocess/tarfile/Path` 随 Task 3 的用例补，
 `from pathlib import Path` 与 `from build_exe import _FFMPEG_DOWNLOAD_URLS` 随 Task 5 的 parity 锁补
-（提前引入就是未用导入，basedpyright 本地门禁会报）。然后：
+（提前引入就是未用导入，basedpyright 本地检查会报）。然后：
 
 ```python
 # tests/test_ffmpeg_linux_download.py —— src/ffmpeg_linux_download.py 的回归锁。
@@ -282,8 +282,8 @@ Expected: FAIL —— `ModuleNotFoundError: No module named 'src.ffmpeg_linux_do
 
 新建 `src/ffmpeg_linux_download.py`。**本 Task 只 import 本 Task 用到的名字**
 （`platform/re/Any/cast/requests/logger/i18n/utils`）；`os/stat/shutil/subprocess/tarfile/tempfile/time/Path`
-留到 Task 3 随各自消费者一起加——basedpyright 的未用导入会在本地补充门禁里报红，
-而「先抄全再删」会让 Task 2 的门禁读数不可信。**头部注释是本模块的存在理由，必须写全**
+留到 Task 3 随各自消费者一起加——basedpyright 的未用导入会在本地补充检查里报红，
+而「先抄全再删」会让 Task 2 的检查读数不可信。**头部注释是本模块的存在理由，必须写全**
 （按本仓「为什么」约定）：
 
 ```python
@@ -429,7 +429,7 @@ def _fetch_asset_digest(asset_url: str) -> str:
 Run: `pytest tests/test_ffmpeg_linux_download.py -q`
 Expected: PASS（本 Task 只含纯函数层）。
 
-- [ ] **Step 5：补两条门禁自检**
+- [ ] **Step 5：补两条检查自检**
 
 Run: `mypy` （不带路径）与 `python -m black --check --diff --line-length 120 --target-version py314 src/ffmpeg_linux_download.py`
 Expected: 均 0。`import src.ffmpeg_linux_download` 会触发 `i18n`/`src.utils` 的既有类型面，不应新增任何 mypy 条目。
@@ -1168,7 +1168,7 @@ Expected: `True` 且打印 64 位十六进制。
 #
 # 为什么要有：多架构发布链的正确性全靠几个「看起来像细节」的约束（只在 tag 上推 latest、
 #   两个构建 job 的 runner 与 --platform 必须一一对应、凭据只能是自动 GITHUB_TOKEN），
-#   而工作流文件不在任何门禁的判据面里——改坏它不会有任何测试红，只会在下一次发版时炸。
+#   而工作流文件不在任何检查的判据面里——改坏它不会有任何测试红，只会在下一次发版时炸。
 # YAML 1.1 陷阱：`on:` 会被 PyYAML 解析成布尔 True 键，本文件按 data[True] 取值，
 #   写代码的人容易在这里写下「KeyError: 'on'」然后误判成「工作流没触发条件」。
 
@@ -1429,7 +1429,7 @@ Expected: 打印 4 个 job 名，`on` 键以 True 呈现（YAML 1.1 行为，不
 
 ---
 
-## Task 7: 文档同源与收尾门禁
+## Task 7: 文档同源与收尾检查
 
 **Files:**
 - Modify: `AGENTS.md`（3 条）、`CODE_WIKI.md`、`CODE_WIKI_EN.md`、`README.md`、`README_EN.md`
@@ -1468,7 +1468,7 @@ Run: `grep -n "install_ffmpeg\|download_ffmpeg" scripts/douyin_live_recorder_sta
 Expected: 无命中（2026-10-02 已核对）→ 结论写「已核对 / 刻意不回灌：该副本不含 ffmpeg 安装链，
 只有 `should_prepend_bundled_ffmpeg_dir` 的同名 PATH 让位判据，本次未改其语义」。若命中变了，本次改动回灌。
 
-- [ ] **Step 5：全量门禁（DoD 第 1 步，必须在最后一次编辑之后）**
+- [ ] **Step 5：全量检查（DoD 第 1 步，必须在最后一次编辑之后）**
 
 Run: `python scripts/run_gates.py`
 Expected: rc=0（含 `mypy` 无参 + `mypy --platform linux` + `mypy --platform win32` 三跑、
@@ -1478,7 +1478,7 @@ Run: `pytest -q` 与 `python scripts/check_coverage.py`
 Expected: pytest 0 警告全绿；覆盖率对**新模块 `src/ffmpeg_linux_download.py`** 达标
 （新文件通常不在 `MODULE_THRESHOLDS` 里，确认走默认阈值分支而非「查不到按失败处理」那条红）。
 
-Run: `basedpyright`（不传路径，本地补充门禁）
+Run: `basedpyright`（不传路径，本地补充检查）
 Expected: 0 error / 0 warning。新模块里 `payload.get("assets")` 之类 Any 泄漏是高危点，
 必要时用 `cast` 收窄（禁三参 `getattr`，AGENTS.md「Any 泄漏」条目）。
 
@@ -1488,7 +1488,7 @@ Expected: 0 error / 0 warning。新模块里 `payload.get("assets")` 之类 Any 
   `git status --short` 只应多出：新模块、新测试 ×2、工作流、被改的工作流/脚本/测试/i18n/文档，
   **不应**出现 `MUTATION-` 标记残留（`grep -rn "MUTATION-" --include=*.py .` 只允许命中
   `tests/test_test_hygiene.py` 的守卫内刻意拆写字面量与 `AGENTS.md`/`.workbuddy` 的记述）。
-- `.workbuddy/memory/2026-10-02.md` 追加一条：三段落点 + 门禁读数 + **未执行项**（arm64 真机录制、
+- `.workbuddy/memory/2026-10-02.md` 追加一条：三段落点 + 检查读数 + **未执行项**（arm64 真机录制、
   GHCR 首次推送、arm runner 配额）；可复用经验写进 `docs/agent-reference/session-learnings.md`。
 
 ---
@@ -1510,7 +1510,7 @@ Expected: 0 error / 0 warning。新模块里 `payload.get("assets")` 之类 Any 
 | i18n 四目录 + .mo | Task 3 Step 5 |
 | AGENTS.md / CODE_WIKI 中英 / README | Task 7 Step 1-3 |
 | 孪生副本核对 | Task 7 Step 4 |
-| 门禁全绿 + 清理 + 日志 | Task 7 Step 5-6 |
+| 检查全绿 + 清理 + 日志 | Task 7 Step 5-6 |
 | DoD 第 2 步「端到端真机」的 arm64 部分无法本机执行 | Task 5 Step 6 给出可本机做的离线等价核对 + Task 7 Step 6 记「未执行 + 原因」 |
 
 ---

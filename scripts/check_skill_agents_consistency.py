@@ -149,8 +149,8 @@ def ensure_utf8_streams() -> None:
     # 把本进程 stdout/stderr 固定为 UTF-8 且显式给 errors：本脚本的成功/失败汇总行含
     # U+2713/U+2717（✓/✗），中文 Windows 控制台默认 cp936 编不出这两个码点 → print 抛
     # UnicodeEncodeError 炸掉脚本本身；pre-commit 侧不像 run_gates 会给子进程注入 PYTHONUTF8=1，
-    # 故接进门禁链后必现。与 run_gates、agent_hook_guard 的同名函数同根因同手法；
-    # errors="replace" 只兜底显示，绝不允许「输出失败」升级成「门禁没有结论」。
+    # 故接进检查链后必现。与 run_gates、agent_hook_guard 的同名函数同根因同手法；
+    # errors="replace" 只兜底显示，绝不允许「输出失败」升级成「检查没有结论」。
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if not callable(reconfigure):

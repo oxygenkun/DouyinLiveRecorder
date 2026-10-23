@@ -24,7 +24,7 @@
 | R-4 | `if: "!startsWith(matrix.platform, 'linux')"` 采纳**加引号**形态 | 评审与实现者分别实测：无引号时 YAML 把行首 `!` 当 tag 指令，直接 `ParserError`；加引号后 Actions 求值语义不变 | 几乎无代价，是更安全的形态；若 GitHub 未来改变 plain scalar 解析，此处仍是可用形态 | `build-release.yml:380` + `AGENTS.md` CI 条目 |
 | R-5 | 既有用例 `test_real_matrix_parser_rejects_unregistered_runner_tag` 的合成样本标签 `ubuntu-24.04-arm` → `ubuntu-24.04-arm64` | Step 2 把该标签登记进映射后，原样本必然不再是「未登记标签」，用例语义反转 | 若将来真出现 `ubuntu-24.04-arm64` 这一标签，守卫会明确变红（预期行为，非静默失效） | `tests/test_check_runtime_pins.py` |
 | R-7 | `_digest_from_assets` 删掉 `.strip().lower()`：形状关 `^[0-9a-f]{64}$` **只认小写** | brief 内部自相矛盾（带 `.lower()` 的代码 vs「大写 `E*64` 应算取不到」的用例），实跑用例真红；规格 §4.2 与 `build_exe._is_pinned` 是同一条形状判据 | 上游若改发大写 digest，会被判「取不到」→ 走 TOFU 降级分支（fail-closed 且可观测，不是放行） | `src/ffmpeg_linux_download.py` |
-| R-8 | `[tool.mypy].exclude` 里的裸 `"ffmpeg"` 是**路径子串**正则，使全仓 `src/ffmpeg_*`、`tests/test_ffmpeg_*` 对「不带路径的 mypy」门禁失明；本轮**不改** `pyproject.toml`，改跑「显式传参 mypy + basedpyright」代偿 | 实测：新增这两个文件前后无参 `mypy` 同为 189 source files；加入一个名字不含 `ffmpeg` 的测试文件后变 190 | 「mypy 全绿」不得当作这批文件的类型门禁证据；改 exclude 形态 = 全仓 ffmpeg 系首次进门禁、必一次性暴露存量错误 ⇒ 属独立工作包，见本文 §二.5 | `AGENTS.md`「已知坑 · 类型检查」 |
+| R-8 | `[tool.mypy].exclude` 里的裸 `"ffmpeg"` 是**路径子串**正则，使全仓 `src/ffmpeg_*`、`tests/test_ffmpeg_*` 对「不带路径的 mypy」检查失明；本轮**不改** `pyproject.toml`，改跑「显式传参 mypy + basedpyright」代偿 | 实测：新增这两个文件前后无参 `mypy` 同为 189 source files；加入一个名字不含 `ffmpeg` 的测试文件后变 190 | 「mypy 全绿」不得当作这批文件的类型检查证据；改 exclude 形态 = 全仓 ffmpeg 系首次进检查、必一次性暴露存量错误 ⇒ 属独立工作包，见本文 §二.5 | `AGENTS.md`「已知坑 · 类型检查」 |
 | R-9 | `_install_binaries` 由「边找边拷」改为**两趟**（先全量递归定位 `ffmpeg`/`ffprobe`、缺件即返回且 dest 侧零改动；两件齐了才 mkdir + copy + 补执行位） | 评审锁 I-1⑤ 要求「缺 `ffprobe` 不得留下半截安装」，单边形态下该锁恒假 | 计划 Task 3 的单边版文本已被证伪；**任何人复原它就静默废掉那条锁**，且 `dest/ffmpeg/` 空壳会变成「装过了」的假证据 | `AGENTS.md`「已知坑 · 构建产物」 |
 | R-10 | 执行位（`chmod \| S_IXUSR`）判据判为 **Linux CI 承载**，本机不伪造 mode 断言 | 实测 Windows 宿主上 tar 成员 mode 恒回 `0o666`、chmod 后 `S_IXUSR` 不回报；删掉 `chmod` 整行 46 条用例全绿 | 合并边界若要自证需 CI 首跑读数；本机唯一合法闭合路子是加「`Path.chmod` 以含 `S_IXUSR` 掩码被调用」的行为锁（属增补，未做） | 账本 Unit A 段 |
 | R-11 | `install_ffmpeg_linux()` 中「`apt update` 失败即在 apt 块内 `return False`」的早退**删掉**，改落函数末尾统一出口 | 无 root 的 Debian/Ubuntu arm64 上 `apt update` 要写 `/var/lib/apt/lists`、失败是常态，而这类机器正是本模块声明的目标人群；评审探针实测该支兜底触达次数 0→1 | 牵动两条既有用例（`tests/test_ffmpeg_install.py:304`/`:1084` 一带），二者断言已由评审逐条复验仍被真实断言；**S2 回滚时必须连同 `else:` 嵌套一起还原才等价**（规格 §九 已更正） | `src/ffmpeg_install.py:556-570` |
@@ -66,7 +66,7 @@ compose 拉取名不同源是分工，compose 用户走 `pull_policy: build` 就
 `tests/test_douyu_url_resolution.py`；`.po` 在 03:56 被追加虎牙/斗鱼 msgid 而未重编 `.mo`
 （我按其 prescribed 命令跑了 `compile_po.py`，`.mo` 属可再生派生产物）。
 **影响**：并发 pytest 会放大本文 §三 的环境噪声归因难度。
-**需要你定**：两批工作是否要在同一工作区继续并行；若继续，收尾门禁的归因口径要不要改成「按文件集分包跑」。
+**需要你定**：两批工作是否要在同一工作区继续并行；若继续，收尾检查的归因口径要不要改成「按文件集分包跑」。
 
 ### 3. `ubuntu-24.04-arm` 的额度归属未证实
 
@@ -83,9 +83,9 @@ compose 拉取名不同源是分工，compose 用户走 `pull_policy: build` 就
 ### 5. 两个我刻意没开的「顺手修」工作包
 
 - **mypy exclude 形态（R-8）**：把 `[tool.mypy].exclude` 的裸 `"ffmpeg"` 锚定成目录形态，收益是全仓
-  `ffmpeg_*` 首次进 mypy 门禁，代价是**必然一次性暴露存量错误**。属独立工作包，等你决定要不要开。
+  `ffmpeg_*` 首次进 mypy 检查，代价是**必然一次性暴露存量错误**。属独立工作包，等你决定要不要开。
   **[2026-10-03 状态更新] 已开工落地**：`"ffmpeg"` 与 `"node"`（枚举新发现的同族误伤）双双锚定为
-  `(^|/)<名>/`，12 个失明文件进无参门禁、新暴露 8 处存量错误已修，语义回归锁 +
+  `(^|/)<名>/`，12 个失明文件进无参检查、新暴露 8 处存量错误已修，语义回归锁 +
   变异验证落 `tests/test_run_gates.py`；读数与判据见 CODE_WIKI 同日条目与 AGENTS.md 改写后的对应已知坑。
 - **arm64 full 包体积读数**：`AGENTS.md` 明文「体积结论只以本机实跑为准，不估算」，而本机是 Windows x64，
   产不出也跑不了 arm64 冻结产物 ⇒ 需 CI 首跑后用 `scripts/report_bundle_size.py` 取数再回填文档。
@@ -93,14 +93,14 @@ compose 拉取名不同源是分工，compose 用户走 `pull_policy: build` 就
 ### 6. DoD #2 端到端真机验证：未执行（如实登记）
 
 本机无法产出也无法运行 arm64 产物。已做到的替代证据：① 活体取数（API digest 与钉定值逐字相等）；
-② 48 条离线行为锁 + 13 条工作流结构锁；③ 覆盖率门禁 46 模块达标。
+② 48 条离线行为锁 + 13 条工作流结构锁；③ 覆盖率检查 46 模块达标。
 **未做**：arm64 真机上「非 root + apt 在位使 update 失败」与「yum/apt 皆缺」两条分支的真实录制跑通、
 GHCR 首推与多架构 `docker manifest inspect` 读数。**交回动作**：由你在 arm64 主机或 CI 首跑后执行，
 届时按 DoD 口径写进 `CODE_WIKI.md`/`CODE_WIKI_EN.md` 更新日志。
 
 ---
 
-## 三、门禁终态读数（最终修订之后执行）
+## 三、检查终态读数（最终修订之后执行）
 
 | 命令 | 结果 |
 | --- | --- |

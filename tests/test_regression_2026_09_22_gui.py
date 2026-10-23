@@ -462,7 +462,7 @@ def _four_catalogs() -> dict[str, dict[str, str]]:
 
 class TestDialogStringsRegistered:
     def test_every_messagebox_template_is_registered(self) -> None:
-        # 漏登记 = 假绿：门禁全绿、extract_i18n_strings 报「0 缺失」，但英文用户在「彻底退出 /
+        # 漏登记 = 假绿：检查全绿、extract_i18n_strings 报「0 缺失」，但英文用户在「彻底退出 /
         # 没有直播间地址 / 冲突裁决」这些最需要看得懂的界面上只拿到简中。判据对象是四语目录本身，
         # 不是 _i18n_pending_gui.json——袋子只是并行修复期防撞车的一次性中转，以袋为准会让
         # 「袋子写过、目录没合」这种最真实的漏网形态一路绿到底。

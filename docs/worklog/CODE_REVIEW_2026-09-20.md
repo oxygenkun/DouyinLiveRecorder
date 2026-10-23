@@ -4,8 +4,8 @@
 - **审查对象**：`D:\DouyinLiveRecorder-dev`
 - **版本基线**：4.3.0（唯一事实源 `pyproject.toml`，`scripts/check_version.py` 实测通过）
 - **运行环境**：Python 3.14.7（项目 venv）/ Node.js v24.21.0 / Windows 10 (10.0.26200) x64
-- **审查方式**：静态源码通读（分组并行、非抽样）+ 严重/中等条目**逐条回源复核** + 关键论断**可执行探针实测** + 全部门禁实跑
-- **结论摘要**：正文登记 **103 项**（**严重 10 / 中等 69 / 轻微 24**），附录 D 本地补扫再增 **3 项**（中等 1 / 轻微 2），**合计 106 项**（严重 10 / 中等 70 / 轻微 26）。补扫原登记的 **补-01**（门禁入口脚本自身未过 black）与 **补-06**（`AGENTS.md` 链接/锚点缺陷）已于 20:48 复核时确认**由作者就地修复**，改标「已消解」并从统计中剔除（取证与消解过程保留在 D.2/D.7，口径见 D.8）。上一轮（2026-09-18）12 项严重缺陷**无一回归**，但其中 **4 项（CR-07/08/09/11）仅部分闭合**；本轮 SEV-02/03/04/05/10 即为其残留或旁路。
+- **审查方式**：静态源码通读（分组并行、非抽样）+ 严重/中等条目**逐条回源复核** + 关键论断**可执行探针实测** + 全部检查实跑
+- **结论摘要**：正文登记 **103 项**（**严重 10 / 中等 69 / 轻微 24**），附录 D 本地补扫再增 **3 项**（中等 1 / 轻微 2），**合计 106 项**（严重 10 / 中等 70 / 轻微 26）。补扫原登记的 **补-01**（检查入口脚本自身未过 black）与 **补-06**（`AGENTS.md` 链接/锚点缺陷）已于 20:48 复核时确认**由作者就地修复**，改标「已消解」并从统计中剔除（取证与消解过程保留在 D.2/D.7，口径见 D.8）。上一轮（2026-09-18）12 项严重缺陷**无一回归**，但其中 **4 项（CR-07/08/09/11）仅部分闭合**；本轮 SEV-02/03/04/05/10 即为其残留或旁路。
 
 ---
 
@@ -32,7 +32,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
    - `_validate_room_url_target()` 9 条载荷 → 7 条应拦者中 **5 条放行**（SEV-03）；
    - `delete_line()` CRLF/LF A/B 对照 → CRLF 永删不掉、LF 正常（SEV-05）；
    - `mask_credentials()` 9 条样本 → `cookie=`/`sid_guard=`/`ttwid=`/`Authorization:`/JSON 体 **全部未脱敏**（MID-29）；
-   - i18n 门禁用例 AST 复算 → 门禁可见 347 处、**10 处含占位符的真实违规逃逸**（MID-67）；
+   - i18n 检查用例 AST 复算 → 检查可见 347 处、**10 处含占位符的真实违规逃逸**（MID-67）；
    - 语言下拉折叠逻辑复算 → `'English'` 反查恒得 `en_GB`（MID-52）；
    - `'\ufeff#a'.strip().startswith('#')` → **False**，证实 GUI 空配置判据被 BOM 绕过（MID-50）。
 4. **约定对齐**：严格尊重本项目既定约定（`#` 行注释不用 docstring、`except A, B:` 为 PEP 758 风格、line-length 120、四语 i18n 同源、探针节流/退避/虎牙 FLV-first、`-reconnect*` 位置与 m3u8 特例、跨循环不创建 `aclose` 协程、`requests.Session` 线程级复用等），不将刻意设计登记为问题；相关核对结论单列第九章供后续审查者复用。
@@ -43,7 +43,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
 | 严重程度 | 数量 | 判定口径 |
 |---|---|---|
 | **严重** | 10 | 默认配置/常规输入下即导致录制失败或产物损坏、面板可被接管、凭据明文落盘，或安全防线实质失效 |
-| **中等** | 69 | 特定但现实可达条件下功能失效、资源/状态泄漏、并发约束失守、静默降级不可观测、门禁假绿 |
+| **中等** | 69 | 特定但现实可达条件下功能失效、资源/状态泄漏、并发约束失守、静默降级不可观测、检查假绿 |
 | **轻微** | 24 | 口径不齐、误导性注释/文案、防御纵深缺失、可维护性与配置卫生 |
 | **合计** | **103** | — |
 
@@ -59,7 +59,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
 | 凭据与 Web 面板安全面 | 4（SEV-02…05） | 7（MID-33…39） | 0 | 11 |
 | 平台解析与签名层（`spider.py` / `platforms`） | 2 | 11（MID-40…50） | 2 | 15 |
 | GUI·i18n·推送·安装器 | 0 | 10（MID-51…60） | 1 | 11 |
-| JS / 打包 / CI / 门禁与测试可信度 | 1（SEV-10） | 9（MID-61…69） | 8 | 18 |
+| JS / 打包 / CI / 检查与测试可信度 | 1（SEV-10） | 9（MID-61…69） | 8 | 18 |
 | 约定与文档漂移 | 0 | 0 | 1 | 1 |
 | **合计** | **10** | **69** | **24** | **103** |
 
@@ -99,20 +99,20 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
 |---|---|---|
 | 单元/集成测试（全量） | `pytest -q` | 首两次运行在 ~28% 处**挂死**（MID-63）；排除该用例后 **1041 passed, 2 skipped（49.82s），0 failed，warnings summary 为空** |
 | 前端用例 | `node --test tests/frontend/test_quality_ui.mjs` | **9 passed**（133ms；与 MID-63 构成对照） |
-| 格式门禁 | `python -m black --check --line-length 120 --target-version py314 .` | 18:4x 快照：136 files unchanged，**通过**。20:2x 新增 `scripts/run_gates.py` 后该步一度转为**失败**（补-01）；20:48 复跑 **139 files unchanged / rc=0**，补-01 已消解 |
-| 导入排序门禁 | `python -m isort --check-only --profile black --line-length 120 .` | rc=0 **但静默跳过 16 个自有文件**（MID-62）；20:2x 起经新入口 `scripts/run_gates.py` 执行同样跳过 16 个且不判失败（补-02），20:48 复跑仍为 **16 条 `Unable to parse file` + rc=0**，未消解 |
-| 类型门禁 | `mypy`（无路径参数） | **no issues found in 117 source files** |
-| 类型门禁（平台双跑） | `mypy --platform linux` | **no issues found in 117 source files** |
-| 本地严格门禁 | `basedpyright`（无路径参数） | **0 errors, 0 warnings, 0 notes** |
+| 格式检查 | `python -m black --check --line-length 120 --target-version py314 .` | 18:4x 快照：136 files unchanged，**通过**。20:2x 新增 `scripts/run_gates.py` 后该步一度转为**失败**（补-01）；20:48 复跑 **139 files unchanged / rc=0**，补-01 已消解 |
+| 导入排序检查 | `python -m isort --check-only --profile black --line-length 120 .` | rc=0 **但静默跳过 16 个自有文件**（MID-62）；20:2x 起经新入口 `scripts/run_gates.py` 执行同样跳过 16 个且不判失败（补-02），20:48 复跑仍为 **16 条 `Unable to parse file` + rc=0**，未消解 |
+| 类型检查 | `mypy`（无路径参数） | **no issues found in 117 source files** |
+| 类型检查（平台双跑） | `mypy --platform linux` | **no issues found in 117 source files** |
+| 本地严格检查 | `basedpyright`（无路径参数） | **0 errors, 0 warnings, 0 notes** |
 | 注释规范 | `python scripts/check_annotations.py` | 通过；平均密度 22.8%，最低 13.2%（阈值 13.0%） |
 | 翻译同步 | `python scripts/compile_po.py --check` | `.mo` 与 `.po` 同步，**636 条**（含头部空 msgid，目录条目 635） |
 | 待翻译串 | `python scripts/extract_i18n_strings.py` | 运行时 420 条、`zh_CN.po` 635 条，**缺失 0 条** |
 | 版本动态化 | `python scripts/check_version.py` | **PASS**（Dockerfile 为字面引用，但存在 LABEL 顺序缺陷，MIN-14） |
-| 覆盖率门禁 | `python scripts/check_coverage.py` | **未能出具结论**：单独调用时 `coverage json` 无数据可读（MIN-19） |
+| 覆盖率检查 | `python scripts/check_coverage.py` | **未能出具结论**：单独调用时 `coverage json` 无数据可读（MIN-19） |
 | 依赖清单一致性 | 脚本化剥行内注释后比对 | `requirements.txt` 20 条 == `pyproject` 20 条，**零差异**；`protobuf>=6.31.1,<8` 上限仍在（F-14 满足），已装 7.36.1 |
 | JS 完整性钉定 | 逐文件 SHA256 对 `_JS_SHA256_EXPECTED` | **7/7 匹配**，无 stale |
 | RCE/注入基线 | `grep shell=True / os.system / eval / exec / pickle / yaml.load` | 自有代码 **0 命中**；解压走真实路径校验 + `tarfile filter="data"` |
-| CI 门禁掩盖 | `grep continue-on-error .github/` | **0 处** |
+| CI 检查掩盖 | `grep continue-on-error .github/` | **0 处** |
 | PEP 758 非法形 | 全仓 `except A, B as e:` 扫描 | **0 处**；`@decorator` 与 `def` 间插注释扫描 **0 处** |
 | 类型抑制与死代码 | `grep type: ignore`（11 处，均带具体 code，无平台符号类违禁用法）、`# noqa`（**0** 处）、`TODO/FIXME`（**2** 处） | 无违禁抑制 |
 
@@ -230,7 +230,7 @@ DouyinLiveRecorder 是覆盖 60+ 直播平台的一体化工具，以三种形�
   | CRLF（工作区实际形态：`URL_config.ini` 14/14、`config.ini` 150/150 行均为 CRLF） | **仍在（删除失败）** |
   | LF | 已删除 |
 
-  后果：① 面板点「删除」提示成功、列表刷新后房间仍在并继续录制、继续占盘与并发槽；② 录制主循环的重复行清理退化为永久 no-op（重复 URL 每轮重复起线程）；③ `delete_line` 无返回值、调用方无条件 `return {"ok": True}`，故障完全不可观测。`grep delete_line tests/*.py` **零命中**（无回归锁），且 CI 在 Linux 跑、天然 LF，门禁结构上不可能发现。注意 `main()` 启动时 `remove_duplicate_lines` 会把文件重写为 LF，故故障呈「首次启动前、或配置被记事本/编辑器改回 CRLF 后必现」的间歇形态，极易被误判为偶发。
+  后果：① 面板点「删除」提示成功、列表刷新后房间仍在并继续录制、继续占盘与并发槽；② 录制主循环的重复行清理退化为永久 no-op（重复 URL 每轮重复起线程）；③ `delete_line` 无返回值、调用方无条件 `return {"ok": True}`，故障完全不可观测。`grep delete_line tests/*.py` **零命中**（无回归锁），且 CI 在 Linux 跑、天然 LF，检查结构上不可能发现。注意 `main()` 启动时 `remove_duplicate_lines` 会把文件重写为 LF，故故障呈「首次启动前、或配置被记事本/编辑器改回 CRLF 后必现」的间歇形态，极易被误判为偶发。
 - **改进建议**：`delete_line` 内做行尾归一匹配（两侧 `rstrip("\r\n")` 后比较）并返回 bool；`delete_room`/`update_room`/`toggle` 以真实返回值决定 200/500，成功前重新 `parse_url_config` 复核目标 URL 已不在列表中；补 CRLF 用例（`newline=""` 写 `\r\n` 文件 + 传 `\n` 行）。
 - **置信度**：高（A/B 实测复现）。
 
@@ -396,7 +396,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 ### 4.5 平台解析与签名层 — MID-40 … MID-50
 
 - **MID-40 B 站兜底 buvid 被 AUTH 拒绝后仍在 30 分钟内反复复用，自愈链断**（`src/spider.py:1651-1656`、`:1816`、`src/cookie_cache.py:357`）。弹幕侧 `_reject_auth()`（`src/platforms/bilibili.py:148`）→ `invalidate_bili_buvid_cache()` 只清模块全局 `_bili_buvid_cached`，**未清承载它的通用缓存**：`_cache_singleflight(key=f"bili_buvid3|{proxy}", cache_falsy=True)` 已把 `(随机UUID, True)` 存进 `_generic_cache`，TTL 30 分钟 → 下一轮见全局为空、走 singleflight → **命中同一份被拒 UUID** → 再次软拒绝，循环到 TTL 自然过期。AGENTS「被拒后下一轮重新获取」与该函数上方注释的承诺均不成立。另外 `singleflight` 缺 `fetch_cookies` 才有的世代比对（`cookie_cache.py:223-226` vs `357-359`），`invalidate_generic()` 全仓零调用点。**建议**：失效函数同时 `invalidate_generic(f"bili_buvid3|{proxy}")`（把 proxy 作形参传入）；给 `singleflight` 补世代比对，与 `fetch_cookies` 对齐。**置信度：高**。
-- **MID-41 抖音 APP 路径的 ORIGIN 候选取自 `pull_data` 而非刚解析的候选，原画地址被丢 / codec 标注错位**（`src/spider.py:707` 对照 `:588`）。`json_str` 在 `pull_datas` 非空时取自 `pull_datas[key]["stream_data"]`，但随后 `parsed_data` 只用作 `"origin" in …` 的门禁，真正拼 ORIGIN 的 hls/flv 与 `sdk_params.VCodec` 全部来自**另一个来源** `live_core_sdk_data.pull_data.stream_data`。现代 app 响应只有 `pull_datas` 而无 `pull_data` → `stream_data == ""` → 整段注入被跳过 → 候选里没有 ORIGIN（原画）；两者都存在时又会把 `pull_data` 的 codec 标到 `pull_datas` 的地址上（**codec 标注错位，直接影响 `_is_h265` 判定与 `-c copy` 安全性**）。同文件姊妹实现 `:588-591` 用的是 `parsed_data["origin"]["main"]`，即本处为复制粘贴漂移。**建议**：与 web 实现对齐（`origin_url_list = parsed_data["origin"]["main"]`），删除 `pull_data2` 二次解析。**置信度：中高**。
+- **MID-41 抖音 APP 路径的 ORIGIN 候选取自 `pull_data` 而非刚解析的候选，原画地址被丢 / codec 标注错位**（`src/spider.py:707` 对照 `:588`）。`json_str` 在 `pull_datas` 非空时取自 `pull_datas[key]["stream_data"]`，但随后 `parsed_data` 只用作 `"origin" in …` 的检查，真正拼 ORIGIN 的 hls/flv 与 `sdk_params.VCodec` 全部来自**另一个来源** `live_core_sdk_data.pull_data.stream_data`。现代 app 响应只有 `pull_datas` 而无 `pull_data` → `stream_data == ""` → 整段注入被跳过 → 候选里没有 ORIGIN（原画）；两者都存在时又会把 `pull_data` 的 codec 标到 `pull_datas` 的地址上（**codec 标注错位，直接影响 `_is_h265` 判定与 `-c copy` 安全性**）。同文件姊妹实现 `:588-591` 用的是 `parsed_data["origin"]["main"]`，即本处为复制粘贴漂移。**建议**：与 web 实现对齐（`origin_url_list = parsed_data["origin"]["main"]`），删除 `pull_data2` 二次解析。**置信度：中高**。
 - **MID-42 花椒 substream 请求 `encode=h265` 却消费 `h264_url`**（`src/spider.py:4048-4060`，函数头注释 `:4009` 自述「取 h264_url」）。请求参数与消费字段的编码器不一致，两种后果都不利：① 服务端按 `encode` 只填匹配字段 → `KeyError` → 装饰器伪装未开播（花椒整平台静默不可录）；② 服务端把 HEVC 地址塞进 `h264_url` 返回 → 地址上**没有 `codec=h265` 标记**，而 `stream_select._is_h265()` 只认该查询参数（AGENTS 硬约定），HEVC 流被当 H.264 直接 `-c copy` 进容器 → 静默损坏产物。**建议**：抓包后二选一（请求 h264 配 `h264_url`，或请求 h265 并消费 `h265_url` 且补 `&codec=h265`）；同时把 `json_data["data"]` 改为判空取值。**置信度：中**（错配本身确定，具体后果取决于服务端实现）。
 - **MID-43 淘宝把 `broadCaster` 对象当主播名字符串，下游 `clean_name()` 必抛且误记成功样本**（`src/spider.py:5069`）。mtop `mediaplatform.live.livedetail` 的 `data.broadCaster` 是对象（`accountName`/`nick`/`headPic`…），`cast(str, ...)` 只关掉 mypy 的 `no-any-return`，运行时仍是 dict → `main.py:3161` 的 `anchor_name` → `:3179` `clean_name(anchor_name)` → `stream_select.py:61` 的 `input_text.strip()` 抛 `AttributeError: 'dict' object has no attribute 'strip'`；且 `record_success(record_host)` 在 `clean_name` **之前**已上报（`main.py:3174`），熔断统计把这轮记成成功，故障更难察觉。**建议**：取具体字段（`accountName`/`nick`），非 str 结果回退 `""`；补「`broadCaster` 为 dict 时不得抛错」的回归锁。**置信度：中**。
 - **MID-44 `get_winktv_bj_info` 结果未判空即解包，违反本仓 CR-12 约定**（`src/spider.py:2697`）。被调方是 `@trace_error_decorator_or_none`（`:2634`），visitor 接口风控/HTML 拦截页时返回 `None` → 解包 `TypeError` → 被 `get_winktv_stream_data` 自己的装饰器二次吞 → 与「真未开播」不可区分，且 `anchor_name` 永不再上报。同仓 `get_popkontv_stream_data:3189-3192`、`get_acfun_sign_params:4217-4222` 都已按「显式判空后再解包」修过，此处漏改。**建议**：`_bj = await get_winktv_bj_info(...)` → `if not _bj: return {"anchor_name": "", "is_live": False}` 后解包。**置信度：高**。
@@ -420,16 +420,16 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 - **MID-58 推送失败日志把自建 Bark 服务器的 device key 原样写进轮转日志**（`msg_push.py:56`，实测核对）。Bark 密钥是路径末段，短于 12 字符时**只能靠 `day.app` 主机名白名单**命中：实测 `https://api.day.app/MyKey124/` → `https://api.day.app/****`，而 `https://bark.example.com/AbCdEfGh` → **原样保留**。自建/反代 Bark 用户一旦推送失败，含明文 key 的地址进 `logs/streamget.log`（300KB 轮转留多份、求助时通常整包上传）；拿到该 key 即可向用户手机无限推送通知。同函数其余渠道（钉钉/Server酱/TG/PushPlus）均已脱敏。**建议**：把「密钥即路径末段」作为通则——对 push/bark 类渠道无条件遮蔽最后一段（或引入渠道枚举），不按主机名白名单；补用例断言 `bark.example.com/<8字符>` 必须被遮蔽。**置信度：高**。
 - **MID-59 ffmpeg 官方源 ToFU 旁路文件不随版本轮转 → 上游换构建后自动安装永久死路**（`src/ffmpeg_install.py:69`、`:125`、`:306-315`）。gyan.dev 的 `ffmpeg-release-essentials.zip` 是滚动 URL，构建一变 SHA 即变，而旁路文件（`_ffmpeg_official.zip.sha256`）与 zip 名都固定 → 首次记录后**第二次自动安装必然不等** → `download_ffmpeg_official` 返 False → 转蓝奏云 → 蓝奏云在既无 `FFMPEG_LANZOU_SHA256` 也无 `FFMPEG_LANZOU_ALLOW_UNVERIFIED` 时同样默认拒绝 → 用户只剩「Please manually install ffmpeg」，而排查线索只在 `logger.error` 一行里。模块注释承认 ToFU，但未承认这条**组合死路**。附带：TOFU 基线与 zip 同目录（`execute_dir`），能写该目录者可同时替换产物与旁路文件，校验强度实际等同目录权限。**建议**：旁路文件按构建标识命名（附 Last-Modified/Content-Length 或 gzip 内版本串），或「不一致时降级为 warning + 询问式重记录」；蓝奏云拒绝时明确提示「官方源哈希过期，请删除 <path>」。**置信度：中高**。
 
-### 4.7 客户端 JS、门禁、测试可信度与 CI — MID-61 … MID-69
+### 4.7 客户端 JS、检查、测试可信度与 CI — MID-61 … MID-69
 
 - **MID-61 `migu.js` 在 malloc 前一次性缓存 WASM 内存视图，堆增长即静默产出空签名**（`src/javascript/migu.js:124-125`，写入点 `:161-176`）。Emscripten 约定：`malloc` 触发 `memory.grow` 时 `memory.buffer` 被替换，旧 `Uint8Array/Uint32Array` 视图随即 detach（长度归 0）。脚本在**所有 malloc 之前**捕获 `memory_p/memory_h`，之后 `stringToUTF8`（`:63-66` 写 `memory_p[...]`）与 `UTF8ToString` 全部作用在失效视图上——写是静默 no-op、读返回 0 → `ddCalcu` 成空串（`&ddCalcu=&sv=…`）→ 签名 403。是否触发取决于 mgprtcl.wasm 的 initial<maximum 且本次签名请求是否扩容，本环境无法实测。同类口径：`UTF8ToString`（`:70-78`）实为逐字节 Latin-1 解码，与 `stringToUTF8` 的 UTF-8 编码不对称，仅当产物恒为 ASCII 时安全。**建议**：每次 malloc 后重取视图（或在两函数内即时从 `exports.m.buffer` 构造）；读取改 `TextDecoder('utf-8')` 或注明「输出恒 ASCII」。**置信度：中**。
 - **MID-62 远程 WASM 与胶水脚本的完整性信任边界不一致，且哈希校验存在 TOCTOU**（`src/javascript/migu.js:106-120`、`src/utils.py:151-161`）。实际被执行的签名逻辑是每次从 CDN 拉取的 `mgprtcl.wasm`，`playerVersion` 与 URL 都由远程 JSON 决定；`_JS_SHA256_EXPECTED` 只钉住 `migu.js` 胶水层，**钉不住被执行的 wasm**——上游/CDN 被投毒即等价于在签名进程内执行任意 wasm。另一侧 `run_node_script_async` 先 `open().read()` 校验哈希，再 `subprocess.run(["node", script_path])` 让 node **独立二次读取**该文件，check-then-use 非原子（具备写权限者可在两步之间换内容）。**建议**：对 wasm 做版本/哈希钉定（不可行时在注释中明确标注信任边界）；脚本内容一次读入后经 stdin 传给 node。（正面结论：7 个 JS 文件与钉定表 **7/7 匹配**，无 stale。）**置信度：高（代码事实）/ 中（危害前提）**。
-- **MID-63 isort 门禁在 GBK 语言环境下静默跳过 16 个自有文件且 rc=0（门禁假绿）**（实测，非代码缺陷）。`python -m isort --check-only --profile black --line-length 120 .` 返回 0，但 stderr 有 16 条 `UserWarning: Unable to parse file <X> due to 'gbk' codec can't encode character`，被跳过者包含 **`main.py`、`gui.py`、`web.py`、`build_exe.py`、`src/spider.py`、`src/stream_select.py`、`src/config_io.py`、`src/notify.py`** 及 5 个测试文件；定位到的抛错点为 `isort/core.py:479` 的 `UnicodeEncodeError`（是 **encode** 而非 decode），同一命令加 `PYTHONUTF8=1` 后**零告警**。影响：Windows 中文环境下本地 isort 门禁对核心源码根本不生效，而 CI 在 Linux 跑 → 呈现「本地过、CI 也过，但两侧都没查」的盲区。**建议**：门禁命令与 CI 统一 `PYTHONUTF8=1`（或 `-X utf8`），并把「isort 有 UserWarning」判为失败（`-W error::UserWarning`）；本条同时说明「只显式传参」不足以保证门禁等价性。**置信度：高（实测）**。
+- **MID-63 isort 检查在 GBK 语言环境下静默跳过 16 个自有文件且 rc=0（检查假绿）**（实测，非代码缺陷）。`python -m isort --check-only --profile black --line-length 120 .` 返回 0，但 stderr 有 16 条 `UserWarning: Unable to parse file <X> due to 'gbk' codec can't encode character`，被跳过者包含 **`main.py`、`gui.py`、`web.py`、`build_exe.py`、`src/spider.py`、`src/stream_select.py`、`src/config_io.py`、`src/notify.py`** 及 5 个测试文件；定位到的抛错点为 `isort/core.py:479` 的 `UnicodeEncodeError`（是 **encode** 而非 decode），同一命令加 `PYTHONUTF8=1` 后**零告警**。影响：Windows 中文环境下本地 isort 检查对核心源码根本不生效，而 CI 在 Linux 跑 → 呈现「本地过、CI 也过，但两侧都没查」的盲区。**建议**：检查命令与 CI 统一 `PYTHONUTF8=1`（或 `-X utf8`），并把「isort 有 UserWarning」判为失败（`-W error::UserWarning`）；本条同时说明「只显式传参」不足以保证检查等价性。**置信度：高（实测）**。
 - **MID-64 全量 `pytest` 在本机挂死于前端包装用例，用例内 `timeout=300` 未能兜住**（`tests/test_frontend_quality_ui.py:22-30`，实测）。事实链：① `-q` 全量运行在 ~28% 处连续 15 分钟零输出；② `-v` 定位到 `test_frontend_quality_ui` 后再次停住，累计 >7 分钟**未触发用例内声明的 `timeout=300`**；③ 同一条 `subprocess.run([node, "--test", <file>], capture_output=True, timeout=300, cwd=…)` 在 pytest 之外执行 **0.2s、rc=0**；④ 直接 `node --test tests/frontend/test_quality_ui.mjs` 稳定 **9 passed / 133ms**；⑤ 排除该包装用例后全量 **1041 passed, 2 skipped / 49.82s、0 警告**。结论：包装层在 pytest 捕获环境下不可靠，且 `subprocess.run(timeout=)` 在该形态不构成有效上界（`node --test` 会派生 worker 子进程，超时仅杀直接子进程、随后的收尾 `communicate()` 仍可能被孙进程持有的管道阻塞）。AGENTS 记录的「本机偶发 Segmentation fault（34% 前后）」很可能属同一症状簇的另一种表现。**建议**：包装用例改 `stdin=subprocess.DEVNULL` + `start_new_session=True` + 显式杀进程树；或把前端用例移出 Python 套件、在 CI 作为独立 step 运行（与「Node 缺失时 skip」口径并存）；并为 CI 的 pytest 增加全局 `--timeout` 插件兜底。**置信度：高（实测）**。
 - **MID-65 用例使用被明令禁止的宽泛 `filterwarnings("ignore::RuntimeWarning")`**（`tests/test_bilibili_danmaku_info.py:98`，实测 grep 全仓唯一一处）。本仓「pytest 0 警告口径」明文禁止此类过滤、要求修根因（并记录 `test_async_http_lock.py` 曾移除该过滤作回归守卫）；该用例正以 `patch("src.spider.async_req", side_effect=fake_req)`（普通 Mock 返回协程）驱动 async 路径，最易产生 `coroutine was never awaited` 的 RuntimeWarning，而此类告警由 GC 延迟触发、`filterwarnings` 本就拦不住。**建议**：改 `AsyncMock` / `side_effect` 返回 awaitable 并移除 ignore，用回归锁确认根因消除。**置信度：高**。
 - **MID-66 用例通过 `main.<stdlib模块>` 就地改写 stdlib / 第三方模块本体，违反仓内测试约定**（`tests/test_record_failure_feedback.py:81/283/302`、`tests/test_start_record_command_golden.py:253-256/270/273`，实测 grep 共 10 处）。`monkeypatch.setattr(main.time, "sleep"/"time"/"strftime"/"localtime", …)` 改的是 stdlib `time` **模块本体**，即全进程生效——本仓「测试不得自实现被测逻辑」条目点名禁止该写法并要求 `SimpleNamespace(**vars(time))` 浅拷贝后 `setattr(main, "time", shim)`；同一文件的 `subprocess` 恰恰用了正确 shim 法（`:62-64/82`），自相矛盾。`time.time` 被恒置 `1_000_000.0`、`httpx.Client` 被整体替换期间，任何并发线程（loguru enqueue、harness 守护线程、coverage）都会吃到假实现（`main.datetime`、`main.os.makedirs` 同理）。**建议**：一律浅拷贝 shim；并加一条静态用例扫描 `setattr(main\.(time|os|datetime|subprocess|httpx), …)` 形态作回归锁。**置信度：高**。
 - **MID-67 SM3「known hash」用例只断言长度、不断言标准摘要值（假绿）**（`tests/test_ab_sign.py:125-130`，实测读取）。注释写「SM3('abc') 的已知标准值」，断言却是 `isinstance(str) and len(result) == 64`——任何错误但输出 64 位 hex 的实现都能通过，违反「删掉生产实现就会失败」判据（对照 `tests/test_spider.py:355` 的 md5 KAT 才是正确写法）。同类：`tests/test_ab_sign.py:268-274` 的 `test_deterministic` 名为确定性、实际只断言非空 str，且注释已承认未冻结时间。**建议**：补 SM3 标准 KAT（GB/T 32905 的 `"abc"` 与另一条），确定性用例冻结时间后逐字节比较或改名去掉误导。**置信度：高**。
-- **MID-68 i18n 形参日志门禁用例存在结构性盲区，10 处真实违规正从盲区漏过**（门禁 `tests/test_i18n_migration.py:79-81`；违规点实测 AST 复算得 **10** 处：`main.py:3051/3132/3424/3570/4223`、`src/stream.py:865/871`、`src/platforms/bilibili.py:137`、`src/sync_http.py:254`、`src/utils.py:508`）。门禁用例只判 `isinstance(arg, ast.JoinedStr)`——即 f-string 必须是**直接实参**；而 `logger.warning(f"A" + (f"B" if x else "") + f"C")` 的实参是 `ast.BinOp`，门禁看不见。按此复算：门禁可见 347 处、**10 处含占位符的真实违规逃逸**。后果正是本仓立此约定要防的：带占位符的 msgid 在查目录前已完成插值，四语目录永不命中、翻译静默退化为原文（`src/stream.py:863-873` 的斗鱼降级告警即高频日志，切到 en/zh_TW 后仍是中文且无法登记）。**建议**：门禁改为「首参子树中存在含 `FormattedValue` 的 JoinedStr 即违规」；并按约定把这 10 处改为 `i18n.tr(模板, **kw)`、用 `scripts/extract_i18n_strings.py` 补四语目录。**置信度：高（实测）**。
+- **MID-68 i18n 形参日志检查用例存在结构性盲区，10 处真实违规正从盲区漏过**（检查 `tests/test_i18n_migration.py:79-81`；违规点实测 AST 复算得 **10** 处：`main.py:3051/3132/3424/3570/4223`、`src/stream.py:865/871`、`src/platforms/bilibili.py:137`、`src/sync_http.py:254`、`src/utils.py:508`）。检查用例只判 `isinstance(arg, ast.JoinedStr)`——即 f-string 必须是**直接实参**；而 `logger.warning(f"A" + (f"B" if x else "") + f"C")` 的实参是 `ast.BinOp`，检查看不见。按此复算：检查可见 347 处、**10 处含占位符的真实违规逃逸**。后果正是本仓立此约定要防的：带占位符的 msgid 在查目录前已完成插值，四语目录永不命中、翻译静默退化为原文（`src/stream.py:863-873` 的斗鱼降级告警即高频日志，切到 en/zh_TW 后仍是中文且无法登记）。**建议**：检查改为「首参子树中存在含 `FormattedValue` 的 JoinedStr 即违规」；并按约定把这 10 处改为 `i18n.tr(模板, **kw)`、用 `scripts/extract_i18n_strings.py` 补四语目录。**置信度：高（实测）**。
 - **MID-69 上一轮修复项普遍缺回归锁，腐烂只能靠人眼发现**（实测 grep）。`tests/` 内对以下符号**零引用**：`_RECORD_STALL_SECONDS` / `_MAX_RECORD_SECONDS` / `_watchdog_hit`（CR-05/06）、`only_fans`（CR-04 跨层默认值）、`_need(` / `bad tars`（CR-03 畸形帧）、`_looks_like_secret_value` / `_validate_room_url_target` / 400 文案（CR-08/09/10）、`delete_line`（SEV-05）、`decorator_list`（CR-12 装饰器契约 AST 锁）。这与「回归锁 + 变异验证」口径存在成规模缺口，也是本轮 SEV-02/03/05 能在「已修复」项旁边长出旁路的直接原因——**修了实现、没锁行为**。**建议**：按第六节优先级表补齐，SEV 级修复优先做变异验证（临时改坏生产实现确认用例变红）；纯断言调整类改动可按 AGENTS 2026-09-17 条款免做变异验证。
 
 ---
@@ -449,7 +449,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 - **MIN-12 `ws_client.connect()` 末尾的 `self._ws` 清理块不可达，`_ws` 悬挂已关闭连接**（`src/ws_client.py:228-264`、`:267-269`，实测结构核对）。上方 try/except/else 四条出口全部是 `break`/`continue`，循环顶部再进 `async with websockets.connect(...)`，该块永不执行。于是断线后、重连退避 `await asyncio.sleep(...)` 期间（最长 base×16×1.3 ≈ 上百秒）`self._ws` 仍指向上一条已关闭连接，而 `send()`/`send_nowait()` 只判 `is None` → 进房包/心跳全打在死连接上，异常被吞成一条 debug，表现为「重连后不再推弹幕」且无明确线索。**建议**：把 `self._ws = None` 移到进入 `continue` 之前（close 已由 `async with` 负责），或发送前按 `state is OPEN` 判活。**置信度：高**。
 
 - **MIN-13 `send_nowait` 裸 `ensure_future` 且不持任务引用、异常不可见**（`src/ws_client.py:292-296`，对照 `src/base.py:47-64`）。`base.py` 的注释已把这条坑写死（「裸 `asyncio.ensure_future` 的异常仅在任务被 GC 时打印到 stderr，进房协程抛异常将完全无日志地静默死亡」）并提供 `spawn_danmaku_task`，而弹幕客户端最核心的进房/心跳发送口仍是裸调用：任务无强引用（asyncio 只持弱引用，属文档化的丢失风险），`_send_lock` 竞争时多个发送任务无界堆积、无人回收。**建议**：改 `spawn_danmaku_task` + `_pending: set` 保引用（`add_done_callback(discard)`）并设堆积上限。**置信度：中高**。
-- **MIN-14 `Dockerfile` 的 `version` 标签在 `ARG APP_VERSION` 声明之前使用，实际恒为空**（`Dockerfile:47-50` vs `:58`，实测）。Docker 按行做变量替换，`LABEL version="${APP_VERSION}"` 求值时该 ARG 尚未声明 → 标签固化为空串，`--build-arg APP_VERSION=4.3.0` 不生效。而 `scripts/check_version.py:63` 只正则匹配到字面 `version="${APP_VERSION}"` 即判 DYNAMIC 通过——**门禁恰好检不出这个顺序错误**，与第 1 条版本约定「Dockerfile 经 APP_VERSION 动态注入」的表述不符。**建议**：`ARG APP_VERSION` 上移到 LABEL 之前，并让 check_version 断言「声明行号早于使用行号」。**置信度：高**。
+- **MIN-14 `Dockerfile` 的 `version` 标签在 `ARG APP_VERSION` 声明之前使用，实际恒为空**（`Dockerfile:47-50` vs `:58`，实测）。Docker 按行做变量替换，`LABEL version="${APP_VERSION}"` 求值时该 ARG 尚未声明 → 标签固化为空串，`--build-arg APP_VERSION=4.3.0` 不生效。而 `scripts/check_version.py:63` 只正则匹配到字面 `version="${APP_VERSION}"` 即判 DYNAMIC 通过——**检查恰好检不出这个顺序错误**，与第 1 条版本约定「Dockerfile 经 APP_VERSION 动态注入」的表述不符。**建议**：`ARG APP_VERSION` 上移到 LABEL 之前，并让 check_version 断言「声明行号早于使用行号」。**置信度：高**。
 - **MIN-15 维护脚本与 CI 仍引用已删除的 `gui_legacy.py`（3 处）**（`scripts/check_annotations.py:76`、`scripts/extract_i18n_strings.py:29`、`.github/workflows/ci.yml:162`，实测 grep）。该文件已于 2026-09-10 删除。三处均无害（`extract` 有 `if not path.exists(): continue` 兜底、paths-filter 匹配不到文件），但属同源约定漂移，会让后来者误以为该入口仍存在。**建议**：一并移除。**置信度：高**。
 - **MIN-16 `trivy.yml` 的 `actions/checkout@v4` 偏离全仓 v7 基线，并带模板残留**（`.github/workflows/trivy.yml:30`、`:10`、`:34/39`，实测）。`ci.yml`/`build-release.yml` 均为 v7（符合约定），唯此文件落回 v4；另有异常分支名 `[ "main", "保护" ]` 与占位镜像名 `docker.io/my-organization/my-app`。`aquasecurity/trivy-action` 已按 commit SHA 钉定（良好）。**建议**：升 v7 并清理占位符/分支名。**置信度：高**。
 - **MIN-17 `issue-translator.yml` 用浮动标签的第三方动作处理不可信 issue 内容，且未声明最小权限**（`.github/workflows/issue-translator.yml:2-12`）。触发源是任意外部贡献者的 issue/评论正文；`usthe/issues-translate-action@v2.7` 以浮动 semver 标签引用（非 SHA 钉定，同 major 可推送新代码），且 job 无 `permissions:` 收敛，继承默认。属「不可信输入 + 浮动 ref + 未降权」的复合面（该动作仅在 public repo 的 issue 事件下运行，故暂列轻微）。**建议**：钉 SHA + 显式 `permissions: { issues: write, contents: read }`。**置信度：中高**。
@@ -473,7 +473,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 | **P0-b 录制可用性** | 修「必然失败/必然误杀」 | SEV-06、SEV-07、SEV-08、SEV-09、MID-02、MID-03、MID-04 | `spider.py` 2 处 + `main.py` 5 处（均为局部改动） | 纯函数单测（Shopee 三类 TLD）+ 装饰器契约 AST 锁 + 看门狗双用例（45s 不杀 / 11min 杀） |
 | **P0-c 并发与资源治理** | 恢复并发约束的语义 | SEV-01、MID-21、MID-24、MID-25 | `scheduler.py` 信号量重写（约 30 行）+ `collector.py`/`danmaku_monitor.py` 各 1 处 | 新增「有持有者时 recompute 不放大并发」用例；80 房间压测观察实际并发 |
 | **P0-d 发布链与状态清理** | fail-closed + 不留幽灵状态 | SEV-10、MID-01 | `build_exe.py`（`--require-pinned` + CI 注入）+ `main.py` 1 处 | CI 干跑断言缺钉定即 fail；`recording` 为空断言 |
-| **P1-a 静默失效与假绿清除** | 让故障可观测、让门禁可信 | MID-05、MID-06、MID-07、MID-13、MID-14、MID-17、MID-18、MID-28、MID-40、MID-45、MID-51、MID-63、MID-64、MID-68 | 分散 | 每项配回归锁（见 6.3）；门禁侧以「有告警即失败」为准 |
+| **P1-a 静默失效与假绿清除** | 让故障可观测、让检查可信 | MID-05、MID-06、MID-07、MID-13、MID-14、MID-17、MID-18、MID-28、MID-40、MID-45、MID-51、MID-63、MID-64、MID-68 | 分散 | 每项配回归锁（见 6.3）；检查侧以「有告警即失败」为准 |
 | **P1-b 并发时序与生命周期** | 消除丢信号/串号/无 TTL | MID-22、MID-23、MID-26、MID-30、MID-31、MID-32、MID-33、MID-35 | `async_http.py`、`collector.py`、`stream_select.py`、`ttwid.py`、`web_api.py` | 并发用例（多房间同 key）、SSL 策略一致性断言、面板响应性冒烟 |
 | **P1-c 数据耐久与写回** | 防丢失更新与半写 | MID-55、MID-56、MID-57、MID-29、MID-11 | `gui.py`、`utils.py`、`config_io.py`、`sync_http.py` | CRLF/并发写夹具；掉电语义按 fsync 断言（可用 mock 校验调用序列） |
 | **P1-d 平台解析批量加固** | 收敛 CR-12 范式 | MID-41、MID-42、MID-43、MID-44、MID-46、MID-47、MID-48、MID-49、MID-50 | `spider.py`（约 20 个函数） | 按平台分批；每批以 `_loads_dict` 迁移 + fixture 化返回体 |
@@ -483,7 +483,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 ### 6.2 需要「先改文档/约定」再改代码的两处
 
 1. **`AGENTS.md:1063` 非重入锁清单纠正**（MIN-24 ⑤）：该条直接指导并发审查，错误会批量产出假 P0。应改为「`_tokens_lock` / `record_state_lock` / `web_api._cache_lock` 为非重入；`file_update_lock`、`web_config._config_write_lock` 为刻意 RLock」，并要求判据引用定义行。
-2. **门禁口径补两条**（MID-63、MID-68）：「isort/black 必须带 `PYTHONUTF8=1`，且 stderr 有 `UserWarning` 即失败」；「i18n 门禁用例的判据从『首参是 JoinedStr』改为『首参子树含 FormattedValue』」。二者都应写回 `AGENTS.md`「格式化命令」与「关键约定」章节，避免只留在本报告里。
+2. **检查口径补两条**（MID-63、MID-68）：「isort/black 必须带 `PYTHONUTF8=1`，且 stderr 有 `UserWarning` 即失败」；「i18n 检查用例的判据从『首参是 JoinedStr』改为『首参子树含 FormattedValue』」。二者都应写回 `AGENTS.md`「格式化命令」与「关键约定」章节，避免只留在本报告里。
 
 ### 6.3 回归锁补齐清单（与 MID-69 对应）
 
@@ -495,14 +495,14 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 | SEV-05 / MID-05 | CRLF 夹具下的 `delete_line`；非 TS 分段的 `_record_output_bytes` | `tests/test_config_io.py`、`tests/test_record_container.py` |
 | SEV-06/07 | Shopee 三 TLD 纯函数用例；`login_*` 装饰器契约 AST 锁 | `tests/test_spider_fixes.py`、新增 `tests/test_decorator_contract.py` |
 | SEV-08/09 | 看门狗双用例（45s 不杀 / 11min 杀）；无 `flv_url` 时 `recording` 为空且无存活字幕线程 | 新增 `tests/test_record_watchdog.py` |
-| MID-63/64/68 | 门禁自身：`isort` 告警即失败；`logger` 实参子树含占位符即违规 | `ci.yml`、`tests/test_i18n_migration.py` |
+| MID-63/64/68 | 检查自身：`isort` 告警即失败；`logger` 实参子树含占位符即违规 | `ci.yml`、`tests/test_i18n_migration.py` |
 
 ---
 
-## 七、门禁与测试可信度专项结论
+## 七、检查与测试可信度专项结论
 
-1. **可见结论**：black（136 文件无差异）、mypy 双跑（各 117 文件 0 问题）、basedpyright（0/0/0）、`check_annotations.py`（平均密度 22.8%）、`compile_po.py --check`（636 条同步）、`check_version.py`（PASS）、`extract_i18n_strings.py`（缺失 0）、前端 `node --test`（9 passed）、排除挂死用例后的 `pytest`（**1041 passed / 2 skipped / 0 警告**）——**本轮登记的问题无一能被现有门禁发现**，这本身就是最重要的结论。
-2. **门禁假绿两处**：isort 在 GBK 语言环境下静默跳过 16 个自有文件（含 `main.py`/`gui.py`/`web.py`/`src/spider.py`）且 rc=0（MID-63）；i18n 形参日志门禁用例对 `BinOp` 包装的 f-string 不可见，10 处违规长期漏网（MID-68）。
+1. **可见结论**：black（136 文件无差异）、mypy 双跑（各 117 文件 0 问题）、basedpyright（0/0/0）、`check_annotations.py`（平均密度 22.8%）、`compile_po.py --check`（636 条同步）、`check_version.py`（PASS）、`extract_i18n_strings.py`（缺失 0）、前端 `node --test`（9 passed）、排除挂死用例后的 `pytest`（**1041 passed / 2 skipped / 0 警告**）——**本轮登记的问题无一能被现有检查发现**，这本身就是最重要的结论。
+2. **检查假绿两处**：isort 在 GBK 语言环境下静默跳过 16 个自有文件（含 `main.py`/`gui.py`/`web.py`/`src/spider.py`）且 rc=0（MID-63）；i18n 形参日志检查用例对 `BinOp` 包装的 f-string 不可见，10 处违规长期漏网（MID-68）。
 3. **套件可靠性一处**：全量 `pytest` 在本机不可完成，用例内 `timeout=300` 未构成有效上界（MID-64）。前端用例本身质量良好（`node:vm` 沙箱 + DOM/fetch 桩 + 真实事件委托链路，零 npm 依赖），问题只在 Python 包装层。
 4. **测试写法违规三处**：`filterwarnings("ignore::RuntimeWarning")`（MID-65）、就地改写 stdlib 模块本体 10 处（MID-66）、`assert` 名不副实的假绿（MID-67）。三者都属本仓已明文禁止或已有正确示范的形态，宜一次性清理并加静态防回归。
 5. **值得肯定的实现**（实测确认，非问题）：`tests/` 与被测模块同名一一对应、`conftest.py` 冻结翻译为恒等映射且禁删、`test_ffmpeg_reconnect_args.py` 的三不变量 AST 锁、`test_record_container.py` 的「查表而非字面量」AST 锁、`test_start_record_command_golden.py` 的字节级黄金快照（20 用例覆盖 5 条保存路径）、`test_platform_dispatch.py` 的表结构/优先级锁、`test_async_http_lock.py` 移除宽泛过滤作回归守卫。**这些锁正是本报告多数中等项无法升级严重的原因。**
@@ -570,10 +570,10 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 
 ## 十、结论
 
-1. **工程基线是健康的**。全部门禁（black / mypy 双跑 / basedpyright / 注释规范 / `.mo` 同步 / 版本动态化 / 前端用例）与排除挂死用例后的 **1041 passed、0 警告**共同表明：该仓库在风格、类型、翻译同步与测试广度上处于良好状态，且上一轮 12 项严重缺陷**无一回归**、`@decorator` 夹注释与 PEP 758 非法形两类形态**全仓零命中**。本轮问题的性质因此集中在「**修复引入的新失配**」与「**语义正确但判据/接线遗漏**」两类，而非普遍性的粗放。（口径注：审查窗口内 black 曾因新增的 `scripts/run_gates.py` 短暂转红，20:48 复跑已恢复 `139 files unchanged`，故记为已消解、不计入统计；这恰好反证作者对门禁红线的响应是分钟级的。）
-2. **但「门禁全绿」不等于「行为正确」**。本轮 10 项严重问题**全部**发生在现有门禁完全覆盖不到的位置：并发信号量的字段语义（SEV-01）、写入口不对称（SEV-02）、地址黑名单缺 IP 语义（SEV-03）、大小写归一不彻底（SEV-04）、行尾约定与调用侧不一致（SEV-05，Windows 必然触发）、纯函数边界（SEV-06）、装饰器契约漏配（SEV-07）、看门狗判据基准（SEV-08）、状态登记与清理的次序（SEV-09）、发布链 fail-open（SEV-10）。其中 5 项（SEV-02/03/04/05/10）正是上一轮「部分修复」项的残留或旁路——**修了实现、没锁行为、也没扫旁路**，这是本报告最重要的过程性结论。
+1. **工程基线是健康的**。全部检查（black / mypy 双跑 / basedpyright / 注释规范 / `.mo` 同步 / 版本动态化 / 前端用例）与排除挂死用例后的 **1041 passed、0 警告**共同表明：该仓库在风格、类型、翻译同步与测试广度上处于良好状态，且上一轮 12 项严重缺陷**无一回归**、`@decorator` 夹注释与 PEP 758 非法形两类形态**全仓零命中**。本轮问题的性质因此集中在「**修复引入的新失配**」与「**语义正确但判据/接线遗漏**」两类，而非普遍性的粗放。（口径注：审查窗口内 black 曾因新增的 `scripts/run_gates.py` 短暂转红，20:48 复跑已恢复 `139 files unchanged`，故记为已消解、不计入统计；这恰好反证作者对检查红线的响应是分钟级的。）
+2. **但「检查全绿」不等于「行为正确」**。本轮 10 项严重问题**全部**发生在现有检查完全覆盖不到的位置：并发信号量的字段语义（SEV-01）、写入口不对称（SEV-02）、地址黑名单缺 IP 语义（SEV-03）、大小写归一不彻底（SEV-04）、行尾约定与调用侧不一致（SEV-05，Windows 必然触发）、纯函数边界（SEV-06）、装饰器契约漏配（SEV-07）、看门狗判据基准（SEV-08）、状态登记与清理的次序（SEV-09）、发布链 fail-open（SEV-10）。其中 5 项（SEV-02/03/04/05/10）正是上一轮「部分修复」项的残留或旁路——**修了实现、没锁行为、也没扫旁路**，这是本报告最重要的过程性结论。
 3. **安全面收敛优先级最高**。面板默认无认证 + 仅回环绑定，风险主要来自「一旦暴露或被本地页面/进程触达」的放大链：SEV-02 + SEV-03 + MID-36 三者叠加即可从同机/浏览器上下文取得房间写入并驱动内网请求，SEV-04 则允许持有单个 token 者把面板整体降权。建议先完成 6.1 的 **P0-a**，并以 `ipaddress` 语义与统一 `key_norm` 作结构性修复，而非再补一条前缀规则。
-4. **可靠性上最需要立刻处理的是「静默失效」**：SEV-05（删除房间静默失败并谎报成功）、MID-05（零字节保护在非 TS 分段上静默失效）、MID-28（脱敏在 4 类形态上静默不生效）、MID-68（i18n 门禁用例看不见真实违规）、MID-63（isort 看不见 16 个核心文件）。它们共同的特征是**不报错**，因此排查成本远高于崩溃类缺陷；修复时应一并补上「未命中即失败/告警」的返回约定（MID-69 的回归锁清单）。
+4. **可靠性上最需要立刻处理的是「静默失效」**：SEV-05（删除房间静默失败并谎报成功）、MID-05（零字节保护在非 TS 分段上静默失效）、MID-28（脱敏在 4 类形态上静默不生效）、MID-68（i18n 检查用例看不见真实违规）、MID-63（isort 看不见 16 个核心文件）。它们共同的特征是**不报错**，因此排查成本远高于崩溃类缺陷；修复时应一并补上「未命中即失败/告警」的返回约定（MID-69 的回归锁清单）。
 5. **测试可信度需一次专项清理**：三处被明令禁止或名不副实的写法（MID-65/66/67）、一处使本机无法完成全量验证的包装层（MID-64）、以及成规模的回归锁缺口（MID-69）。鉴于本仓「删掉生产实现就该失败」的判据已写在 AGENTS 中，建议把该判据机械化（AST 扫描 + 变异抽样）而非依赖人工自觉。
 6. **建议的处理顺序**：P0-a/b/c/d 四批（约对应 17 项）在一个迭代内完成并补齐对应回归锁；P1 各批按「静默失效优先、平台解析可分批」推进；P2 与文档纠正（含 `AGENTS.md:1063` 的锁清单）随相关改动顺带完成。所有涉及录制链路/选源/ffmpeg 参数/平台解析的改动，按本仓「完成定义」须以真实 URL 抽样回归——**本报告不含真机验证结论**，SEV-08/09、MID-13/18/42/46/47 在合并前尤需一次实机确认。
 7. **总体判断**：代码库可维护性良好、防御意识明确（大量带日期的「为什么」注释与刻意约定是稀缺资产），但**跨入口对称性、字段语义与默认值口径**是当前系统性弱点。按第六节批次执行后，建议下一轮把审查重心转向：`tests/` 的判据机械化、Web 面板写入口的「单一收口 + 声明式白名单」重构、以及录制状态机（`recording` / `recording_time_list` / `running_list` / `create_var`）的**单一所有权**改造——本报告 4.1 与 4.3 组内多数条目都源于这四者的多写入点。
@@ -601,7 +601,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 
 ## 附录 B ｜ 审查限制
 
-1. **未执行录制链路**：全部结论来自静态通读、纯函数实跑与门禁实跑；未使用真实直播间 URL 做端到端验证，故平台侧「接口当前实际返回形态」类判断（MID-41/42/43/46）标注为中置信度，须在真机回归中定档。
+1. **未执行录制链路**：全部结论来自静态通读、纯函数实跑与检查实跑；未使用真实直播间 URL 做端到端验证，故平台侧「接口当前实际返回形态」类判断（MID-41/42/43/46）标注为中置信度，须在真机回归中定档。
 2. **无法在 Windows 验证 macOS 分支**：`gui.py` 的 pystray/Tk 主线程约定、`_assert_image()` 预热与 `_icon_valid` 置位（AGENTS 明确「复现需 macOS 冻结构建」）仅做静态与 CI 核对。
 3. **反代/DNS 重绑定链路未实跑**：MID-35 的 uvicorn `proxy_headers` 改写行为、MID-36 的重绑定利用路径均以 stdlib/上游文档与代码事实推定。
 4. **远程 WASM 扩容行为未实测**：MID-61 是否触发取决于 `mgprtcl.wasm` 的 `initial<maximum` 且本次签名是否扩容，离线环境不可判定。
@@ -617,9 +617,9 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 
 ---
 
-## 附录 D ｜ 本地补扫：硬编码凭据穷举、依赖已知漏洞对照与门禁继承
+## 附录 D ｜ 本地补扫：硬编码凭据穷举、依赖已知漏洞对照与检查继承
 
-> 因云端安全报告受登录态限制无法由本会话读取，经用户确认改为本地补扫两类云端扫描器最擅长、而第三至五节未系统覆盖的项：**① 自有源码内的硬编码凭据 / 高熵常量**，**② 依赖版本与公开漏洞公告的对照**。补扫过程中另得若干顺带结论（新门禁入口点的 black/isort 状态、此前编号时漏并的 JS 组条目、`AGENTS.md` 与外迁文档的链接可达性），一并登记为 `补-01 … 补-06`。**本附录最终计入 3 项**（补-03 / 补-04 / 补-05）：补-01、补-06 经 20:48 复核已消解，补-02 为 MID-62 的追补证据、不单计。
+> 因云端安全报告受登录态限制无法由本会话读取，经用户确认改为本地补扫两类云端扫描器最擅长、而第三至五节未系统覆盖的项：**① 自有源码内的硬编码凭据 / 高熵常量**，**② 依赖版本与公开漏洞公告的对照**。补扫过程中另得若干顺带结论（新检查入口点的 black/isort 状态、此前编号时漏并的 JS 组条目、`AGENTS.md` 与外迁文档的链接可达性），一并登记为 `补-01 … 补-06`。**本附录最终计入 3 项**（补-03 / 补-04 / 补-05）：补-01、补-06 经 20:48 复核已消解，补-02 为 MID-62 的追补证据、不单计。
 > 按 AGENTS.md「文档与审查记录里不得出现真实凭据」，本附录所有取值均已脱敏。
 
 ### D.1 补扫方法与覆盖面
@@ -636,7 +636,7 @@ _PINNED_RUNTIME_SHA256: dict[str, str] = {}
 
 其余 12 处均为配置键名/平台 API 路径/测试桩（如 `QUALITY_OPTIONS_KEY = 自定义画质选项(逗号分隔)`、`liveRoomUserInfo = TikTok…` 为 URL 片段、`tests/` 内的 `abc…45` 假密钥），全部排除。
 
-### D.2 补-01 ｜ 新增的门禁入口脚本自身未过 black，按其运行即首跑即红 —— **已消解，不计入统计**
+### D.2 补-01 ｜ 新增的检查入口脚本自身未过 black，按其运行即首跑即红 —— **已消解，不计入统计**
 
 - **Severity**: ~~中等~~ → **已消解（20:48 复核）**
 - **消解取证**：`scripts/run_gates.py` mtime 已推进至 `2026-09-20 20:44:38`（本条于 20:2x 观测、20:3x 定稿，其后作者自行格式化）。20:48 复跑：
@@ -656,7 +656,7 @@ un_gates.py            → rc=1
 $ python scripts/run_gates.py --keep-going      → rc=1（7 项中 1 项失败，用时 19.1s）
   [FAIL] python -m black --check --diff --line-length 120 --target-version py314 .
 ```
-- **说明与影响**：唯一未过 black 的自有文件正是**门禁执行器本身**。它未被纳入 `.venv`/排除清单，故全仓 `black --check .` 直接失败——意味着 CI 的 `Static Checks` job 在任何拉到该文件的分支上都会红，而失败原因与被审查的改动无关；同时 DoD 第 1 步「跑 `run_gates.py` 直到全绿」对**任何**改动都不可达成，使用者容易因此养成「忽略 black 失败」的习惯，恰与本仓「门禁不可掩盖」的取向相反。**修复**：`black scripts/run_gates.py` 一次即可；并建议在该文件合入前跑一次自身门禁（`run_gates.py --only black`）作为提交前自检。
+- **说明与影响**：唯一未过 black 的自有文件正是**检查执行器本身**。它未被纳入 `.venv`/排除清单，故全仓 `black --check .` 直接失败——意味着 CI 的 `Static Checks` job 在任何拉到该文件的分支上都会红，而失败原因与被审查的改动无关；同时 DoD 第 1 步「跑 `run_gates.py` 直到全绿」对**任何**改动都不可达成，使用者容易因此养成「忽略 black 失败」的习惯，恰与本仓「检查不可掩盖」的取向相反。**修复**：`black scripts/run_gates.py` 一次即可；并建议在该文件合入前跑一次自身检查（`run_gates.py --only black`）作为提交前自检。
 - **置信度**：高（实跑）。
 
 ### D.3 补-02 ｜ MID-62 的 isort 盲区随新入口点原样继承
@@ -699,7 +699,7 @@ function sign(cryptoJSPath) {
 | `requests` | 2025 年的 `.netrc` 凭据外泄问题修复于 **2.32.4** | `>=2.34.2` | 2.34.2 | 不受影响 |
 
 - **说明与影响**：本仓运行时清单刻意为「只有下限、无上限」（唯一例外是 `protobuf>=6.31.1,<8`），且 `uv.lock` 不参与镜像/CI 安装（AGENTS 已记为既定口径）。对可用性代价可以接受，但**安全代价**是：`pip install -r requirements.txt` 在不同日期/不同索引镜像下得到的集合不受约束，声明区间内还残留已知受影响版本（starlette 0.49.1–1.0.0）；而 `urllib3` 这类高价值传递依赖根本不在受控面上。本项的严重度定级为**中等**而非「已受攻击」：当前三种安装形态实测/推演均落在修复版本之上，风险是**下一次解析**时的回退，而非现网可利用缺陷。
-- **建议**：① 把 `starlette` 下限提到受影响段之上（`>=1.0.1`），并同步 `pyproject` 与 `requirements.txt` 两处；② 为 `urllib3` 增加显式下限（`>=2.7.0`）——它虽为传递依赖，但本仓所有出站 HTTP 都经它；③ 更根本的做法：在 CI 增加一步 `pip-audit`（本地 venv 实测 `pip_audit`/`safety` **均未安装**，故本项无法在现有门禁内自动发现），或在 `build-release.yml` 里以 `uv sync --frozen` 走一次 `uv.lock` 使发布环境可复现。
+- **建议**：① 把 `starlette` 下限提到受影响段之上（`>=1.0.1`），并同步 `pyproject` 与 `requirements.txt` 两处；② 为 `urllib3` 增加显式下限（`>=2.7.0`）——它虽为传递依赖，但本仓所有出站 HTTP 都经它；③ 更根本的做法：在 CI 增加一步 `pip-audit`（本地 venv 实测 `pip_audit`/`safety` **均未安装**，故本项无法在现有检查内自动发现），或在 `build-release.yml` 里以 `uv sync --frozen` 走一次 `uv.lock` 使发布环境可复现。
 - **置信度**：高（版本区间与公告逐项核对）。
 
 ### D.7 补-06 ｜ `AGENTS.md` 与外迁文档的链接关系在本轮审查期间反复变动，两态各有缺陷 —— **已消解，不计入统计**

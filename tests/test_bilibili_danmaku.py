@@ -219,7 +219,7 @@ async def test_reject_auth_dispatches_through_spawned_task(monkeypatch: pytest.M
 
     def _record(coro: Any) -> None:
         # 替身不真起任务，但必须 close() 传入的协程：未 await 的协程在 GC 时抛 RuntimeWarning，
-        # 会打爆本仓「pytest 0 警告」门禁（同 tests/test_platform_danmaku_offline.py::_noop_spawn）。
+        # 会打爆本仓「pytest 0 警告」检查（同 tests/test_platform_danmaku_offline.py::_noop_spawn）。
         recorded.append(coro)
         coro.close()
 

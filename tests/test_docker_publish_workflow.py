@@ -2,7 +2,7 @@
 #
 # 为什么要有：多架构发布链的正确性全靠几个「看起来像细节」的约束——只在 tag 上推 latest、两个
 # 构建 job 的 runner 与 --platform 一一对应、凭据只能是自动 GITHUB_TOKEN、分架构 digest 必须提升
-# 为 job 级 output——而工作流文件不在任何门禁的判据面里：改坏它不会有测试红，只会在下一次发版时
+# 为 job 级 output——而工作流文件不在任何检查的判据面里：改坏它不会有测试红，只会在下一次发版时
 # 炸成「build 全绿、清单合成报无效引用」这种最难归因的形态。规格依据：
 # docs/worklog/PROPOSAL_2026-10-02_linux-arm64-ffmpeg.md §五.1、测试面 T-8。
 #
@@ -91,7 +91,7 @@ ATTESTATION_TOKENS = ("provenance", "attest", "sbom")
 def _load_workflow() -> dict[Any, Any]:
     # 返回整个工作流的解析结果。类型标成 dict[Any, Any] 而不是 dict[str, Any] 是必需的：
     # YAML 1.1 的 `on:` 落成的键是 bool，用 str 键类型会让 mypy 直接判 data[True] 索引非法，
-    # 于是「按真实形态写」的取值反而过不了门禁。
+    # 于是「按真实形态写」的取值反而过不了检查。
     if not WORKFLOW.is_file():
         raise AssertionError(f"发布工作流不存在：{WORKFLOW}")
     return cast("dict[Any, Any]", yaml.safe_load(WORKFLOW.read_text(encoding="utf-8")))
@@ -109,7 +109,7 @@ def _runner_registry() -> dict[str, str]:
     # _load_checker（scripts/ 不在包路径内，只能 spec_from_file_location；该脚本 main() 受 __name__
     # 守卫，模块级只有常量定义，import 期零副作用、零联网）。
     # 「读不到就显式失败」而非返回空 dict：空表会让下面的成员断言在真空里成立（假绿），
-    # 而登记表本身失效属「门禁坏了」档，与 check_runtime_pins 走 sys.exit(2) 的口径一致。
+    # 而登记表本身失效属「检查坏了」档，与 check_runtime_pins 走 sys.exit(2) 的口径一致。
     path = ROOT / "scripts" / "check_runtime_pins.py"
     spec = importlib.util.spec_from_file_location("_runner_registry_for_docker_publish_lock", path)
     if spec is None or spec.loader is None:

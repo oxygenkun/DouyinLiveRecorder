@@ -35,7 +35,7 @@ description: >
 
 ## 验证
 
-### 项目级门禁（由 `python scripts/run_gates.py` 统一兜底，Skill 不重复）
+### 项目级检查（由 `python scripts/run_gates.py` 统一兜底，Skill 不重复）
 
 - `black --check`、`isort --check-only`、`mypy`（含 `--platform linux` / `--platform win32`）、`check_annotations.py`
 

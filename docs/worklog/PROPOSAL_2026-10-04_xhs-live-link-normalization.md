@@ -191,7 +191,7 @@ Expected: 集成断言在接线完成前 FAIL。
 Run: `python -m pytest tests/test_xhs_live_links.py tests/test_record_watchdog.py -q`
 Expected: 全部 PASS、0 warnings。
 
-## Task 5：文档、变异验证与全量门禁
+## Task 5：文档、变异验证与全量检查
 
 **Files:**
 - Modify: `CODE_WIKI.md`
@@ -214,7 +214,7 @@ Expected: 至少一个新增专项测试 FAIL；还原后全绿，仓库无 `MUT
 - `AGENTS.md` 只登记长期有效的 URL 形态/参数白名单/短链二次校验坑位，不复制实现细节。
 - 保持原行尾形态；不覆盖当前工作区已有未提交文档改动。
 
-**Step 3: 运行专项与全量门禁**
+**Step 3: 运行专项与全量检查**
 
 Run: `python scripts/run_gates.py`
 Expected: 退出码 0。

@@ -418,7 +418,7 @@ class WsClient:
                         except TimeoutError:
                             # MID-2247：统一用项目 logger + i18n.tr，格式说明符按约定在调用方先
                             # 求值。不得换回「别名 logger + f-string」：f-string 在查目录前完成
-                            # 插值，文案永远无法翻译；而 i18n 门禁（tests/test_i18n_migration.py）
+                            # 插值，文案永远无法翻译；而 i18n 检查（tests/test_i18n_migration.py）
                             # 的判据是 `node.func.value.id == "logger"`，别名形态对它完全隐形。
                             logger.warning(
                                 i18n.tr(

@@ -63,4 +63,4 @@ grep -c 'except [A-Za-z_][A-Za-z0-9_.]*, [A-Za-z_]' <file>
 
 - **平台专属符号报错**（`attr-defined` / `name-defined`）不是假阳性，要用 `sys.platform` 门控真修 → `platform-type-gating.md`。
 - **lint 结论**（ruff 的 F401/E741）一般是真的，要修；但 **E402**（import 前初始化 config/logging）在本仓是**有意**的，不要动。
-- 无论哪一类，最终都要回到 SKILL.md「统一验证门禁」跑一遍 `python scripts/run_gates.py` 收口。
+- 无论哪一类，最终都要回到 SKILL.md「统一验证检查」跑一遍 `python scripts/run_gates.py` 收口。

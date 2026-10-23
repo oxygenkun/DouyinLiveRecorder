@@ -9,7 +9,7 @@
 #      「命中列表 = 一次都不重试、且保留原 rc」；静态锁对「分支位置写反」「列表解析漏 case」失明。
 #
 # 为什么没有 skipif：bash 在 CI（ubuntu）与本机（Windows + Git Bash）两侧都存在，缺 bash 时一律
-# **显式失败**——行为锁是本文件唯一的自证手段，静默 skip 等于「门禁没跑却报绿」。
+# **显式失败**——行为锁是本文件唯一的自证手段，静默 skip 等于「检查没跑却报绿」。
 #
 # 判据一律按字节比较（不传 text=True/encoding=）：脚本体 UTF-8 落盘、bash 原样 echo，
 # 期望串在断言处 .encode("utf-8")，与宿主控制台码页彻底解耦。
@@ -35,7 +35,7 @@ ACTION_FILE = ROOT / ".github" / "actions" / "retry" / "action.yml"
 CI_FILE = ROOT / ".github" / "workflows" / "ci.yml"
 BUILD_FILE = ROOT / ".github" / "workflows" / "build-release.yml"
 
-# retry 复合动作的 uses 字面值（与 AGENTS 门禁命令 `grep 'uses: \./\.github/actions/retry'` 同口径）。
+# retry 复合动作的 uses 字面值（与 AGENTS 检查命令 `grep 'uses: \./\.github/actions/retry'` 同口径）。
 RETRY_USES_VALUE = "./.github/actions/retry"
 RETRY_USES_RE = re.compile(r"uses:\s*\./\.github/actions/retry\b")
 
@@ -287,7 +287,7 @@ def test_call_sites_unchanged_except_web_smoke_passes_fail_fast_codes() -> None:
     assert build_steps, "build-release.yml 未检测到 retry 调用"
 
     # 两种口径必须给出同一个数：正则扫文本 vs YAML 结构。不等说明某个调用点形态漂移
-    # （如 uses 前后加了注释/引号），那种漂移会让 AGENTS 的 grep 门禁本身失真。
+    # （如 uses 前后加了注释/引号），那种漂移会让 AGENTS 的 grep 检查本身失真。
     text_total = len(RETRY_USES_RE.findall(CI_FILE.read_text(encoding="utf-8"))) + len(
         RETRY_USES_RE.findall(BUILD_FILE.read_text(encoding="utf-8"))
     )
@@ -321,7 +321,7 @@ def test_retry_script_behaviour_with_real_bash(tmp_path: Path, case: _BehaviourC
 
     # 计数器落在 cwd（= tmp_path）的相对路径：两侧 runner 都能用，且完全不涉及路径分隔符转换。
     env = dict(os.environ)
-    # PYTHONUTF8=1 与门禁同源（MID-63）：本用例不跑 Python 门禁，保留同一口径免得后来人当装饰删。
+    # PYTHONUTF8=1 与检查同源（MID-63）：本用例不跑 Python 检查，保留同一口径免得后来人当装饰删。
     env["PYTHONUTF8"] = "1"
     env.update(
         {

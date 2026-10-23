@@ -130,9 +130,9 @@
 | W2 | spike：macos-latest 上静态构建 arm64 ffmpeg/ffprobe | **脚本已备** `scripts/spike_arm64_static_ffmpeg.sh`（原定「一次性脚本写在仓库外」；改判：它要交给维护者在 mac 上跑、W3 也会复用，按 AGENTS.md 归入 `scripts/` 的长期复用工具，**产物仍落 `${TMPDIR:-/tmp}` 不进仓库**） | `lipo -archs` = arm64；`otool -L` 只剩系统库；libx264/libmp3lame/https/hls 齐；1s 真实转码通过 | 耗时/磁盘；`--disable-autodetect` 漏配会造成**假自包含**；官方 `.sha256` 端点形态未实测（取不到即 rc=2） | 2（脚本 0 / mac 实跑 2） |
 | W3 | 固化进发布链（替换现 `brew install ffmpeg` 步骤，保留 retry 复合动作） | `.github/workflows/build-release.yml` | 三平台产物齐、`--require-pinned` 仍生效、job 不超时 | `timeout-minutes: 90` 与 matrix/版本钉定约定需同步（估算净增 ~30 min，**未实测**） | 1.5 |
 | W4 | 证据链：源码 tarball 验签 + build provenance + Release 说明 | `build-release.yml`、`build_exe.py` | 无 attestation 即发布失败 | 第三方动作 ref 口径（MIN-17） | 1.5 |
-| W5 | 许可声明落地 | `LICENSE` / 新增 `THIRD_PARTY_NOTICES.md`、`README*.md` | 中英同源 + 门禁 | 法务口径需维护者确认 | 0.5 |
+| W5 | 许可声明落地 | `LICENSE` / 新增 `THIRD_PARTY_NOTICES.md`、`README*.md` | 中英同源 + 检查 | 法务口径需维护者确认 | 0.5 |
 | W6 | 止血（不依赖路线 A） | `README*.md`、macOS 分支注释、PATH 优先级说明 | 明确「arm64 已装原生 ffmpeg 时不被 Intel 构建遮蔽」的策略 | 改 PATH 优先级会牵动 Windows 语义 | 0.5 |
-| W7 | 回归锁 + 文档同源 | `tests/test_build_exe.py`、`CODE_WIKI*.md` | 门禁全绿 | — | 0.5 |
+| W7 | 回归锁 + 文档同源 | `tests/test_build_exe.py`、`CODE_WIKI*.md` | 检查全绿 | — | 0.5 |
 
 **合计**：路线 A 全程 ≈ **7.5 人日**；只做 C + W6 ≈ **1 人日**。
 

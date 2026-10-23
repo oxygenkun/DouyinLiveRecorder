@@ -16,9 +16,9 @@
 #   --check         : 0 = 两个派生产物均与 pyproject.toml 一致；1 = 已漂移。纯读文件，绝不调
 #                     subprocess / 不联网（CI static job 在未装项目依赖的 job 里跑它）。
 #   无参数（重建）  : 0/1 一律由**最终 check()** 决定，与中间步骤的 WARN 无关。本模式是「生成器」
-#                     而非门禁：uv 缺失属可接受的环境差异（AGENTS.md「关键约定」#1 允许只跑
+#                     而非检查：uv 缺失属可接受的环境差异（AGENTS.md「关键约定」#1 允许只跑
 #                     egg_info 一侧），而产物到底对不对只有 check() 能自证；把 WARN 也判失败会让
-#                     没装 uv 的机器恒红，且无法区分「已补齐」与「真的漂移」。门禁语义一律走 --check。
+#                     没装 uv 的机器恒红，且无法区分「已补齐」与「真的漂移」。检查语义一律走 --check。
 #   降级边界        : uv 段（探测/锁定）失败只让 uv.lock 这一段落 WARN，**必须**继续执行 egg-info
 #                     重建；两条降级路径都不得让脚本抛栈退出。
 # 回归锁：tests/test_scripts_error_paths.py（uv 缺失/探测抛错时 WARN 可达且 egg-info 仍重建、

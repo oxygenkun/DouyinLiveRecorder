@@ -1013,7 +1013,7 @@ async def get_douyu_stream_url(
             break
         err_msg = flv_data.get("msg", "")
         # 可选的 msg 片段按约定在调用方预求值为 err_detail 实参（无 msg 时为空串，输出与旧
-        # 实现逐字节一致），模板本身保持常量串：首参若是 ast.BinOp，i18n 门禁看不见、翻译会在
+        # 实现逐字节一致），模板本身保持常量串：首参若是 ast.BinOp，i18n 检查看不见、翻译会在
         # 查目录前完成插值。
         err_detail = f", msg={err_msg}" if err_msg else ""
         if idx + 1 < len(attempt_rates):

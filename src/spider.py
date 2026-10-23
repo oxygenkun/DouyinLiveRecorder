@@ -4223,7 +4223,7 @@ async def get_popkontv_stream_url(
             raise RuntimeError("Failed to retrieve live stream source, no statusCd in response")
         # L000A：未实名/未手机验证会员，服务端拒绝提供流；L0000：成功拿到 HLS；L0001：首请求需二次确认。
         if status_cd == "L000A":
-            # F-11：print → logger（多参数用字符串拼接，避免 f-string 触发 i18n 门禁）
+            # F-11：print → logger（多参数用字符串拼接，避免 f-string 触发 i18n 检查）
             logger.error("Failed to retrieve live stream source, " + str(status_msg))
             raise RuntimeError(
                 "You are an unverified member. After logging into the popkontv official website, "
@@ -4310,7 +4310,7 @@ async def login_twitcasting(
             cookie = utils.dict_to_cookie_str(cookie_dict)
             return cookie
     except Exception as e:
-        # F-11：print → logger（多参数用字符串拼接，避免 f-string 触发 i18n 门禁）
+        # F-11：print → logger（多参数用字符串拼接，避免 f-string 触发 i18n 检查）
         logger.error("TwitCasting login error, " + str(e))
     return None
 

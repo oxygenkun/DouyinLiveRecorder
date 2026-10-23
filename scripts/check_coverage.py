@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 逐模块覆盖率门禁（CI 可调用）。
+# 逐模块覆盖率检查（CI 可调用）。
 #
 # 读 pytest-cov 写下的 .coverage 数据，对 src/ 下**每一个**模块按各自阈值评一次覆盖率。
 # 阈值的事实源只有本文件下方的 MODULE_THRESHOLDS：AGENTS.md 与 pyproject.toml 都刻意不复制
@@ -10,18 +10,18 @@
 #    python scripts/check_coverage.py
 #    python scripts/check_coverage.py --data-file path/to/.coverage
 #
-# 退出码口径（与 scripts/run_gates.py 一致，必须区分「不达标」与「门禁没跑」）：
+# 退出码口径（与 scripts/run_gates.py 一致，必须区分「不达标」与「检查没跑」）：
 #    0  全部模块达标
 #    1  有模块低于阈值 / 有模块在数据里查不到（= 覆盖率不达标或数据不含被测模块）
 #    2  无 coverage 数据可读（忘了跑 pytest --cov=src、数据文件缺失、JSON 生成失败、数据比源码
-#       陈旧、门禁登记表本身指向不存在的模块）——这一类**不是**「代码不合格」，但也**绝不是**
+#       陈旧、检查登记表本身指向不存在的模块）——这一类**不是**「代码不合格」，但也**绝不是**
 #       通过：数据缺失没有理由继续宽容。
 #
 # 判定面 = src/ 下全部模块（按文件系统枚举），而不是 MODULE_THRESHOLDS 的键集合：只遍历登记表
-#   会让**任何新增的 src/*.py 自动豁免**本门禁，与「新模块必须带测试」相反。未登记阈值的模块
+#   会让**任何新增的 src/*.py 自动豁免**本检查，与「新模块必须带测试」相反。未登记阈值的模块
 #   按 GLOBAL_FLOOR 判定；确需豁免者必须显式写进 GATE_EXEMPT_MODULES 并附理由——白名单外没有
 #   第三条路。.coverage 比 src/、tests/ 源码更旧同样属「没有可判定的数据」（拿旧读数判定 =
-#   门禁自证失效）：新鲜度判据见 _data_is_stale，陈旧一律 rc=2 并给出重跑命令。
+#   检查自证失效）：新鲜度判据见 _data_is_stale，陈旧一律 rc=2 并给出重跑命令。
 
 from __future__ import annotations
 
@@ -39,12 +39,12 @@ from typing import NamedTuple, cast
 ROOT = Path(__file__).resolve().parent.parent
 
 # 兜底数据文件名：优先级（显式 --data-file > $COVERAGE_FILE > 本常量）见 _resolve_data_file，
-# 与 coverage 自身取数据文件的顺序一致——本门禁才评得上刚被 pytest --cov 写下的那份数据。
+# 与 coverage 自身取数据文件的顺序一致——本检查才评得上刚被 pytest --cov 写下的那份数据。
 DEFAULT_DATA_FILE = ".coverage"
 
 # 无数据时的统一提示：告诉调用者**下一步命令**，而不是只说「失败了」。
 NO_DATA_HINT = (
-    "先执行一次带覆盖率的测试再跑本门禁：\n"
+    "先执行一次带覆盖率的测试再跑本检查：\n"
     "     .venv/Scripts/python.exe -m pytest -q --cov=src --cov-report=json\n"
     "   （Linux / CI 上为 python -m pytest -q --cov=src --cov-report=json）"
 )
@@ -60,12 +60,12 @@ MODULE_THRESHOLDS: dict[str, float] = {
 }
 
 # 未显式登记阈值的模块所用下限（MID-2259）。取 50.0 与 pyproject
-# [tool.coverage.report] fail_under = 50 同口径——本门禁不得比全库总闸更宽，
+# [tool.coverage.report] fail_under = 50 同口径——本检查不得比全库总闸更宽，
 # 否则「新模块零测试」反而能通过逐模块闸。
 GLOBAL_FLOOR = 50.0
 
 # 显式豁免名单（MID-2259 要求的「第三条路」）：键 = 相对路径，值 = 豁免理由。
-# 每条理由都必须说明「为什么它不该被本门禁管」，且**不得**为了变绿往里塞普通模块——
+# 每条理由都必须说明「为什么它不该被本检查管」，且**不得**为了变绿往里塞普通模块——
 # 被豁免的模块仍会打印读数（不参与判定），这样将来取消豁免时缺口立刻可见。
 GATE_EXEMPT_MODULES: dict[str, str] = {
     # protoc 生成的桩代码：标注 DO NOT EDIT、随 protobuf 版本重新生成，手改无意义；
@@ -84,13 +84,13 @@ GATE_EXEMPT_MODULES: dict[str, str] = {
 #      AGENTS.md 对 pip-audit `--ignore-vuln` 的「临时豁免必须写明到期日」同口径。
 #   4. 实际值低于基线 → 失败（棘轮只升不降）；已达全局下限却仍在表内 → 失败（须移出表）。
 #   5. 豁免名单的「生成物」理由要**机检**：声明是生成物的文件必须真含生成器标记，否则就是
-#      拿一句注释把低覆盖模块洗出门禁（rc=2，属门禁配置本身不可信）。
+#      拿一句注释把低覆盖模块洗出检查（rc=2，属检查配置本身不可信）。
 class DebtEntry(NamedTuple):
     # 一条技术债基线。四个字段缺一即视为配置不可信（rc=2，见 _validate_debt_and_exempt）。
     floor: float
     reason: str
     tracker: str  # 登记来源，形如 "CODE_REVIEW_2026-09-22_3.md §7-2"
-    review_by: str  # ISO 日期 YYYY-MM-DD；到期后本门禁直接失败
+    review_by: str  # ISO 日期 YYYY-MM-DD；到期后本检查直接失败
 
 
 # 当前为空（2026-09-23 补测试后无模块低于全局下限）。加条目须同时上调 DEBT_CEILING 并写理由。
@@ -122,7 +122,7 @@ def _resolve_data_file(data_file: str | None) -> Path:
 
 def _source_files(root: Path) -> list[Path]:
     # 参与「新鲜度」比较的源码：src/ 与 tests/ 下全部 .py。
-    # 为什么含 tests/：本门禁判的是「用例是否覆盖到实现」，而只改用例同样会让
+    # 为什么含 tests/：本检查判的是「用例是否覆盖到实现」，而只改用例同样会让
     # .coverage 失效（新增用例把某模块覆盖率抬上去、或删掉用例把覆盖率打下来），
     # 只比 src/ 会漏掉这一半陈旧形态。
     out: list[Path] = []
@@ -243,11 +243,11 @@ def _get_coverage_json(data_file: str | None, root: Path = ROOT) -> CoverageData
     resolved = _resolve_data_file(data_file)
     if not resolved.exists():
         print(f"ERROR: 未找到 coverage 数据文件 {resolved.as_posix()}", file=sys.stderr)
-        print("       门禁没有可判定的数据 —— 这是「没跑测试」，不是「覆盖率不达标」。", file=sys.stderr)
+        print("       检查没有可判定的数据 —— 这是「没跑测试」，不是「覆盖率不达标」。", file=sys.stderr)
         print(f"   {NO_DATA_HINT}", file=sys.stderr)
         sys.exit(2)
 
-    # MID-2261：数据存在但比源码陈旧 → 同样是「门禁没有可判定的数据」。本树实测形态：.coverage
+    # MID-2261：数据存在但比源码陈旧 → 同样是「检查没有可判定的数据」。本树实测形态：.coverage
     # 停在上一轮全量运行，之后 src/、tests/ 继续被改，逐模块读数评的是**已经不存在的代码**，
     # PASSED 却是真的——假绿里最难发现的一种，因为「数据文件存在」这项检查确实通过了。
     stale = _data_is_stale(resolved, root)
@@ -258,7 +258,7 @@ def _get_coverage_json(data_file: str | None, root: Path = ROOT) -> CoverageData
             f"       数据写入于 {_fmt_time(data_mtime)}，而 {_rel(root, newer)} 改于 {_fmt_time(newer_mtime)}",
             file=sys.stderr,
         )
-        print("       门禁评的是已过期的读数 —— 这属「数据不可用」，不是「覆盖率不达标」。", file=sys.stderr)
+        print("       检查评的是已过期的读数 —— 这属「数据不可用」，不是「覆盖率不达标」。", file=sys.stderr)
         print(f"   {NO_DATA_HINT}", file=sys.stderr)
         sys.exit(2)
 
@@ -324,7 +324,7 @@ def _rel(root: Path, path: Path) -> str:
 
 def evaluate_report(coverage_data: CoverageData, root: Path = ROOT) -> int:
     # 判定核心：吃一份 coverage JSON 报告 dict，对 **src/ 下全部模块**（按文件系统枚举）
-    # 逐个评阈值，返回 0 达标 / 1 不达标 / 2 门禁自身失效（含 sys.exit(2) 提前退出）。
+    # 逐个评阈值，返回 0 达标 / 1 不达标 / 2 检查自身失效（含 sys.exit(2) 提前退出）。
     #
     # 为什么单独拆成这个纯判定函数：判定与「跑 coverage 子进程」耦在一起时，单元测试只能靠
     # 真数据文件驱动，于是「谓词拿不到输入就返回通过」的形态（files 为空、模块压根没登记）从来
@@ -332,20 +332,20 @@ def evaluate_report(coverage_data: CoverageData, root: Path = ROOT) -> int:
     files = cast(dict[str, CoverageData], coverage_data.get("files", {}))
     if not files:
         # 「有数据文件但里面一个被测文件都没有」＝ 上一轮 --cov 未生效 / 数据被截断，
-        # 与「忘了跑」同属门禁失效：必须硬失败，否则下面只会报「模块查不到」而指错方向。
+        # 与「忘了跑」同属检查失效：必须硬失败，否则下面只会报「模块查不到」而指错方向。
         print("ERROR: coverage 报告里没有任何被测文件条目（files 为空）", file=sys.stderr)
         print(f"       通常是 --cov=src 未生效或数据文件已损坏。{NO_DATA_HINT}", file=sys.stderr)
         sys.exit(2)
 
     modules = _src_modules(root)
     if not modules:
-        # 枚举不到任何 src/ 模块 = 判定面为空。MIN-19 的口径：门禁「没东西可查」一律非 0，
+        # 枚举不到任何 src/ 模块 = 判定面为空。MIN-19 的口径：检查「没东西可查」一律非 0，
         # 绝不输出「PASSED: All 0 module(s)」——那正是本文件要消灭的假绿形态。
         print("ERROR: 在 src/ 下没枚举到任何待判定模块（root 解析错位？）", file=sys.stderr)
         print("       判定面为空不等于全部达标。", file=sys.stderr)
         sys.exit(2)
 
-    # 登记表/白名单指向磁盘上不存在的模块 = 门禁配置本身腐烂（模块改名后表没跟着改）。
+    # 登记表/白名单指向磁盘上不存在的模块 = 检查配置本身腐烂（模块改名后表没跟着改）。
     # 这与「某模块覆盖率不达标」是两类问题，按 rc=2 处理，逼人去改表而不是加测试。
     module_set = set(modules)
     stale_entries = sorted(
@@ -354,7 +354,7 @@ def evaluate_report(coverage_data: CoverageData, root: Path = ROOT) -> int:
         + [m for m in COVERAGE_DEBT if m not in module_set]
     )
     if stale_entries:
-        print("ERROR: 覆盖率登记表指向 src/ 下不存在的模块（门禁配置已腐烂）:", file=sys.stderr)
+        print("ERROR: 覆盖率登记表指向 src/ 下不存在的模块（检查配置已腐烂）:", file=sys.stderr)
         for entry in stale_entries:
             print(f"   - {entry}", file=sys.stderr)
         print(
@@ -363,7 +363,7 @@ def evaluate_report(coverage_data: CoverageData, root: Path = ROOT) -> int:
         )
         sys.exit(2)
 
-    # 表本身的合规性先于读数判定：理由不全 / tracker 缺失 / 日期不合法 = 门禁不可信 → rc=2。
+    # 表本身的合规性先于读数判定：理由不全 / tracker 缺失 / 日期不合法 = 检查不可信 → rc=2。
     debt_config, debt_violations = _validate_debt_and_exempt(root)
     if debt_config:
         print("ERROR: 覆盖率白名单配置不可信（缺理由 / 指针不合法 / 生成物标记核对失败）:", file=sys.stderr)
@@ -424,8 +424,8 @@ def evaluate_report(coverage_data: CoverageData, root: Path = ROOT) -> int:
         for module in missing_modules:
             print(f"   {module}")
         # 模块在覆盖率数据里查不到，通常意味着 .coverage 未采集到它、或 --cov=src 未生效。
-        # 这是「门禁失效」而非「达标」，必须判失败——否则会输出「全部 0 个模块达标」的假绿。
-        print("       （查不到即视为门禁失效，按失败处理；确属不可测的生成物请写进 GATE_EXEMPT_MODULES 并附理由）")
+        # 这是「检查失效」而非「达标」，必须判失败——否则会输出「全部 0 个模块达标」的假绿。
+        print("       （查不到即视为检查失效，按失败处理；确属不可测的生成物请写进 GATE_EXEMPT_MODULES 并附理由）")
 
     if COVERAGE_DEBT:
         print(f"\n[DEBT] {len(COVERAGE_DEBT)} module(s) 走债务基线（条数上限 {DEBT_CEILING}，只降不升）:")
@@ -507,8 +507,8 @@ def _percent(file_data: CoverageData) -> float:
 
 
 def check_coverage(data_file: str | None = None, root: Path = ROOT) -> int:
-    # 门禁入口：解析数据文件 → 生成/读取 coverage JSON → 交给 evaluate_report 判定。
-    # 返回 0 达标 / 1 不达标；rc=2 的三类「门禁没跑」形态在 _get_coverage_json 与
+    # 检查入口：解析数据文件 → 生成/读取 coverage JSON → 交给 evaluate_report 判定。
+    # 返回 0 达标 / 1 不达标；rc=2 的三类「检查没跑」形态在 _get_coverage_json 与
     # evaluate_report 内部直接 sys.exit(2)（数据缺失 / 数据陈旧 / 报告为空 / 登记表腐烂）。
     coverage_data = _get_coverage_json(data_file, root)
     return evaluate_report(coverage_data, root)

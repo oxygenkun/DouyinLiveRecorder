@@ -18,7 +18,7 @@
 
 1. **产品侧不存在「防线缺失」型漏洞，但有两处「防线可被绕过」型严重问题**（SR-01/SR-02，集中在 `src/stream_select.py` 的 m3u8 派生地址闸门：安全拒绝的返回值被上层保守兜底重新翻成「可达」，且闸门自身的取样面可被播放列表正文排布规避）。两者都是上轮 SR-01 整改的**未闭合部分**，修复面仍很小。
 2. **10-03/10-04 的新增代码引入了两处确定性失效**：小红书短链配置回写会让该房间在录完一轮后永久失联直到重启进程（SR-04，新平台接入的第一条链路）；界面语言在 `set_language` 之前定型，使非中文语言下弹幕实时流恒空（MR-30，其既有自愈分支的前置条件恰好不成立）。
-3. **质量门禁自身的完整性出现两类严重退化**（源于本轮新增的覆盖面）：`check_skill_agents_consistency.py` 依赖一个被 `.gitignore` 忽略、从未入库的本地目录，导致 `static` job 与 pre-commit 在干净检出上必红（SR-06，**远端 CI 实测已红**）；`docker-publish.yml` 因 `workflow_dispatch` 发版路径用 `GITHUB_TOKEN` 推 tag 而**从未触发过**（SR-07，**远端实测 `total_count = 0`**），对外承诺的 GHCR 多架构镜像长期不存在且无任何告警。
+3. **质量检查自身的完整性出现两类严重退化**（源于本轮新增的覆盖面）：`check_skill_agents_consistency.py` 依赖一个被 `.gitignore` 忽略、从未入库的本地目录，导致 `static` job 与 pre-commit 在干净检出上必红（SR-06，**远端 CI 实测已红**）；`docker-publish.yml` 因 `workflow_dispatch` 发版路径用 `GITHUB_TOKEN` 推 tag 而**从未触发过**（SR-07，**远端实测 `total_count = 0`**），对外承诺的 GHCR 多架构镜像长期不存在且无任何告警。
 4. **凭据脱敏仍是「开放集合」问题**：上轮 M-01 的四键缺口已修并经我复测确认，但同一族在四处重新出现——Twitch `sig=`（MR-02）、Cookie 头未登记键名（MR-03）、`msg_push` 五渠道异常原文与 `_mask_url` 的 netloc（MR-04）、standalone 探针异常文本（MR-08）。上轮提出的「矩阵表驱动用例」结构性建议未落地，其代价在本轮可量化为 4 条同源条目。
 5. **工具侧信号本轮不干净，但必须区分噪声与缺陷**：`run_gates.py` 10 项中 1 项硬失败（即 SR-06）；全量 `pytest` 读数 **21 failed / 4074 passed / 14 skipped**，经我三组对照实验判定**这 21 条全部为环境×pytest fd 捕获交互的噪声、非代码回归**（复现矩阵见第 7.2 节），同时该现象暴露了一个真实防御缺口（MR-47：`run_gates.run_command` 对不可复制的 stdio 句柄零保护）。`basedpyright` 为 0 error/0 warning，但进程退出码 3 且与判定面无关（MR-46）。
 
@@ -31,7 +31,7 @@
 | 根入口 Python（`main.py` 5,904 / `gui.py` 4,496 / `build_exe.py` 1,740 / `msg_push.py` 577 / `i18n.py` 415 / `web.py` 357） | 6 | 13,489 | 逐文件深审 |
 | `src/` Python（49 个文件，最大单体 `src/spider.py` 7,340） | 48 | 27,994 | 逐文件深审（分 6 个工作包） |
 | `src/javascript/` 签名脚本（`x-bogus.js` 564 / `haixiu.js` 535 / `liveme.js` 425 / `migu.js` 393） | 4 | 1,917 | 逐行 + 钉定值实测对账 |
-| `scripts/`（2,695 行独立发行版孪生副本 + 15 个维护/门禁工具） | 19 | 7,777 | 逐文件深审（**本轮首次覆盖**） |
+| `scripts/`（2,695 行独立发行版孪生副本 + 15 个维护/检查工具） | 19 | 7,777 | 逐文件深审（**本轮首次覆盖**） |
 | `.github/`（5 个工作流 + `actions/retry` + ISSUE_TEMPLATE/PR 模板） | 13 | 2,406 | 逐步骤核查 + 远端运行历史比对（**本轮首次覆盖**） |
 | 容器/打包/忽略清单/依赖（`Dockerfile`、`docker-compose.yaml`、`pyproject.toml`、`requirements.txt`、`.dockerignore`、`.gitignore`、`.pre-commit-config.yaml`、`.coveragerc-concurrency`、`config/config.ini`） | 9 | 1,598 | 逐项同源比对（**本轮首次覆盖**） |
 | **生产 + 工程面小计** | **105** | **59,650** | — |
@@ -41,7 +41,7 @@
 
 ### 2.2 本轮首次覆盖的清单（上轮 2.1 范围表未含）
 
-`scripts/` 维护与门禁工具链（除孪生副本）、`.github/workflows` 全部工作流与 `actions/retry` 复合动作、`Dockerfile`/`docker-compose.yaml`/`.dockerignore`/`.gitignore`/`.pre-commit-config.yaml`/`pyproject.toml`/`requirements.txt`、`src/platforms/` 平台适配层 8 个文件、`src/javascript/` 签名脚本层逐行、`msg_push.py`（577 行推送渠道）、`tests/frontend/*.mjs` 前端用例本体、`src/ui_kit.py`/`src/ui_theme.py`/`src/ui_i18n.py`（10-03/10-04 UI 现代化阶段 4/5 与界面 i18n 新代码）、`src/ffmpeg_linux_download.py`、`src/startup_cleanup.py`。
+`scripts/` 维护与检查工具链（除孪生副本）、`.github/workflows` 全部工作流与 `actions/retry` 复合动作、`Dockerfile`/`docker-compose.yaml`/`.dockerignore`/`.gitignore`/`.pre-commit-config.yaml`/`pyproject.toml`/`requirements.txt`、`src/platforms/` 平台适配层 8 个文件、`src/javascript/` 签名脚本层逐行、`msg_push.py`（577 行推送渠道）、`tests/frontend/*.mjs` 前端用例本体、`src/ui_kit.py`/`src/ui_theme.py`/`src/ui_i18n.py`（10-03/10-04 UI 现代化阶段 4/5 与界面 i18n 新代码）、`src/ffmpeg_linux_download.py`、`src/startup_cleanup.py`。
 
 ### 2.3 排除项
 
@@ -53,7 +53,7 @@
 ### 2.4 审查方法与工具
 
 1. **十七个并行只读深审工作包**，按互不重叠的文件集合分派：`main.py`、`src/spider.py`、`gui.py`、Web 面板后端、Web 前端、构建/安装链、选源与调度、HTTP 基建、弹幕与 SRT 链路、`src/platforms/`、签名 JS、standalone 孪生副本、配置/通知基建、UI 层与 i18n、CI 与容器、`scripts/`、tests 抽查。每包 brief 均包含：AGENTS.md 与上轮报告的必读要求、**本项目刻意约定白名单**（PEP 758 无括号多异常、禁 docstring 与中文 `#` 注释、`i18n.tr` 形参模板、探针节流与 `_PROBE_BACKOFF_PLATFORMS`/`_FLV_FIRST_PLATFORMS` 口径、三类钉定与 TOFU 边界、GUI 颜色不进工厂、`sync_http` 无 importer 的已知状态、平台匿名票据已裁断、不提议新增依赖/不加 `# type: ignore` 等 13 条，按包定制），以及「位置/类型/证据/影响/修复建议/严重度/待确认」的强制输出格式。此分工口径出自 AGENTS.md「并行分组代码审查分工口径」。
-2. **主审查者逐条复核**（本报告所有行号与读数以此为准）：全部「严重」条目与安全相关「中等」条目由我重新 Read 对应行区间确认；**15 项以本机执行取证**——`mask_credentials` 键覆盖与 Cookie 头分段、`_SECRET_KEYS` 成员判定、`basedpyright` 退出码对照实验、签名脚本 SHA256 与钉定表逐文件对账、asyncio 停止时序对 `task.cancelled()` 的影响、`subprocess.Popen.__exit__` 源码、`_reject_dangerous_baseline` 探针、i18n 四目录键数与 `全部房间` 实际译文、`_redact_ini_secrets` 对真实 `URL_config.ini` 的两个出口、httpx `Client._redirect_headers` 的 Cookie 剥离、11 个门禁步骤的逐项 PASS/FAIL、全量 pytest 失败归因三组对照、以及「回归锁」注释指针的存在性核对。
+2. **主审查者逐条复核**（本报告所有行号与读数以此为准）：全部「严重」条目与安全相关「中等」条目由我重新 Read 对应行区间确认；**15 项以本机执行取证**——`mask_credentials` 键覆盖与 Cookie 头分段、`_SECRET_KEYS` 成员判定、`basedpyright` 退出码对照实验、签名脚本 SHA256 与钉定表逐文件对账、asyncio 停止时序对 `task.cancelled()` 的影响、`subprocess.Popen.__exit__` 源码、`_reject_dangerous_baseline` 探针、i18n 四目录键数与 `全部房间` 实际译文、`_redact_ini_secrets` 对真实 `URL_config.ini` 的两个出口、httpx `Client._redirect_headers` 的 Cookie 剥离、11 个检查步骤的逐项 PASS/FAIL、全量 pytest 失败归因三组对照、以及「回归锁」注释指针的存在性核对。
 3. **远端事实核验**：经 GitHub 公开 API 取 `actions/workflows/docker-publish.yml/runs`（`total_count = 0`）与 `actions/runs` 最近 12 条运行结论（SR-06、SR-07、MR-44 的证据）。本机无 `gh` CLI（`gh: No such file or directory`），故未取 job 级日志——凡依赖 job 内部细节的判断均标「待确认」并给出维护者一键核对方法。
 4. **工具交叉**：`scripts/run_gates.py`（10 项）、`basedpyright`、全量 `pytest --cov=src` + `scripts/check_coverage.py`，读数见第 7 章。
 5. **定级纪律**：沿用仓库既有严重度定义（第 3.1 节）。工作包给出的「严重」自评被我**下调**（crypto-js 执行期不校验 → MR-36），理由与实测读数就地写明；同时把上轮定级偏保守的同型条目（standalone 凭据外送，上轮 M-03 定中等）按本报告定义**上调**为 SR-05，口径差异在第 3.3 节说明。
@@ -64,8 +64,8 @@
 
 | 严重度 | 判据 |
 | --- | --- |
-| 严重 | 可被现实威胁模型利用的安全漏洞（SSRF 击穿自身防线、凭据经可控路径外送），或核心功能/核心交付确定性失效，或**质量门禁自身在合并边界上确定性失效** |
-| 中等 | 有真实影响的缺陷：脱敏缺口、并发丢写/竞态、资源泄漏、内存无界、确定性误判、孪生漂移致功能反转、门禁假绿/漏判；通常需特定配置、平台、语言或时序触发 |
+| 严重 | 可被现实威胁模型利用的安全漏洞（SSRF 击穿自身防线、凭据经可控路径外送），或核心功能/核心交付确定性失效，或**质量检查自身在合并边界上确定性失效** |
+| 中等 | 有真实影响的缺陷：脱敏缺口、并发丢写/竞态、资源泄漏、内存无界、确定性误判、孪生漂移致功能反转、检查假绿/漏判；通常需特定配置、平台、语言或时序触发 |
 | 轻微 | 防御纵深缺口、可观测性不足、契约与注释漂移、死代码、边缘输入崩溃、一致性与工程卫生；当前无实锤泄漏或崩溃路径 |
 
 ### 3.2 统计矩阵（按问题落点文件归属，跨文件缺陷只计一次）
@@ -84,7 +84,7 @@
 | 配置/通知/推送（`utils`/`config_io`/`notify`/`msg_push`） | 0 | 4 | 0 | 4 |
 | 独立发行版 standalone 孪生 | 1 | 5 | 0 | 6 |
 | CI 工作流/容器/忽略清单/依赖声明 | 1 | 2 | 1 | 4 |
-| `scripts/` 维护与门禁工具 | 1 | 3 | 2 | 6 |
+| `scripts/` 维护与检查工具 | 1 | 3 | 2 | 6 |
 | `tests/` | 0 | 0 | 4 | 4 |
 | **合计** | **7** | **47** | **39** | **93** |
 
@@ -142,13 +142,13 @@
 - **影响**: 在独立发行版（随仓库与镜像分发）的 `URL_config.ini` 里写 `https://evil.com/www.huya.com/660002`，即把用户配置的虎牙 Cookie 原样发往 `evil.com`（逐次发生，与开播与否无关）；写 `http://127.0.0.1:6379/?huya.com` 则向内网发起带 Cookie 的 GET 并读取响应。与上轮 M-03 同型；定级理由见第 3.3 节口径说明。
 - **修复建议**: `platform_of`/`dispatch` 一律按 `urlsplit(url).hostname` 归一后做「精确等于或 `.` 后缀」判定（抄主线 `_match_host` 的归一串写法，两侧注释互相点名）；`load_urls` 增加与主线 `PLATFORM_HOST` 同集合的准入名单，未命中行跳过并告警；`resolve_huya` 入口补主线 `:1989` 那条自校验。孪生锁（`tests/test_regression_2026_09_22_standalone.py`）：打桩 `_fetch_html`，断言 `https://evil.com/www.huya.com/1` 返回「不支持的平台」且 `_fetch_html` 零调用；再加 AST 结构锁断言副本源码中不存在 `re.search(pattern, url` 形态。
 
-### SR-06 Skill 一致性门禁依赖被 gitignore 的本地目录，`static` job 与 pre-commit 在干净检出上确定性失败（本机复现 + 远端实测已红）
+### SR-06 Skill 一致性检查依赖被 gitignore 的本地目录，`static` job 与 pre-commit 在干净检出上确定性失败（本机复现 + 远端实测已红）
 
 - **位置**: `scripts/check_skill_agents_consistency.py:170-172`；接线于 `.github/workflows/ci.yml:317-318`（`static` job 普通步骤，无 `continue-on-error`）与 `.pre-commit-config.yaml:99-104`（`always_run: true`）；资产侧 `.gitignore:292`、`.dockerignore:25`
-- **类型**: 门禁自证 / 合并边界确定性失效
-- **描述**: 脚本把「`.agents/skills` 不存在」判为 rc=2「门禁本身失效」，但 `.agents/` 是本地工具目录、被 ignore 且**从未被 git 跟踪**，任何干净检出必然缺失该目录；`static` 又是 required check `ci-summary`（`ci.yml:900-913`）的 `needs` 之一。
-- **证据（三段独立取证）**: ① 本机 `python scripts/run_gates.py` → 第 10 项 `[FAIL] rc=2`，前 9 项全 PASS（含 `mypy` 与 `mypy --platform linux`/`win32` 三平台双跑）；② `git ls-files .agents` 空、`git ls-tree --name-only HEAD` 顶层无 `.agents`、`git log --all -- .agents` 无历史，而维护者主检出 `D:/DouyinLiveRecorder/.agents/skills` 实有 5 个目录 → 维护者本机绿、干净检出必红；③ **远端实测**：我经公开 API 取 `actions/runs`，`CI`（push, main, 2026-10-03T02:05:33Z，即引入该门禁的 `72ef4c2` 之后）结论为 **failure**。此外 `run_gates.py:490-507` 在第 10 项红后 `return 1`，而 `gate_pytest_warnings_summary()` 排在 `:513` 之后 → **任一条门禁红就使 pytest 0-警告兜底根本不执行**。
-- **影响**: 每次命中 python 路径过滤的 CI 全链红、本地提交被 pre-commit 阻断；AGENTS.md:248 又把它列为「格式化命令（门禁唯一基准）」第 10 条，于是「完成定义第 1 条」在干净检出上永不可满足。长期红的 required check 会诱导加 `|| true`（真假绿）或习惯性忽略红（真回归被放行），两者都摧毁其余 9 项门禁的信号价值；本项同时是 AGENTS「门禁本身失效」档的实例。
+- **类型**: 检查自证 / 合并边界确定性失效
+- **描述**: 脚本把「`.agents/skills` 不存在」判为 rc=2「检查本身失效」，但 `.agents/` 是本地工具目录、被 ignore 且**从未被 git 跟踪**，任何干净检出必然缺失该目录；`static` 又是 required check `ci-summary`（`ci.yml:900-913`）的 `needs` 之一。
+- **证据（三段独立取证）**: ① 本机 `python scripts/run_gates.py` → 第 10 项 `[FAIL] rc=2`，前 9 项全 PASS（含 `mypy` 与 `mypy --platform linux`/`win32` 三平台双跑）；② `git ls-files .agents` 空、`git ls-tree --name-only HEAD` 顶层无 `.agents`、`git log --all -- .agents` 无历史，而维护者主检出 `D:/DouyinLiveRecorder/.agents/skills` 实有 5 个目录 → 维护者本机绿、干净检出必红；③ **远端实测**：我经公开 API 取 `actions/runs`，`CI`（push, main, 2026-10-03T02:05:33Z，即引入该检查的 `72ef4c2` 之后）结论为 **failure**。此外 `run_gates.py:490-507` 在第 10 项红后 `return 1`，而 `gate_pytest_warnings_summary()` 排在 `:513` 之后 → **任一条检查红就使 pytest 0-警告兜底根本不执行**。
+- **影响**: 每次命中 python 路径过滤的 CI 全链红、本地提交被 pre-commit 阻断；AGENTS.md:248 又把它列为「格式化命令（检查唯一基准）」第 10 条，于是「完成定义第 1 条」在干净检出上永不可满足。长期红的 required check 会诱导加 `|| true`（真假绿）或习惯性忽略红（真回归被放行），两者都摧毁其余 9 项检查的信号价值；本项同时是 AGENTS「检查本身失效」档的实例。
 - **修复建议**: 按仓库既有先例把「资产不在仓库面」降为显式 SKIP——打印 `SKIP: .agents/ 属 .gitignore/.dockerignore 忽略的本地工具目录，本检出不含该资产`（CI 侧补 `::notice::`）并退 0，判据本体保留在装有 Skill 的本机（先例：`tests/test_agent_hook_guard.py:297`「资产缺失时 skip 而非伪绿」、`tests/test_ci_frontend_registration.py` 的 node 缺失 skip）。若维护者判定 CI 必须真的执行该锁，则须把 `.agents/skills/` 纳入跟踪（先例 `.gitignore:38` 的 `!DouyinLiveRecorder.egg-info/`）——属 ignore 同源约定变更，按 AGENTS「风险控制（前置）」交回用户决定。**两条路都要补回归锁**：在 `tmp_path` 造「有 AGENTS.md、无 `.agents`」的面，断言新行为（SKIP → 0），并反向断言「表格条目指向不存在路径」仍 rc=1（不被新 SKIP 一并吞掉）。
 
 ### SR-07 多架构镜像发布链从未触发：`workflow_dispatch` 路径的 tag 由 `GITHUB_TOKEN` 推送，不产生 workflow 事件
@@ -372,7 +372,7 @@
 **MR-34 `web_tray` 的用户可见文案全部硬编码中文；`_on_exit` 的 `os._exit(0)` 分支绕过 atexit 链**
 - **位置**: `src/web_tray.py:146-159`、`:252-259`
 - **描述**: 本模块已 `import i18n` 但只在 `:140` 一处用 `tr()`；托盘菜单项（`"显示控制台"`/`"退出程序"`）、图标 tooltip 与两条 `print` 播报都是裸中文常量，`set_language("en_US")` 后仍原样显示。`_on_exit` 在 `server is None` 时走 `os._exit(0)`，该调用不经 atexit。
-- **影响**: 文案侧=非简中语言下托盘区为简中，与关键约定 #16 的接线口径不符；且 `extract_i18n_strings.py` 不认 `pystray.MenuItem`，属 AGENTS #14 提取器盲点的又一形态（门禁看不见）。`os._exit` 侧=当前不可达（`web.py:314` 恒传 `server=server`），但一旦有人复用本类而不传 server，就退化成「托盘点退出 → ffmpeg 残留 + 日志不归档」。
+- **影响**: 文案侧=非简中语言下托盘区为简中，与关键约定 #16 的接线口径不符；且 `extract_i18n_strings.py` 不认 `pystray.MenuItem`，属 AGENTS #14 提取器盲点的又一形态（检查看不见）。`os._exit` 侧=当前不可达（`web.py:314` 恒传 `server=server`），但一旦有人复用本类而不传 server，就退化成「托盘点退出 → ffmpeg 残留 + 日志不归档」。
 - **修复建议**: `:147/:148/:153/:159` 改 `i18n.tr(...)` 并把四条目 + `web/app.js` 内嵌目录同批登记（托盘文案是构建期定型，需随语言切换重建菜单或至少在 `start()` 时按当前语言取值）；`:256-259` 的无 server 分支改 `raise SystemExit(0)`（走解释器正常退出 → atexit 生效），或在注释写明「本类要求调用方必须传 server」并删掉该分支。
 
 **MR-35 422/400 的用户可见文案只改了一半：`web_models` 与 `web_config` 抛的中文串仍直出**
@@ -425,7 +425,7 @@
 - **描述/影响**: 孪生锁文件本轮补了 SR-02（`TestRedirectHopGuard`）与 M-17（`TestHlsSegmentProbeLite`）两条行为锁，但其余五条一个都没有——`grep` 全 `tests/` 对 `terminate_all_ffmpeg`、`_rotate_log_if_needed`、`_h265_copy_format_supported_standalone`、`SA.parse_config_bool`、`SA.load_settings` 均 0 命中（`_TRUE_TOKENS` 只被 `tests/test_config_bool.py:21` 锁主线那份，副本无人比对）。**MR-40 那个「写了 `b"q"` 但一个字节都发不出去」的假修复正是从这里逃逸的**：CI 全绿、注释声称已回灌，缺陷逐次发生在用户机上；同类漂移以后仍会静默重演。
 - **修复建议**: 在 `tests/test_regression_2026_09_22_standalone.py` 增加 ①判据集合等价锁（`SA._TRUE_TOKENS == src.config_bool.TRUE_TOKENS` 等，可照抄 `tests/test_ffmpeg_install.py:895` 的「开关解析未走统一入口即红」形态）；②上轮第 364 行建议的「主线防线编号 → standalone 对应符号存在性」AST 结构清单（缺符号即红）；③MR-40/41 与第 6.3 节各条对应的行为锁。
 
-### 5.10 CI / 容器 / 门禁工具（5 项）
+### 5.10 CI / 容器 / 检查工具（5 项）
 
 **MR-43 `.dockerignore` 的审查/文档排除集已因文档搬家整体失效：2.38 MB 内部记录（含维护者本机路径）进对外镜像**
 - **位置**: `.dockerignore:46-59`（裸模式 `CODE_REVIEW_*.md`/`DIAGNOSIS_*.md`/`PERF_REVIEW_*.md`/`PROPOSAL_*.md`；同段唯一带目录的模式是 `docs/changelog/`）、`Dockerfile:114` 的 `COPY . ./`
@@ -433,26 +433,26 @@
 - **影响**: 每次 `docker build`/`docker-publish`/Trivy 构建；公开镜像含维护者本机目录、会话记忆、审查记录与提案（AGENTS 红线只保证「无真实凭据」，不含这些内容），体积 +2.4 MB，并使 AGENTS「镜像额外排除集」条目变成自证失效的摆设。**本报告自身落在 `docs/worklog/`，同样会被打进镜像**——这是把本项列进 P0 的直接原因。
 - **修复建议**: 运行期无任何 `docs/` 消费点（全仓仅 `src/spider.py:113` 的注释引用），`.dockerignore` 直接加 `docs/`（或逐条 `docs/worklog/`、`docs/agent-reference/`、`docs/qgraphflow/`）；四条通配改 `**/CODE_REVIEW_*.md` 等锚定形态以覆盖未来再搬家；同批补 `.zcodeignore` 规则；
 
-**MR-44 路径过滤漏登记 5 个「会改变门禁结论」的文件；`ci-summary` 又把 skipped 一律视为通过**
+**MR-44 路径过滤漏登记 5 个「会改变检查结论」的文件；`ci-summary` 又把 skipped 一律视为通过**
 - **位置**: `.github/workflows/ci.yml:178-208`（`python` 过滤组）、`:919-921`（`contains(needs.*.result, 'failure')`）、`:91-92`（dispatch 声明）
-- **描述与影响**（**我远端实测**）: 两半同源——①`python` 组收了 21 项却漏 `.gitignore`、`.dockerignore`、`AGENTS.md`、`.pre-commit-config.yaml`、`config/config.ini`，而这五个恰是多条回归锁的输入（`tests/test_build_exe.py:1356-1385` 读两份 ignore、`tests/test_agent_hook_guard.py:50` 读 `.gitignore`、`tests/test_pre_commit_config.py:55-62` 用 `run_gates.extract_gate_commands(AGENTS.md)` 与 pre-commit 双向钉、`tests/test_regression_2026_09_22_gates.py:479` 读 `config/config.ini`），单改这些文件时 `static`/`test` 整体 skip、锁一次都不执行；②`ci-summary` 只把 `failure`/`cancelled` 判红，我经公开 API 看到一次 docs-only push（`1a44079`「docs: 更新 README…」，2026-10-03T02:25:09Z）的 `CI` 结论为 **success**——该次改动不命中过滤、8 个门禁 job 全部 skipped，required check 因此绿。另 `ci.yml:91` 把 `workflow_dispatch` 的用途写成「不改代码复跑全部门禁」，但 v4 的 `paths-filter` 对 dispatch 落到 `getChangedFilesFromGit`、base/head 均归一成默认分支 → 只比对最后一次提交，门禁跑不跑取决于最后一次提交碰没碰到 python 路径。
-- **修复建议**: ①`python` 组补这五条路径（与 AGENTS「路径过滤已把 `uv.lock`/`egg-info` 纳入 python 组」同一口径，属既有先例补登记，不新建并行清单）；②照 `:880` 形态给其余 7 个重活 job 补 `github.event_name == 'workflow_dispatch' ||`；③给 `ci-summary` 加一条「全部门禁 job 皆 skipped 即 `::error::`」防线（与 MID-2264 同口径）；④`dorny/paths-filter@v4` 是「是否执行门禁」的单点且为浮动第三方 ref，按 MIN-17 应钉 SHA——**落笔前须由维护者当场核实该 SHA，不得凭记忆填**。
+- **描述与影响**（**我远端实测**）: 两半同源——①`python` 组收了 21 项却漏 `.gitignore`、`.dockerignore`、`AGENTS.md`、`.pre-commit-config.yaml`、`config/config.ini`，而这五个恰是多条回归锁的输入（`tests/test_build_exe.py:1356-1385` 读两份 ignore、`tests/test_agent_hook_guard.py:50` 读 `.gitignore`、`tests/test_pre_commit_config.py:55-62` 用 `run_gates.extract_gate_commands(AGENTS.md)` 与 pre-commit 双向钉、`tests/test_regression_2026_09_22_gates.py:479` 读 `config/config.ini`），单改这些文件时 `static`/`test` 整体 skip、锁一次都不执行；②`ci-summary` 只把 `failure`/`cancelled` 判红，我经公开 API 看到一次 docs-only push（`1a44079`「docs: 更新 README…」，2026-10-03T02:25:09Z）的 `CI` 结论为 **success**——该次改动不命中过滤、8 个检查 job 全部 skipped，required check 因此绿。另 `ci.yml:91` 把 `workflow_dispatch` 的用途写成「不改代码复跑全部检查」，但 v4 的 `paths-filter` 对 dispatch 落到 `getChangedFilesFromGit`、base/head 均归一成默认分支 → 只比对最后一次提交，检查跑不跑取决于最后一次提交碰没碰到 python 路径。
+- **修复建议**: ①`python` 组补这五条路径（与 AGENTS「路径过滤已把 `uv.lock`/`egg-info` 纳入 python 组」同一口径，属既有先例补登记，不新建并行清单）；②照 `:880` 形态给其余 7 个重活 job 补 `github.event_name == 'workflow_dispatch' ||`；③给 `ci-summary` 加一条「全部检查 job 皆 skipped 即 `::error::`」防线（与 MID-2264 同口径）；④`dorny/paths-filter@v4` 是「是否执行检查」的单点且为浮动第三方 ref，按 MIN-17 应钉 SHA——**落笔前须由维护者当场核实该 SHA，不得凭记忆填**。
 
-**MR-45 `agent_hook_guard.py` 用 `"find"` **子串**旁路整条删除判定；同族门禁假绿两处**
+**MR-45 `agent_hook_guard.py` 用 `"find"` **子串**旁路整条删除判定；同族检查假绿两处**
 - **位置**: `scripts/agent_hook_guard.py:259-263`（我读码确认）；同族 `scripts/check_skill_agents_consistency.py:240-262`、`scripts/report_bundle_size.py:199-225`
-- **描述与影响**: ①`if "find" in statement.lower() and not _FIND_DELETE_RE.search(statement): continue` 写在删除动词判定**之后**，因此任何语句只要文本里出现 `find` 这四个字母（目录名 `findings`、路径 `search_find/`、注释）就跳过该条语句的**全部**删除规则（R-CLEAN-SCOPE / R-WIPE-SCOPE）；工作包探针实测 `rm -rf logs` 拦、`rm -rf logs findings` 与 `Remove-Item -Recurse -Force logs, findings` **放行**，同批 `rm -rf .`/`git clean -fdx` 仍拦（差异只由该支路造成）。AGENTS 把「清理范围越界」的唯一自动化拦截点放在这一站，命中即不可逆删除被放行且无提示；既有锁 `tests/test_agent_hook_guard.py::test_cleanup_reaching_protected_dirs_is_blocked` 只用 `rm -rf ./logs` 形态，看不见它。②`check_skill_agents_consistency.py` 的「目录有、表格未登记」方向只进 `warnings` 且 `return 0`，还被「SKILL.md 正文含『约束事实源』+『AGENTS.md』」这一关键词条件二次过滤（不含即完全忽略），`child_fm`/`total_issues` 算完不用 → AGENTS 要求的「逐行相等」单向失守，恰在最需要报警的方向 rc 仍 0（违反本仓「告警即失败」推广口径）。③`report_bundle_size.py` 只有「目录不存在」退 2，目录存在但为空时 `file_count=0`、`leaks=[]` → 打「未发现（✅）」并 `return 0`，**`--strict` 也只查 `leaks` 非空**，且 `grep` 证实该脚本零回归锁 → 体积与工具链泄漏双门禁可空转报绿（`check_coverage.py:349-362` 的「files 为空即 rc=2」是同一仓库内的正面样板）。
+- **描述与影响**: ①`if "find" in statement.lower() and not _FIND_DELETE_RE.search(statement): continue` 写在删除动词判定**之后**，因此任何语句只要文本里出现 `find` 这四个字母（目录名 `findings`、路径 `search_find/`、注释）就跳过该条语句的**全部**删除规则（R-CLEAN-SCOPE / R-WIPE-SCOPE）；工作包探针实测 `rm -rf logs` 拦、`rm -rf logs findings` 与 `Remove-Item -Recurse -Force logs, findings` **放行**，同批 `rm -rf .`/`git clean -fdx` 仍拦（差异只由该支路造成）。AGENTS 把「清理范围越界」的唯一自动化拦截点放在这一站，命中即不可逆删除被放行且无提示；既有锁 `tests/test_agent_hook_guard.py::test_cleanup_reaching_protected_dirs_is_blocked` 只用 `rm -rf ./logs` 形态，看不见它。②`check_skill_agents_consistency.py` 的「目录有、表格未登记」方向只进 `warnings` 且 `return 0`，还被「SKILL.md 正文含『约束事实源』+『AGENTS.md』」这一关键词条件二次过滤（不含即完全忽略），`child_fm`/`total_issues` 算完不用 → AGENTS 要求的「逐行相等」单向失守，恰在最需要报警的方向 rc 仍 0（违反本仓「告警即失败」推广口径）。③`report_bundle_size.py` 只有「目录不存在」退 2，目录存在但为空时 `file_count=0`、`leaks=[]` → 打「未发现（✅）」并 `return 0`，**`--strict` 也只查 `leaks` 非空**，且 `grep` 证实该脚本零回归锁 → 体积与工具链泄漏双检查可空转报绿（`check_coverage.py:349-362` 的「files 为空即 rc=2」是同一仓库内的正面样板）。
 - **修复建议**: ①find 旁路只对「本条语句的删除动词就是 `find`」生效（把子串换成 `_DELETE_VERB_RE` 已有的词边界形态 `\bfind\b`，或按动词逐个判定），`_FIND_DELETE_RE` 不动；②该方向改判 `errors`，判定形态照 `tests/test_ci_frontend_registration.py` 的「双向差集 + 空遍历面 fail-closed」重写；③加 `file_count == 0 → rc=2` 的 fail-closed 前置，`DEFAULT_RELEASE` 改 `ROOT / "dist" / "DouyinLiveRecorder"` 与其它脚本的 ROOT 锚定口径一致。回归锁各一条（①参数化补两格并保留 AGENTS 两条收尾清理命令的放行断言；②tmp 面「多一个未登记目录」断言 rc==1；③空目录断言 `main()==2`）。
 
-**MR-46 `basedpyright` 本地门禁的退出码与判定面不一致：0 error/0 warning 却 rc=3**
+**MR-46 `basedpyright` 本地检查的退出码与判定面不一致：0 error/0 warning 却 rc=3**
 - **位置**: `pyproject.toml:348-353`（`venvPath = "."`、`venv = ".venv"`）↔ 本机实跑
 - **描述**（**我实测**）: 全仓跑输出 `0 errors, 0 warnings, 0 notes`，但首行为 `venv .venv subdirectory not found in venv path <workspace>`、进程 **rc=3**。对照实验：工作区外含 1 error + 1 note 的探针文件 → rc=1，故 3 与该 venv 配置缺失绑定、而非类型判定失败。`.venv` 被 `.gitignore` 忽略、本机依赖实际装在外部 managed venv（`sys.prefix` 不在工作区内）。
-- **影响**: AGENTS 把 basedpyright 列为本地补充门禁（要求 0 error/0 warning）、DoD 第 1 条要「basedpyright 本地核一次」——在非维护机/干净 worktree 上该命令永远非零，读数不可复现；且其第三方 import 的解析面是否完整未被自证（`ignore_missing_imports` 之外，本配置段的 venv 指向失效意味着类型解析回退路径未经确认）。属「门禁依赖本机资产」家族，与 SR-06 同源判据。
-- **修复建议**: 在 AGENTS 的 basedpyright 专节写明「无工作区 `.venv` 时预期 rc=3，判定准以 `0 errors, 0 warnings` 文本为准」，或让门禁入口在检测不到 `.venv` 时打印显式 SKIP 提示（与 MR-45① 同手法）；不在配置里写死机器专属绝对路径（该取舍有注释理由，维持不变）。
+- **影响**: AGENTS 把 basedpyright 列为本地补充检查（要求 0 error/0 warning）、DoD 第 1 条要「basedpyright 本地核一次」——在非维护机/干净 worktree 上该命令永远非零，读数不可复现；且其第三方 import 的解析面是否完整未被自证（`ignore_missing_imports` 之外，本配置段的 venv 指向失效意味着类型解析回退路径未经确认）。属「检查依赖本机资产」家族，与 SR-06 同源判据。
+- **修复建议**: 在 AGENTS 的 basedpyright 专节写明「无工作区 `.venv` 时预期 rc=3，判定准以 `0 errors, 0 warnings` 文本为准」，或让检查入口在检测不到 `.venv` 时打印显式 SKIP 提示（与 MR-45① 同手法）；不在配置里写死机器专属绝对路径（该取舍有注释理由，维持不变）。
 
-**MR-47 `run_gates.run_command` 对不可复制的 stdio 句柄零防御，整个门禁运行器崩在栈上而非给出「本项无结论」**
+**MR-47 `run_gates.run_command` 对不可复制的 stdio 句柄零防御，整个检查运行器崩在栈上而非给出「本项无结论」**
 - **位置**: `scripts/run_gates.py:268-278`（`Popen` 无 `try/except OSError`），与 `:261-263` 的既有防御注释同族
-- **描述**（**我实测**，见第 7.2 节三组对照）: 该函数已为 stdin 显式接 `DEVNULL` 并注明理由（「管道/IDE harness 下父进程 stdin 可能已关闭，子进程碰它即抛 `OSError WinError 6`」），但 `stdout` 仍是**继承**（`:246-251` 注释自述这是刻意设计，代价是 stdout 盲区）；当宿主（pytest 的 fd 级捕获、无控制台冻结进程、IDE harness）提供的 stdout 句柄不可 `DuplicateHandle` 时，`subprocess` 在 `_make_inheritable` 阶段即抛 `OSError: [WinError 6] 句柄无效`，`main()` 无捕获 → 运行器崩在栈上，**其余 9 条门禁一条都不出结论**。
-- **影响**: 全量 pytest 本轮 21 条失败即同一根因（测试侧同源形态，见 7.2 定性）；门禁运行器本身在 CI 之外的宿主上会把「工具故障」伪装成「代码不合格」（或反之直接崩掉，无结论），与 AGENTS「Hook 坏掉不能演变成 agent 什么都做不了」同族的 fail-open 理念相悖。
+- **描述**（**我实测**，见第 7.2 节三组对照）: 该函数已为 stdin 显式接 `DEVNULL` 并注明理由（「管道/IDE harness 下父进程 stdin 可能已关闭，子进程碰它即抛 `OSError WinError 6`」），但 `stdout` 仍是**继承**（`:246-251` 注释自述这是刻意设计，代价是 stdout 盲区）；当宿主（pytest 的 fd 级捕获、无控制台冻结进程、IDE harness）提供的 stdout 句柄不可 `DuplicateHandle` 时，`subprocess` 在 `_make_inheritable` 阶段即抛 `OSError: [WinError 6] 句柄无效`，`main()` 无捕获 → 运行器崩在栈上，**其余 9 条检查一条都不出结论**。
+- **影响**: 全量 pytest 本轮 21 条失败即同一根因（测试侧同源形态，见 7.2 定性）；检查运行器本身在 CI 之外的宿主上会把「工具故障」伪装成「代码不合格」（或反之直接崩掉，无结论），与 AGENTS「Hook 坏掉不能演变成 agent 什么都做不了」同族的 fail-open 理念相悖。
 - **修复建议**: `:268` 的 `Popen` 外层捕 `OSError`，打印「本项未取得结论（stdio 句柄不可复制）+ 建议改用普通终端复跑」并返回 `rc=2` 语义（与 `check_coverage` 无数据即 rc=2、`check_runtime_pins` 结构缺失 rc=2 同档），**不得**退成 0。回归锁：`tests/test_run_gates.py` 注入使 `Popen` 抛 `OSError` 的替身，断言 `run_command` 返回非 0、stderr 点名「未取得结论」且**不向上抛**。
 
 ## 6. 轻微问题（39 项）
@@ -478,7 +478,7 @@
 | LR-08 | src/spider.py:1247-1316、5141-5230、224-253、197-201 | 死代码/契约漂移 | 三条死代码链：`get_kuaishou_stream_data2`（`_ensure_kuaishou_did` 的唯一消费点）与 `get_huajiao_sn` 只有 tests 引用、`invalidate_kuaishou_did_cache`/`invalidate_twitch_client_id_cache` 除定义外零调用（B站那条有真实调用点 `platforms/bilibili.py:235`）。后果：`:197-201` 注释声称「提供 invalidate_* 钩子供凭据被拒时主动失效」对快手/Twitch 不成立，只能等 `_CREDENTIAL_TTL` 自然过期、期间每轮复用被拒值；M-8/M-04/MID-33 三轮加固落在运行期不可达的链路上，任何「该缓存已生效」的表述都失真（同 `sync_http` 的口径禁令）。由维护者选 (a) 删除并同步 `tests/test_spider_platform.py` 与 `test_spider_hardening.py::OVERSEAS_MIGRATED_FUNCTIONS`，或 (b) 在函数头注明「生产无调用点、仅测试锚定」并改正 `:197-201`。回归锁：AST 扫「三个 `invalidate_*` 要么都有生产调用点、要么清单里写明零接线」 |
 | LR-09 | src/spider.py:7274-7276、4190-4195、4651-4654、4840-4843 | 正则 | 四处都以「键名 + `=`」裸串搜索，未像同文件 `:1576` `[?&]rid=([^&;#]*)` 那样锚定参数边界；`:7274` 的 lookahead 还只收 `&|$`、缺 `#`。实测 `?shareRoomId=AAA&roomId=BBB` 会命中 `shareRoomId=` 里的 `roomId=` 并捕获 `AAA`；`?mycastId=`/`?xroom_id=` 同形；`?roomId=123#frag` 把片段当房间号 → 录错房或该房永久解析失败、用户只看到「房间不存在」这类误导（上轮 L-11 同族，当时只修了 room.py）。四处统一 `r"[?&](?:roomId|anchorId)=([^&#]*)"` 形态；回归锁对各平台加「前缀同名键 + 串尾参数 + 带 fragment」三形态参数化用例 |
 | LR-10 | src/spider.py:4660-4665、6932、6955、6973-6974、6711 | 输入校验 | 抠自用户 URL 或重定向落地页的 id 以字符串拼接进 `body`/`data` 的 **JSON 字面量**，值中含 `"` 或 `}` 即改变结构（同文件 Shopee 侧 `:6504` 已按「urlencode/quote 后再拼」收口）。恶意分享链接可在百度/京东/淘宝三处请求体里注入或覆盖字段，多数表现为签名校验失败 → 静默未开播，最坏取到与目标房间不同的地址。四处改 `json.dumps({...})` 构造内层 body、外层仍走 `urlencode`；回归锁以 `room_id='a","x":1}'` 形态断言 `json.loads` 后内层键集合不变、值逐字等于输入 |
-| LR-11 | src/spider.py:2551、2695-2696、2782-2784 | 输入校验/契约漂移 | `link_info["user_id"]` 在 live 形态取的是 `parse_qs` **解码后**的 `host_id`（不是 `_XHS_PROFILE_PATH_RE` 的 `[A-Za-z0-9_-]+` 捕获组），随后原样插入 profile URL 并带 Cookie 请求。实测 `parse_qs("host_id=%2e%2e%2f%2e%2e%2f%40evil.com%2fx")` → `'../../@evil.com/x'`，即 `%2e%2e` 会还原成 `..` 进 `user_id`——违反 AGENTS 小红书硬约束②（点段与 `%2e%2e` 不进规范 URL）。`normalized_url` 侧经 `urlencode` 是安全的，profile 侧没有。修：`:2782` 前加 `re.fullmatch(r"[A-Za-z0-9_-]{1,64}", user_id or "")` 门禁（与 `:2482` 同源、不新写第二份判据）或 `quote(safe='')`；回归锁断言 `?host_id=../../x` 形态下第二次 `async_req` 的路径仍是 `/user/profile/` 且不含 `..` |
+| LR-11 | src/spider.py:2551、2695-2696、2782-2784 | 输入校验/契约漂移 | `link_info["user_id"]` 在 live 形态取的是 `parse_qs` **解码后**的 `host_id`（不是 `_XHS_PROFILE_PATH_RE` 的 `[A-Za-z0-9_-]+` 捕获组），随后原样插入 profile URL 并带 Cookie 请求。实测 `parse_qs("host_id=%2e%2e%2f%2e%2e%2f%40evil.com%2fx")` → `'../../@evil.com/x'`，即 `%2e%2e` 会还原成 `..` 进 `user_id`——违反 AGENTS 小红书硬约束②（点段与 `%2e%2e` 不进规范 URL）。`normalized_url` 侧经 `urlencode` 是安全的，profile 侧没有。修：`:2782` 前加 `re.fullmatch(r"[A-Za-z0-9_-]{1,64}", user_id or "")` 检查（与 `:2482` 同源、不新写第二份判据）或 `quote(safe='')`；回归锁断言 `?host_id=../../x` 形态下第二次 `async_req` 的路径仍是 `/user/profile/` 且不含 `..` |
 | LR-12 | src/spider.py:2026-2028、2049、5692 | 异常处理/输入校验 | 深层索引仍以 `itemgetter`/裸下标取键（B站 `current_qn`、AcFun `bitrate`、`stream_data["base_url"]`），与 MID-48「取不到字段不得静默变空、须留线索」口径不一致：单条 codec/representation 缺键即 KeyError、`base_url` 显式为 null 时 `cast(str, …)` 不做运行时转换 → `host + None` TypeError；三者都被 `@trace_error_decorator` 吞成「未开播」，且发生在已成功取到流地址之后、把整路录制作废。key 改 `_dig` 容错或先判缺键归因后按无源返回（与同函数 `:2016/:2020/:2024` 的 `if not …: return None` 同形）；注入「缺 `current_qn`」「`base_url` 为 null」两种响应断言返回 None 且有 warning。**待确认**：现网是否下发缺键条目需真机核对 |
 | LR-13 | src/room.py:85-91、176-184（另 `:206`、`:233-235` 复用同一客户端） | SSRF/契约漂移 | 两处裸建 `httpx.AsyncClient(..., follow_redirects=True)`（经 `async with`，不经 `async_http._build_client`），既无逐跳复检钩子、入口也不调 `is_safe_http_url`/`internal_stream_target_reason` → 正是 AGENTS「重定向逐跳复检只有两个合法接线点，新增第三处自建客户端即视为漏防」所指的漏防面。2026-09-30 审查 M-09 报的「三处」已随 L-13 删 `get_live_room_id` 收敛为**两处**，问题本体未修（本条只提供新行号与收敛后的计数）。改走 `async_http._build_client(...)` + `finally: _release_client`（该工厂是「每支客户端都带钩子」结构锁的唯一来源），或最低成本在入口判一次 `redirect_hop_rejection_reason` 并在注释写明残余；回归锁 AST 结构锁「`src/room.py` 内 `httpx.AsyncClient(` 命中数为 0」+ MockTransport「302 到 `169.254.169.254` 时取不到该跳响应」 |
 
@@ -487,7 +487,7 @@
 | 编号 | 位置 | 类型 | 描述与修复建议 |
 | --- | --- | --- | --- |
 | LR-14 | src/ws_client.py:80-91（对照 `:102-113`） | 输入校验/可观测性 | `decompress_limited` 用 `zlib.decompressobj(wbits=31)` 解一次后不查 `needs_input`/`unconsumed_tail`/`unused_data`：截断的 gzip 流返回「已解出的部分」且不报错、多成员（concat 两个 gzip）只取第一成员；brotli 侧却显式 `if not obj.is_finished(): raise`。后果：帧被链路截断或上游改用分卷 gzip 时，调用方（`platforms/douyin.py:233`）拿到半个 protobuf payload，`ParseFromString` 可能解析出前几条、余下整段静默丢失 → 「弹幕少一截且零日志」。**待确认**：现网是否存在分卷/截断形态（用 `gzip.compress(x)*2` 喂本函数看 `unused_data` 是否非空）。修：补 `not obj.eof → raise ValueError`，与 brotli 同口径 |
-| LR-15 | src/ws_client.py:459-462 | 异常处理/可观测性 | `_on_heartbeat()` **同步回调**抛错时 `except Exception: pass` 无任何留痕（同函数协程分支的超时、发送失败、`ws.close()` 失败各有 warning/debug，只这一条没有）；心跳协程「构造包阶段」抛错（`json.dumps` 遇非法字段、编码函数异常、`self._ws` 属性缺失）正落此处、永久静默。注释声称「下一轮心跳或 ping 超时会暴露故障」在异常恒定复发（同一构造路径）时不成立 → 表现为服务端因缺心跳在 N 分钟后踢下线、只能靠重连日志反推。修：按 `_poison_count` 同款节流补一条 debug，并复用目录既有「{where} 异常(忽略)」模板族（`collector.py:245-251` 同款 msgid），避免新增文案触发 `test_runtime_templates_covered_by_catalog` 硬门禁 |
+| LR-15 | src/ws_client.py:459-462 | 异常处理/可观测性 | `_on_heartbeat()` **同步回调**抛错时 `except Exception: pass` 无任何留痕（同函数协程分支的超时、发送失败、`ws.close()` 失败各有 warning/debug，只这一条没有）；心跳协程「构造包阶段」抛错（`json.dumps` 遇非法字段、编码函数异常、`self._ws` 属性缺失）正落此处、永久静默。注释声称「下一轮心跳或 ping 超时会暴露故障」在异常恒定复发（同一构造路径）时不成立 → 表现为服务端因缺心跳在 N 分钟后踢下线、只能靠重连日志反推。修：按 `_poison_count` 同款节流补一条 debug，并复用目录既有「{where} 异常(忽略)」模板族（`collector.py:245-251` 同款 msgid），避免新增文案触发 `test_runtime_templates_covered_by_catalog` 硬检查 |
 | LR-16 | src/srt_writer.py:216-218（对照 `:178`、`_close_locked :220-231`） | 异常处理/内存界 | 写/flush 失败**不置 `_fp = None`**（`:216-218` 无 try 包裹，置 None 只发生在 `_close_locked`），于是 `:178` 的「句柄缺失才按 `_OPEN_RETRY_INTERVAL` 重试」永不触发 → WD-03 声称的「本片剩余时间自愈」只覆盖打开失败；失败文本滞留 TextIOWrapper/BufferedWriter 缓冲（flush 失败时 CPython 保留未写出字节并随后续写入扩容），既不经 `_srt_queue` 的 10000 条上界计数、也永不落盘。边车侧对同一形态是明确「关闭并弹出句柄、下一条重开」（`danmaku_monitor.py:84-96`）。修：写/flush 包 `except OSError: self._close_locked(); self._last_open_error = type(e).__name__; raise`，把后续交给已有节流重试（无需新机制）。**定级说明**：若判定磁盘满常态发生可升中等，本轮按触发条件稀缺留轻微 |
 | LR-17 | src/collector.py:204 | i18n | L-24 只做了一半：`_rollback_start(room_registered=True, close_reason="采集线程启动失败")` 的实参仍是裸简中（同批 `:263` 与 `danmaku_monitor.py:362-366` 均已过 `tr`）。我实测 `采集线程启动失败` 在 `en_US.json`/`en_GB.json`（各 1033 键）里**只作为长模板的子串存在、无独立 msgid**，故 `tr()` 也无从命中；该串也不在提取器可见面（实参是变量名而非 `tr()` 调用），属关键约定 #14 的又一形态。修：`:204` 改 `close_reason=i18n.tr("采集线程启动失败")`，四目录同批登记并重编 `.mo`（走数据面 reason，不需动 `web/app.js`）；回归锁：目录覆盖不变量 + 「`_rollback_start` 传出的 reason 等于 `tr()` 后形态」行为锁 |
 | LR-18 | src/collector.py:27-42；src/danmaku_monitor.py:40-47 | 契约与注释漂移 | 「内存有界」的字节量级按**字符**估算：M-09 的修法是 `[:_DANMAKU_TEXT_LIMIT]`（2000 字符）截断，注释据此推「单条 ≈ UTF-8 中文 6 KB、队列最坏 ≈ 数十 MB」。CPython PEP 393 下含 astral 平面（emoji）的 str 按 UCS-4 存储 = 4 字节/字符，两字段 ≈16 KB/条、10000 条 ≈160 MB；边车队列 20000 条同口径 ≈ 数百 MB（`json.dumps` 还临时生成一份等量 str）。结论（有界）成立、量级低报 3~8 倍，按「数十 MB」设的容量/告警阈值会低估一个数量级。修：改按字节口径截断（`encode("utf-8","ignore")[:N].decode(...)`、常量改名并注明按字节）或只把两处数字改正并写明口径；回归锁 `sum(len(s.encode()) for s in item) <= 上限` |
@@ -526,7 +526,7 @@
 | --- | --- | --- | --- |
 | LR-33 | scripts/compile_po.py:132-139、`:61-65` | 编码/假绿 | `reconfigure(encoding="utf-8")` 未显式给 `errors=`，违 AGENTS「MID-63 ③ 任何 `reconfigure` 显式给 `errors`」（同仓 `run_gates.ensure_utf8_streams`、`agent_hook_guard.ensure_utf8_streams`、`check_skill_agents_consistency.ensure_utf8_streams` 三处均写 `errors="replace"`，本文件是唯一例外），且门内条件只看 `sys.stdout.encoding`（stdout 已 UTF-8 而 stderr 仍 cp936 时 stderr 得不到修正，`:136-137` 在同一 if 内）。另 `:61-65` 重复 msgid 只 print WARNING、条目照旧被覆盖、rc 不受影响，而 `--check` 用**同一份**解析器重算再逐字节比对 → 自洽通过，`.mo` 与译者意图已不同；`msgid_plural`/`msgstr[` 在本解析器里不被识别、续行还会错并入 msgid（现 `zh_CN.po` 实测 0 处，属「新增条目即失守」）。修：两处补 `errors="replace"` + 逐流判断；重复 msgid 升 rc=2（与同文件缺头部退 2 同档）或至少计入 `--check` 失败；解析器遇 `msgid_plural`/`msgstr[` 前缀行明确报错。回归锁：`tests/test_i18n.py` 两格 + 一条源码级判据「本文件不再出现不带 `errors=` 的 `reconfigure(`」。**待确认**：需在中文 Windows + pytest 捕获态实跑取证 |
 | LR-34 | scripts/smoke_test.py:82-91、`:231-235`、`:464` | 退出码/规范冲突 | `expected_status` 写成字符串或 `null` 时在 `run_check` 比较前抛 TypeError，而 main 的 try 只包 `load_config` → 工作包本机实跑读数 **rc=1**；消费侧 `_ci_web_smoke.sh:85-111` 原样透传、`ci.yml:670-682` 该 retry 调用点 `fail_fast_codes: "2"` + `attempts: "2"` → 配置写坏被读成「面板接口挂了」而白跑一整轮面板冷启动 + 退避（正是 AGENTS M-32② 要消灭的错判方向），且崩溃发生在 `print_console`/报告写出之前，`logs/web-smoke-report.json` 缺失、只剩上传步骤的 `if-no-files-found: warn`，排障线索反而更少。**规范冲突须先裁决**：`:82-88` 注释明写「`timeout`/`expected_status` 这类标量刻意不做强制转换、不在这里偷改口径」，因此这是 AGENTS 的 rc=2 契约与脚本自身设计声明之间的**矛盾**，不是单纯疏漏。建议：加类型校验但**不做转换**（`expected_status` → `(int,)`、`timeout` → `(int, float)`、`method`/`url`/`path`/`name` → `(str,)`；显式 `null` 与缺键等价放行并回退默认），校验点仍唯一在 `load_config`、`main()` 的 except 元组不得缩窄；同时把注释与 AGENTS 统一到一处。回归锁：`tests/test_scripts_error_paths.py::TestSmokeConfigMalformed` 参数表补两格（字符串/null → `rc == 2` 且 stderr 点名「期望 JSON number」） |
-| LR-35 | build-release.yml:243-253、`:180-186`、`:268-269`、`:373-386`；ci.yml:873-894、`:885-891`、`:159-160`、`:348-354`、`:638-648`、`:566-575`、`:741-754`；.pre-commit-config.yaml:12-13、`:31-33`、`:41-43` | 权限/一致性/供应链 | 同一「CI 统一策略未彻底落实」族的六处（逐处一行）：①`build` 与 `release-create` job 无条件 `contents: write`，而「仅构建不发布」路径只用 `upload-artifact`——同一 job 内要执行 `build_exe.py --smoke --dual`，即下载并**运行**约 300 MB 第三方 ffmpeg/node，且 `actions/checkout@v7` 未设 `persist-credentials: false`（token 落进 `.git/config`、每个 run 步骤进程都看得到 `GITHUB_TOKEN`）；正面样板是 `docker-publish.yml:84-86/141-143/184-186`。→ job 级降 read、三处上传步骤（`:232-240`、`:420-432`、`:539-550`）用 step 级 `permissions: contents: write`。③pre-commit 的 black/isort 钉 `25.9.0`/`6.1.0`、`default_language_version: python: python3`，CI consts 是 `26.5.1`/`9.0.1` → 两套格式化裁决器（AGENTS「本地可外推的前提是版本逐一同值」不成立），叠加 3.13 无法解析 PEP 758 无括号形态，低代工具对全库语法安全性不可断言；`tests/test_pre_commit_config.py` 只钉 entry/id、不钉 `rev`。→ 抬 rev 到同值 + 钉 `python3.14` + 加比对锁；`ci.yml:888`/`build-release.yml:104` 的字面量解释器版本改取 consts 输出。④`pip-audit` 未钉版本（同 job 已为四个工具钉死，理由正是「防代码未改动却 CI 变红」），而它是唯一**阻断型**安全门禁、其 OSV 判定行为与退出码语义随版本变化 → consts 增 `pip_audit_version`（须当场核实、不得凭记忆填）。⑤`codecov/codecov-action@v7` 是浮动第三方主版本、运行期取到 `secrets.CODECOV_TOKEN`，fork PR 被 `available` 挡住但**同仓库分支 PR 与 push 会真实执行** → 按 MIN-17 钉 SHA，或定位为可选能力（未配置 token 就直接删该步并把结论写进 AGENTS）。⑥两处「告警即失败」兜底步骤以 `python -m pytest -q 2>/dev/null \|\| true` **二次全量**跑：rc 与 stderr 全丢、收集期崩溃也判绿（判定面为空）、第二次不在 `xvfb-run` 下故真窗用例整体 skip（与第一次覆盖面不同）、时间翻倍而 `test` job 上限 25 分钟 → 改为第一次 `tee pytest-out.txt`（`set -o pipefail` 保留 rc）、兜底只 grep 该文件，`concurrency-test` 同批改 |
+| LR-35 | build-release.yml:243-253、`:180-186`、`:268-269`、`:373-386`；ci.yml:873-894、`:885-891`、`:159-160`、`:348-354`、`:638-648`、`:566-575`、`:741-754`；.pre-commit-config.yaml:12-13、`:31-33`、`:41-43` | 权限/一致性/供应链 | 同一「CI 统一策略未彻底落实」族的六处（逐处一行）：①`build` 与 `release-create` job 无条件 `contents: write`，而「仅构建不发布」路径只用 `upload-artifact`——同一 job 内要执行 `build_exe.py --smoke --dual`，即下载并**运行**约 300 MB 第三方 ffmpeg/node，且 `actions/checkout@v7` 未设 `persist-credentials: false`（token 落进 `.git/config`、每个 run 步骤进程都看得到 `GITHUB_TOKEN`）；正面样板是 `docker-publish.yml:84-86/141-143/184-186`。→ job 级降 read、三处上传步骤（`:232-240`、`:420-432`、`:539-550`）用 step 级 `permissions: contents: write`。③pre-commit 的 black/isort 钉 `25.9.0`/`6.1.0`、`default_language_version: python: python3`，CI consts 是 `26.5.1`/`9.0.1` → 两套格式化裁决器（AGENTS「本地可外推的前提是版本逐一同值」不成立），叠加 3.13 无法解析 PEP 758 无括号形态，低代工具对全库语法安全性不可断言；`tests/test_pre_commit_config.py` 只钉 entry/id、不钉 `rev`。→ 抬 rev 到同值 + 钉 `python3.14` + 加比对锁；`ci.yml:888`/`build-release.yml:104` 的字面量解释器版本改取 consts 输出。④`pip-audit` 未钉版本（同 job 已为四个工具钉死，理由正是「防代码未改动却 CI 变红」），而它是唯一**阻断型**安全检查、其 OSV 判定行为与退出码语义随版本变化 → consts 增 `pip_audit_version`（须当场核实、不得凭记忆填）。⑤`codecov/codecov-action@v7` 是浮动第三方主版本、运行期取到 `secrets.CODECOV_TOKEN`，fork PR 被 `available` 挡住但**同仓库分支 PR 与 push 会真实执行** → 按 MIN-17 钉 SHA，或定位为可选能力（未配置 token 就直接删该步并把结论写进 AGENTS）。⑥两处「告警即失败」兜底步骤以 `python -m pytest -q 2>/dev/null \|\| true` **二次全量**跑：rc 与 stderr 全丢、收集期崩溃也判绿（判定面为空）、第二次不在 `xvfb-run` 下故真窗用例整体 skip（与第一次覆盖面不同）、时间翻倍而 `test` job 上限 25 分钟 → 改为第一次 `tee pytest-out.txt`（`set -o pipefail` 保留 rc）、兜底只 grep 该文件，`concurrency-test` 同批改 |
 
 ### 6.8 `tests/`（4 项）
 
@@ -535,7 +535,7 @@
 | LR-36 | tests/test_ui_i18n.py:63-77（断言 `:75`、`:76`；被测清理点在 src/ui_i18n.py:94、观测面 `:64-68`）；tests/test_agent_hook_guard.py:218-229（`:229`）；tests/test_xhs_live_links.py:644-651 ↔ :748-751 | 假绿 | 三条「声明有锁、实际无区分力」（我逐条读码确认）：①`assert ui_i18n.retranslate_all() >= 0` 恒真，而同文件 `:66` 的注释自己就写着「断言计数恰好回落 1 而不是 `>= 0`：后者对『不清理』也成立，等于没锁」——而 `registered_count()`（`src/ui_i18n.py:64-68`）按存活过滤，把真正的清理语句 `_ENTRIES[:] = alive`（`:94`）删掉后本文件 5 条用例仍全绿，头注声明的「死亡引用清理」变异敏感点是假证据；②`assert b"--no-cache-dir" not in proc.stderr` 里那个 token 在喂入的命令 `pip install --force-reinstall -r requirements.txt` 中**根本不存在**（`--no-cache-dir` 只出现在 `:86` 的另一条参数化命令里）→ 无论 Hook 是否回显命令原文都恒真，而生产侧 `scripts/agent_hook_guard.py:454` 确实是 `print(f"[{rule}] {reason}", ...)`，一旦有人把 command 拼进 reason 就抓不到（该文件 `:97` 注释自己也说过「拦截规则一旦过宽，代理会绕过 Hook 而不是修规则」）；③端到端接线用例把 `select_source_url` 桩成恒回 `http://live-source-play.xhscdn.com/live/abc.flv`，末行断言命令里含同一主机名，而 deeplink 的 `flvUrl` 本身也是该主机（`:353`）→ 两侧同字面、断的是替身自证。修：①加 autouse fixture 快照/还原 `_ENTRIES`，改断「连续 register→del→retranslate 两轮后内部列表不再增长」（或新增 `pending_entry_count()` 观测未剪枝条目），`:75` 换成「死条目不计入 applied」实断言；②按实际输入喂一条含伪凭据的命令并断言 `SECRET*` 与 `requirements.txt` 都不在 stderr；③改记录型替身（捕获实参 + 回一个替身专属主机），同时钉「谁被调用」与「用谁的返回值」 |
 | LR-37 | tests/test_xhs_live_links.py:517-530；tests/test_test_hygiene.py:65、:188 | 环境污染/平台可达 | 本仓凡在 fixture 内 `import main` 的文件一律 `scope="module"`（`test_b23_tv_dispatch.py:28`、`test_hy_fan_dispatch.py:26`、`test_platform_dispatch.py:22`、`test_record_container.py:27`、`test_main_fixes.py:28` 五处一致），目的是让 `main` 导入期的 stdio 策略改写发生在 conftest 守卫取基线**之前**；本文件新建时漏了 scope → 工作包实测 `python -m pytest tests/test_xhs_live_links.py -q -s -p no:cacheprovider` 得 **75 passed, 1 error**（ERROR 源自 `tests/conftest.py:127` `_guard_stdio_encoding_policy` 报 `sys.stdout: ('utf-8','surrogateescape') -> ('utf-8','replace')`），即该文件**不能**按取证口径单文件独立运行（整包绿只因另有模块级 `import main` 在收集期先跑；`tests/` 内另有 5 处 `builtins` 级替身属同一族、R1 结构上看不见——`setattr(builtins, "open"/"__import__", ...)` 的首参是 `ast.Name` 且 `builtins` 不在名单内，已用 `_module_body_mutation_calls` 实跑证明返回 `[]`）。修：改 `@pytest.fixture(scope="module")`；`tests/test_test_hygiene.py` 把 `builtins` 加入 `_MUTABLE_MODULE_NAMES` 并把对象形态判据放宽到「`ast.Name` 命中名单」，另加一条「fixture 体内 `import main` 者必须 module scope」的机检；把 5 处 `builtins` 替身逐处改窄为被测模块命名空间替身 |
 | LR-38 | src/utils.py:910、:950；main.py:4452 | 回归锁缺失 | 三处生产注释给出的「回归锁/复核判据」用例名在 `tests/` 中不存在（**我实测**：`grep -rn "def test_camelcase_compound_keys_value_disappears" tests/` 为空，实际用例是 `tests/test_regression_2026_09_22_utils.py:93 TestCamelCaseCredentialLeak::test_compound_keys_value_disappears`；`grep -rn "def test_record_ua_uses_single_source" tests/` 为空，真实锁在 `tests/test_regression_2026_09_22_main.py:1135` 的 `assert main.MOBILE_UA == stream_select.MOBILE_UA`）。不变量本身另有锁，坏的是**指针**——按注释定位会得到「该修复无锁」的错误结论并重复补锁（关键约定 #12）。另注意措辞不统一：本仓「复核判据/静态锁」两种写法游离在 `grep "回归锁：tests/"` 的既有复核面之外。修：两处注释按真实 `文件::类::用例` 改正并统一前缀；把「`tests/…::符号` 是否能在目标文件解析出来」挂进 `scripts/check_annotations.py` 的常驻符号可达性检查 |
-| LR-39 | tests/conftest.py:22-31、:133-147；tests/test_ui_kit.py:190-192、:220、:251、:280 | 环境污染/平台可达 | 两处「声明与实现不符」：①测试会话内 `import main` 把进程级 loguru 文件 sink 与 atexit 钩子带进 pytest，`pytest_unconfigure` 只 rmtree 输出目录、不摘 sink → 工作包实测 `tests/test_main_fixes.py` 得 `29 passed` 之后仍打两例 `Logging error in Loguru Handler #1 … ValueError: I/O operation on closed file`，同时真实 `logs/streamget.log`/`PlayURL.log` 被创建（与「测试产物一律走 `tmp_path`」相反，属会话级共享目录）。任何门禁都不看会话尾部 stderr（warnings summary 只 grep stdout、silent-skip 只 grep isort stderr），但它会把「导入 main 的用例」伪装成崩溃源。②`tests/test_ui_kit.py` 头注声明「真窗用例（无显示环境 skip）」，但本文件没有任何 skip 路径——三个 `TestRealWindowWidgets` 用例直接 `root = tk.Tk()`，无头主机上是硬 ERROR 而非 skip（对照 `tests/test_ui_theme.py:276-281` 与 `tests/test_gui_wrap_hints.py:160-163` 的既有正确形态）；CI 绿靠 `xvfb` + 一条 Tk 预检这一外部条件，不属用例自证。修：①在 `pytest_unconfigure`（或 autouse session fixture 末端）`logger.remove()` 并还原 stdio，或给 `src/logger.py` 增「测试宿主」判据跳过文件 sink；②复用 `test_ui_theme.py` 的 `tk_root` fixture（类级 `try/except tk.TclError → pytest.skip`），保留 ci.yml 预检作为「CI 上真的执行过」的第二道防线 |
+| LR-39 | tests/conftest.py:22-31、:133-147；tests/test_ui_kit.py:190-192、:220、:251、:280 | 环境污染/平台可达 | 两处「声明与实现不符」：①测试会话内 `import main` 把进程级 loguru 文件 sink 与 atexit 钩子带进 pytest，`pytest_unconfigure` 只 rmtree 输出目录、不摘 sink → 工作包实测 `tests/test_main_fixes.py` 得 `29 passed` 之后仍打两例 `Logging error in Loguru Handler #1 … ValueError: I/O operation on closed file`，同时真实 `logs/streamget.log`/`PlayURL.log` 被创建（与「测试产物一律走 `tmp_path`」相反，属会话级共享目录）。任何检查都不看会话尾部 stderr（warnings summary 只 grep stdout、silent-skip 只 grep isort stderr），但它会把「导入 main 的用例」伪装成崩溃源。②`tests/test_ui_kit.py` 头注声明「真窗用例（无显示环境 skip）」，但本文件没有任何 skip 路径——三个 `TestRealWindowWidgets` 用例直接 `root = tk.Tk()`，无头主机上是硬 ERROR 而非 skip（对照 `tests/test_ui_theme.py:276-281` 与 `tests/test_gui_wrap_hints.py:160-163` 的既有正确形态）；CI 绿靠 `xvfb` + 一条 Tk 预检这一外部条件，不属用例自证。修：①在 `pytest_unconfigure`（或 autouse session fixture 末端）`logger.remove()` 并还原 stdio，或给 `src/logger.py` 增「测试宿主」判据跳过文件 sink；②复用 `test_ui_theme.py` 的 `tk_root` fixture（类级 `try/except tk.TclError → pytest.skip`），保留 ci.yml 预检作为「CI 上真的执行过」的第二道防线 |
 
 ### 6.9 工作包提出、但本轮未计入清单的候选（须逐行复测后再定级）
 
@@ -550,7 +550,7 @@
 
 ## 7. 工具侧客观证据
 
-### 7.1 门禁与静态检查读数（2026-10-04，本机 worktree）
+### 7.1 检查与静态检查读数（2026-10-04，本机 worktree）
 
 | 命令 | 结果 | 判读 |
 | --- | --- | --- |
@@ -570,7 +570,7 @@
 | 3 | 单文件 + 关闭捕获：`pytest tests/test_run_gates.py::test_run_command_propagates_nonzero_rc -q -s` | **1 passed in 2.38 s** | `-s` 下同一用例即绿 |
 | 4 | 单文件、默认捕获、无 cov：`pytest tests/test_run_gates.py -q` | **1 failed, 42 passed, 1 skipped** | 与全量的 6 条红不一致 → **非确定性**，取决于当时捕获句柄状态 |
 
-**裁断**：本轮 21 条失败属「环境 × pytest 捕获交互」噪声，**不得**当作代码回归计入问题清单（AGENTS 只登记了 exit 139 段错误与 harness safe-delete 两类本机噪声，未登记这一形态，属文档缺口；已由本节与 MR-46/MR-47 承接）。它同时暴露一个真实防御缺口：`scripts/run_gates.py:268` 的 `run_command` 对不可复制的 stdio 句柄零保护——无 `try/except OSError`，在该形态下整个门禁运行器直接崩在栈上而非给出「本项无结论」，与其 `:261-263` 注释自述的「管道/IDE harness 下 stdin 可能已关闭 → WinError 6」是同一失效族（当时只处理了 stdin 一支，`stdout=None` 继承这支没管）。建议：`Popen` 外层捕 `OSError` 并落一条 rc=2 语义的「门禁未取得结论」而非 traceback → 已计为 **MR-47**，列入 P1。
+**裁断**：本轮 21 条失败属「环境 × pytest 捕获交互」噪声，**不得**当作代码回归计入问题清单（AGENTS 只登记了 exit 139 段错误与 harness safe-delete 两类本机噪声，未登记这一形态，属文档缺口；已由本节与 MR-46/MR-47 承接）。它同时暴露一个真实防御缺口：`scripts/run_gates.py:268` 的 `run_command` 对不可复制的 stdio 句柄零保护——无 `try/except OSError`，在该形态下整个检查运行器直接崩在栈上而非给出「本项无结论」，与其 `:261-263` 注释自述的「管道/IDE harness 下 stdin 可能已关闭 → WinError 6」是同一失效族（当时只处理了 stdin 一支，`stdout=None` 继承这支没管）。建议：`Popen` 外层捕 `OSError` 并落一条 rc=2 语义的「检查未取得结论」而非 traceback → 已计为 **MR-47**，列入 P1。
 
 ## 8. 改进建议与修复优先级
 
@@ -579,7 +579,7 @@
 1. **SR-01 + SR-02**（`stream_select.py`）：安全拒绝改走专用内部控制流异常、不受 `last_resort`/同址复用影响；派生跳判定覆盖**全部**正文行而非末行；三条行为锁（交付面断言，不是 `_probe_hls_segment` 返回值）。
 2. **SR-05 + MR-07 + MR-08 + MR-40/41/42**（standalone）：一次回灌批次统一处理，并按 AGENTS 在提交说明登记「已核对 / 已回灌 / 刻意不回灌及原因」；同批落地「主线防线编号 → 符号存在性」机检，否则下一次假回灌仍会全绿逃逸。
 3. **SR-04**（`main.py` xhs 回写）：`not_record_list` 登记条件与 `record_url` 同 base 对齐，或改精确配对移除；`tests/test_xhs_live_links.py` 加行为锁。
-4. **SR-06**（门禁）：Skill 一致性脚本在 `.agents/` 缺失时改 SKIP → rc=0（照 `tests/test_agent_hook_guard.py:297` 先例），或按 `!DouyinLiveRecorder.egg-info/` 先例把 Skill 纳入跟踪（**须用户批准 ignore 同源约定变更**）；两条路都补一条「干净检出不误红」的回归锁。
+4. **SR-06**（检查）：Skill 一致性脚本在 `.agents/` 缺失时改 SKIP → rc=0（照 `tests/test_agent_hook_guard.py:297` 先例），或按 `!DouyinLiveRecorder.egg-info/` 先例把 Skill 纳入跟踪（**须用户批准 ignore 同源约定变更**）；两条路都补一条「干净检出不误红」的回归锁。
 5. **MR-43**（`.dockerignore`）：加 `docs/` 并把四条通配改成 `**/` 形态——**本报告自身正落在 `docs/worklog/` 下**，在修好之前每次镜像构建都会把审查记录与本文件打进对外产物。
 6. **MR-01 ~ MR-06**（凭据）：`sig` 入 `_SECRET_KEYS`；Cookie 头整段遮蔽；`msg_push` 五处 `e=` 过码 + `_mask_url` 的 netloc；前端/后端掩码前缀双侧拒收；DELETE 改 body。
 7. **MR-36 第一步**：新增 `.gitattributes` 的 `src/javascript/*.js -text` + 一条「实算哈希 == 表值」用例（先让漂移可见，再谈执行期校验）。
@@ -595,7 +595,7 @@
 
 - **结构性建议 1｜脱敏键集矩阵化**：`_SECRET_KEYS` 是开放集合，本轮 MR-02/MR-03/MR-04/MR-08 四条同源复现即是其代价。建议以「平台 Cookie 全键清单 × 形态（query / header / Cookie 头 / userinfo 代理串）」矩阵表驱动用例替代逐案补键，并把「反向核对：登记表键名」扩为「登记表 ⊇ 各平台实测 Cookie 键集」。
 - **结构性建议 2｜交付面而非返回值**：SR-01 的教训是——**安全不变量的回归锁必须断在交付结果上**（谁被交给 `ffmpeg -i`/`httpx`），断在中间函数返回值上会给出假信心。建议对选源/直下/探针三条链路各补一条「候选是否进入执行器」的行为锁（LR-36③ 的替身自证是同一毛病的测试侧形态）。
-- **结构性建议 3｜「干净检出可运行」自证**：SR-06、MR-43、MR-44、LR-35② 全部属「门禁/CI 依赖维护者本机条件」。建议增加一个 `ci-clean-check` job：在**新建的临时工作目录**里从 `git archive HEAD` 出一份纯净树，跑 `scripts/run_gates.py --list` 的全部 `--check` 命令并断言 rc=0（或按 SKIP 语义明确放行），把「资产缺失即 SKIP、不得伪红伪绿」变成机检。
+- **结构性建议 3｜「干净检出可运行」自证**：SR-06、MR-43、MR-44、LR-35② 全部属「检查/CI 依赖维护者本机条件」。建议增加一个 `ci-clean-check` job：在**新建的临时工作目录**里从 `git archive HEAD` 出一份纯净树，跑 `scripts/run_gates.py --list` 的全部 `--check` 命令并断言 rc=0（或按 SKIP 语义明确放行），把「资产缺失即 SKIP、不得伪红伪绿」变成机检。
 - **结构性建议 4｜`_2`/孤儿条目/指针的反向对账**：LR-29、LR-38 均属「只增不减 + 指针失效」。把孤儿 msgid 与 `tests/…::符号` 可解析性一起纳入 `extract_i18n_strings.py` / `check_annotations.py` 的常驻检查，比逐轮人工回查更省。
 - **工作区卫生**：`patch_i18n_2026_09_12.py`（硬编码 `D:/DouyinLiveRecorder-dev` 且全为写路径）建议由用户判定后退役；`.zcodeignore` 已跟踪但两份 ignore 清单无对应规则。
 
@@ -608,10 +608,10 @@
 **三类值得警惕的模式**，比单点缺陷更有决策价值：
 
 1. **「修了但没闭合」**——本轮 7 项严重里有 3 项（SR-01/SR-02/SR-05 的孪生面）与上轮整改同源：分支返回值修对了，上层兜底语义与取样面没跟上；主线修对了，副本没回灌；注释还把未生效的修复登记成「已回灌」（MR-40 是最典型的一例——`b"q"` 一个字节都发不出去而 CI 全绿）。其共同成因是**锁断在中层返回值上、而不是断在交付结果上**，以及**回灌无清单机检**。
-2. **「门禁自证缺口」**——SR-06（干净检出必红、已实测远端 CI failure）、SR-07（镜像链从未运行、已实测 `total_count = 0`）、MR-44（一次 docs-only push 在执行零门禁的情况下把 required check 判绿）、MR-45/LR-33/LR-34（`find` 子串旁路、`report_bundle_size` 空遍历面报绿、`smoke_test` rc 语义与 AGENTS 冲突）、LR-36（三条恒真/替身自证式断言）。门禁变红会被立刻看见，**门禁不执行与假绿不会**，后者对长期代码质量的侵蚀更大。
+2. **「检查自证缺口」**——SR-06（干净检出必红、已实测远端 CI failure）、SR-07（镜像链从未运行、已实测 `total_count = 0`）、MR-44（一次 docs-only push 在执行零检查的情况下把 required check 判绿）、MR-45/LR-33/LR-34（`find` 子串旁路、`report_bundle_size` 空遍历面报绿、`smoke_test` rc 语义与 AGENTS 冲突）、LR-36（三条恒真/替身自证式断言）。检查变红会被立刻看见，**检查不执行与假绿不会**，后者对长期代码质量的侵蚀更大。
 3. **「开放集合型防线」**——脱敏键黑名单与「哪些 URL 可带凭据」两处，每接入一个新平台/每改一次文案就会补一批条目，本轮四条同源复现即其结果；矩阵化用例（8.3 建议 1）与把判据收口到单一实现（`_host_in_family`、`http_config` 上限常量）是治本方向。
 
-**修复推进建议**：按第 8 章顺序，P0 七组（选源两严重、standalone 回灌批次、小红书回写、Skill 门禁、`.dockerignore`、凭据五处、钉定可见性）改动面均小、应在本批落地并各带回归锁；P1 按「防线一致性 → 功能正确性 → 完整性自证」三组排布；需维护者裁决的五项（`gui_theme` 默认、认证 + 通配绑定的行为姿态、422 文案覆盖面、`expected_status` rc 契约、是否纳入跟踪 `.agents/`）已在 8.2 单列，未擅自改口径。**第 4、5 章所列位置即为后续验证的核对清单**；所有标注「待确认」的条目均附了可执行的验证方法，修复前应先完成验证。
+**修复推进建议**：按第 8 章顺序，P0 七组（选源两严重、standalone 回灌批次、小红书回写、Skill 检查、`.dockerignore`、凭据五处、钉定可见性）改动面均小、应在本批落地并各带回归锁；P1 按「防线一致性 → 功能正确性 → 完整性自证」三组排布；需维护者裁决的五项（`gui_theme` 默认、认证 + 通配绑定的行为姿态、422 文案覆盖面、`expected_status` rc 契约、是否纳入跟踪 `.agents/`）已在 8.2 单列，未擅自改口径。**第 4、5 章所列位置即为后续验证的核对清单**；所有标注「待确认」的条目均附了可执行的验证方法，修复前应先完成验证。
 
 ## 附录 A. 工作包 → 条目映射与逐文件覆盖清单
 
@@ -633,8 +633,8 @@
 | pkg-build | `build_exe`(1,740)、`ffmpeg_install`(740)、`ffmpeg_linux_download`(476)、`ffmpeg_master_download`(479)、`ffmpeg_proc`(311)、`node_install`(422) | MR-37 ✔、MR-38、MR-39 ✔、LR-31、LR-32 |
 | pkg-jsig | `migu.js`(393)、`haixiu.js`(535)、`liveme.js`(425)、`x-bogus.js`(564) | MR-36 ✔（哈希/键集实测对账）；另 6.9 节未计数项；`x-bogus.js` 零调用点死脚本仍占钉定槽（工作包提出、未逐行复测 → 按 6.9 口径不计入） |
 | pkg-standalone | `scripts/douyin_live_recorder_standalone.py`(2,695) 与主线逐点对照 | SR-05 ✔、MR-07 ✔、MR-08、MR-40 ✔、MR-41、MR-42；6.9 节 3 条未计数候选 |
-| pkg-ci | 5 个工作流(1,979)、`Dockerfile`(133)、`docker-compose.yaml`(147)、`.dockerignore`、`.gitignore`、`.pre-commit-config.yaml`、`pyproject.toml`(385)、`requirements.txt` | SR-06 ✔、SR-07 ✔（远端实测）、MR-43 ✔、MR-44、MR-46、LR-35；门禁步骤总表 |
-| pkg-scripts | `scripts/` 其余 15 个工具(4,649) | SR-06 复现 ✔、MR-45 ✔（两处探针实测）、MR-47、LR-33、LR-34；门禁自证总表 |
+| pkg-ci | 5 个工作流(1,979)、`Dockerfile`(133)、`docker-compose.yaml`(147)、`.dockerignore`、`.gitignore`、`.pre-commit-config.yaml`、`pyproject.toml`(385)、`requirements.txt` | SR-06 ✔、SR-07 ✔（远端实测）、MR-43 ✔、MR-44、MR-46、LR-35；检查步骤总表 |
+| pkg-scripts | `scripts/` 其余 15 个工具(4,649) | SR-06 复现 ✔、MR-45 ✔（两处探针实测）、MR-47、LR-33、LR-34；检查自证总表 |
 | pkg-tests | `tests/`(140 py + 4 mjs) | LR-36 ✔、LR-37、LR-38 ✔、LR-39；R1~R8 机检盲区表 |
 
 ## 附录 B. 主审查者本机取证清单（命令 → 读数，全部 2026-10-04）

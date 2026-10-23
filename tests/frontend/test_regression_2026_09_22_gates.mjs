@@ -2,7 +2,7 @@
 // 后续 CODE_REVIEW_2026-09-29_2 的 M-21（轮询代次竞态）/ M-23（dropped 转义）/ M-26（认证复验
 // 假绿锁改写）也落在此处。M-22 的口令窗行为另在 tests/frontend/test_auth_reauth.mjs。
 //
-// 与 test_quality_ui.mjs 的分工：那边是既有质量门禁（四语目录、parseConfigBool 跨语言不变量、
+// 与 test_quality_ui.mjs 的分工：那边是既有质量检查（四语目录、parseConfigBool 跨语言不变量、
 // 掩码写入、登出等）；本文件只放本轮修复对应的**失效形态**锁，把对应修复改回原样即变红。
 //
 // 沙箱策略与 test_quality_ui.mjs 同源（vm + 自制 DOM/fetch 桩，无 npm 依赖），但这里需要

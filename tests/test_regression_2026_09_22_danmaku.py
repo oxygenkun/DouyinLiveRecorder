@@ -9,7 +9,7 @@
 #   ② MID-2245：B站 _reject_auth 原先复用 WsClient.close()，而 close 置 _stopped 后 connect() 的两条
 #      `if self._stopped: break` 出口都不回调 on_close → hub.room_closed() 永不发出，Web 弹幕页把
 #      房间永久停在「已连接 / 0 条」。本用例从**真实解码路径**驱动它，不 stub _reject_auth。
-#   ③ MID-2247：i18n 门禁（tests/test_i18n_migration.py）判据是 `node.func.value.id == "logger"`，
+#   ③ MID-2247：i18n 检查（tests/test_i18n_migration.py）判据是 `node.func.value.id == "logger"`，
 #      「别名 logger + f-string」对它完全隐形；这里补一条反向 AST 锁把该形态钉死为非法。
 
 import ast
@@ -354,7 +354,7 @@ def test_repo_python_file_scan_is_not_silently_empty() -> None:
 
 def test_no_aliased_loguru_logger_binding_anywhere() -> None:
     # MID-2247 的形态锁：全仓不得给 logger 起别名（`from loguru import logger as _log`）。
-    # 别名会同时绕过 i18n 门禁与这条锁要防的 f-string 组合，是「门禁绿但没查」的入口。
+    # 别名会同时绕过 i18n 检查与这条锁要防的 f-string 组合，是「检查绿但没查」的入口。
     offenders: list[str] = []
     for path in _scanned_python_files():
         try:
@@ -387,7 +387,7 @@ def test_ws_client_does_not_import_loguru_directly() -> None:
 
 
 def test_alias_and_fstring_detectors_actually_see_the_bad_forms() -> None:
-    # 防门禁自身假绿（仿 test_gate_predicate_sees_concatenated_fstring 的做法）：
+    # 防检查自身假绿（仿 test_gate_predicate_sees_concatenated_fstring 的做法）：
     # 检测器必须认出「别名 logger + f-string」，同时不得把约定② 的推荐写法判成违规。
     bad = "from loguru import logger as _log\n_log.warning(f'心跳超时 {v:.0f}s')\n"
     concat = "from loguru import logger as _log\n_log.warning(f'心跳超时' + (f'{v}s' if v else ''))\n"

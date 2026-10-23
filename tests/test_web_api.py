@@ -281,7 +281,7 @@ class TestHealthEndpoint:
     def test_health_ignores_engine_state(self, app_env: types.SimpleNamespace, fake_main: types.ModuleType) -> None:
         # 探活不得掺入录制引擎健康度：把引擎状态接口打成抛异常（/api/status 会自行
         # 包成 {"error": ...}，见 get_status），/health 仍须 200。否则「引擎报错」与
-        # 「面板挂了」在 CI 里无法区分，门禁会在只需重启面板的场景下误红。
+        # 「面板挂了」在 CI 里无法区分，检查会在只需重启面板的场景下误红。
         # MID-39 之后 error 字段是固定 code 而非异常原文，故断言同时锁住「不外泄 engine down」。
         def _boom() -> dict[str, object]:
             raise RuntimeError("engine down")

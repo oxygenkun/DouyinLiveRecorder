@@ -3,7 +3,7 @@
 # 本文件锁三件事：
 #   1) 真能报：留下调用点但全仓无绑定的名字必须被点名（含文件与行号）；
 #   2) 不误报：导入 / def / 参数 / 内建 / dunder 一律放行——判据是「宁漏勿噪」，
-#      误报会让门禁天天红、反而被忽略；
+#      误报会让检查天天红、反而被忽略；
 #   3) 当前仓库零悬空引用：谁删了模块级符号留下调用点，本条立刻变红（端到端回路锁）。
 #
 # 另覆盖 `_reject_dangerous_baseline`（M-23）：它防的是误把家目录 / 系统目录 / 仓库根本体
@@ -69,7 +69,7 @@ def test_dangling_call_site_is_reported(tmp_path: Path) -> None:
 
 
 def test_bound_builtin_and_dunder_names_are_not_reported(tmp_path: Path) -> None:
-    # 宁漏勿噪：导入名 / def 名 / 参数 / 内建 / dunder 都不得报（否则门禁会被误报淹没）
+    # 宁漏勿噪：导入名 / def 名 / 参数 / 内建 / dunder 都不得报（否则检查会被误报淹没）
     _write(
         tmp_path,
         "pkg/mod.py",
@@ -110,7 +110,7 @@ def test_wildcard_dynamic_injection_is_not_reported(tmp_path: Path) -> None:
 
 def test_repository_has_no_dangling_symbols() -> None:
     # 端到端回路锁：本仓当前必须零悬空引用。谁删了模块级符号留下调用点，本条立刻变红，
-    # 并会在门禁输出里收到「删前先 grep 全部调用点」的提示
+    # 并会在检查输出里收到「删前先 grep 全部调用点」的提示
     _scanned, problems = check_annotations.check_dangling_symbols(ROOT)
     assert problems == [], f"存在悬空引用：{problems}"
 

@@ -622,7 +622,7 @@ def _pinned_slots() -> dict[str, str]:
 
 def _is_pinned(value: str) -> bool:
     # 「已钉定」的唯一判据是形状：64 位小写十六进制。占位标记、空串、截断值一律算未钉定，
-    # 因此新增占位写法不需要改判定逻辑（也不可能靠「填个非空字符串」蒙过门禁）。
+    # 因此新增占位写法不需要改判定逻辑（也不可能靠「填个非空字符串」蒙过检查）。
     return bool(_SHA256_PATTERN.fullmatch(value))
 
 
@@ -1366,7 +1366,7 @@ def _download_nodejs(target_dir: Path) -> bool:
 #             两周（钉它等于预埋一次 404）；月末标签实测保留到 2024-10-31，URL 与 digest 双双不可变。
 #             代价：内置版本落后于上游 latest（现为 n9.0.1-11-ge47273f4d9，latest 已到 n9.0.2），升级须
 #             人工换标签 + 换钉定值；资产体积实测 2026-09-27：linux64 126,600,656 B、linuxarm64
-#             108,761,296 B，体积门禁须按 report_bundle_size.py 实跑复核，不估算。
+#             108,761,296 B，体积检查须按 report_bundle_size.py 实跑复核，不估算。
 #   [历史注] linux 两槽曾用 johnvansickle static 构建（amd64 41,888,096 B），换走的唯一原因是它只发
 #   *.md5、无 SHA256，导致 --strict 长期拦下发布。
 #   两条运行期源（src/ffmpeg_install.py / src/ffmpeg_master_download.py，类别 ②）与本表**互不覆盖**：

@@ -52,7 +52,7 @@ from src.base import DanmakuMessageType
 #
 # Mock 口径：各平台模块内的 WsClient 换为 FakeWs（只看连接参数与发出的帧），spawn_danmaku_task
 # 换为记录器或 _noop_spawn；后者必须 close() 传入的协程，否则未 await 的协程在 GC 时抛
-# RuntimeWarning，打爆本仓「0 警告」门禁。
+# RuntimeWarning，打爆本仓「0 警告」检查。
 
 
 class FakeWs:
@@ -103,7 +103,7 @@ class WsFactory:
 
 def _noop_spawn(_coro: Any) -> None:
     # 未 await 的协程必须显式 close()，否则用例结束时 GC 会抛
-    # RuntimeWarning: coroutine ... was never awaited（本仓 pytest 门禁为「0 警告」）。
+    # RuntimeWarning: coroutine ... was never awaited（本仓 pytest 检查为「0 警告」）。
     _coro.close()
 
 

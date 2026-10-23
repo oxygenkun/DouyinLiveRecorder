@@ -7,7 +7,7 @@
 # 的最小 .mo（按 msgid 排序、无哈希表）。
 #
 # 「.po 改了但 .mo 忘了重编译」由两处同源把守（都是字节级比对，不是抽样）：
-#   CI / 本地门禁块里的 `python scripts/compile_po.py --check`，以及
+#   CI / 本地检查块里的 `python scripts/compile_po.py --check`，以及
 #   tests/test_i18n.py::TestMoCatalog::test_po_and_mo_in_sync（直接 import 本模块重算一遍）。
 #
 # 用法：
@@ -144,10 +144,10 @@ def main() -> int:
     # 下面打印的「条数」含头部空 msgid，即 .mo 头部的 N，比 en_US.json / zh_TW.yaml 的键数
     # 恰大 1；往文档写目录条数时必须注明用的是哪种口径（两种不得互换，见 AGENTS.md）。
     # 先在纯内存里产出编译结果：--check 分支绝不触碰磁盘上的 .mo，否则读回自己刚写的文件
-    # 必然相等，校验恒真、门禁形同虚设。
+    # 必然相等，校验恒真、检查形同虚设。
     fresh = write_mo(entries)
 
-    # 退出码：0 已同步；1 .mo 与 .po 不同步；2 门禁本身没数据可判（找不到 .po，
+    # 退出码：0 已同步；1 .mo 与 .po 不同步；2 检查本身没数据可判（找不到 .po，
     # 或 .po 连头部空 msgid 条目都没有——见 parse_po 的 sys.exit(2)，与 MIN-19 口径同族）。
     # --check 比的是**完整字节流**而不是抽样：任何 .po 改动忘记重编译都会在这里变红。
     if "--check" in sys.argv:
@@ -162,7 +162,7 @@ def main() -> int:
         return 0
 
     # 写入原子化：直接覆盖时中途失败会留下截断的 .mo，gettext 静默回落到原文，
-    # 而 --check 门禁不再报警。先写同目录临时文件再 os.replace，保证要么旧要么新。
+    # 而 --check 检查不再报警。先写同目录临时文件再 os.replace，保证要么旧要么新。
     tmp_path = MO_PATH.with_name(MO_PATH.name + ".tmp")
     _ = tmp_path.write_bytes(fresh)
     os.replace(tmp_path, MO_PATH)

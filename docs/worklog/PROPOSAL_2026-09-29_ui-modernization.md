@@ -103,7 +103,7 @@
 | 前端 DOM | 动效只加 class / 属性，**不插入包裹元素**——`test_quality_ui.mjs` 断言 `tbody.innerHTML` 片段 |
 | 配置与 i18n | config.ini 键名与布尔解析口径不变；GUI 主题键避开 `=` / `:`；新增文案同步 i18n 四目录 + `web/app.js` 五处 |
 
-**已知会被撞到的既有门禁**（须同批改，不为门禁绿而绕过）：`tests/test_regression_2026_09_22_gates.py` 的「运行时依赖 23 条包名集合逐项相等」锁——移除 `fastapi` / `pydantic` / `customtkinter` 后该锁需同步更新，并随改动提交理由。
+**已知会被撞到的既有检查**（须同批改，不为检查绿而绕过）：`tests/test_regression_2026_09_22_gates.py` 的「运行时依赖 23 条包名集合逐项相等」锁——移除 `fastapi` / `pydantic` / `customtkinter` 后该锁需同步更新，并随改动提交理由。
 
 ---
 
@@ -160,7 +160,7 @@ gui.py            【改造】逐页把 ctk.* 换成 ui_kit.*；Colors / Fonts �
 | **4 GUI 控件层** | CTk → ttk | 新增 `src/ui_kit.py`；按 控制台 → 画质监控 → 弹幕监控 → URL 配置 → 运行日志 → 高级设置 逐页替换 | 每批：`py_compile`（3.14）+ `node --test` 不受影响 + GUI 冒烟；表格改 Treeview 后重点验「不再闪烁、点击不落空」 | 逐页回退 |
 | **5 收尾** | 依赖 / 打包 / 文档 | `requirements.txt` + `pyproject.toml` + 依赖集合回归锁；`build_exe.py` 的 `collect_data_files('customtkinter')` 与排除项；CODE_WIKI 中英更新日志；AGENTS.md 坑位 | `python scripts/run_gates.py`；`pytest`（0 警告）；`build_exe.py --smoke` | 按 commit |
 
-**每阶段完成判据**：改动文件清单 + 门禁实测输出 + 清理结果 + 本阶段假设与回滚方式，逐阶段交付给你确认后再进入下一阶段。
+**每阶段完成判据**：改动文件清单 + 检查实测输出 + 清理结果 + 本阶段假设与回滚方式，逐阶段交付给你确认后再进入下一阶段。
 
 ---
 
@@ -171,7 +171,7 @@ gui.py            【改造】逐页把 ctk.* 换成 ui_kit.*；Colors / Fonts �
 | 动效破坏前端回归锁（innerHTML 断言） | 动效只加 class，不插元素；动态渲染的表格行不参与入场；`node --test tests/frontend/` 每阶段必跑 |
 | 后端换框架导致响应结构漂移 | 改造前先抓路由黄金快照，改造后逐字节比对；`detail` 结构对齐 FastAPI 422 |
 | GUI 逐页替换期间半新半旧 | UI Kit 与 CTk 可共存（都是 Tk 控件树），按页切换，任一页可单独回退 |
-| 移除依赖撞既有回归锁 | 同步改锁并在提交信息写明理由；不改用「绕过门禁」的方式 |
+| 移除依赖撞既有回归锁 | 同步改锁并在提交信息写明理由；不改用「绕过检查」的方式 |
 | 打包体积变化 | 只以 `scripts/report_bundle_size.py` 实跑读数为准，禁止估算 |
 | 本机无 venv 导致验证不全 | 见第 8 节；在环境恢复前只交付静态可验证部分 |
 
@@ -185,7 +185,7 @@ gui.py            【改造】逐页把 ctk.* 换成 ui_kit.*；Colors / Fonts �
 - `tkinter` **Tk 9.0** 可用（系统 3.14）— 已确认
 - Node **v22.22.2**（`node --check` / `node --test tests/frontend/`）— 已确认
 
-**阶段 0 / 2 / 3 / 4 的 pytest 与 mypy 门禁需要你先在普通终端执行 `pip install -r requirements.txt` 恢复环境**（沙箱内批量装包有卸载后拦截的风险，按 AGENTS.md 规定交回用户执行）。阶段 1 的前端动效不依赖 Python 环境，可现在就做完并完整验证。
+**阶段 0 / 2 / 3 / 4 的 pytest 与 mypy 检查需要你先在普通终端执行 `pip install -r requirements.txt` 恢复环境**（沙箱内批量装包有卸载后拦截的风险，按 AGENTS.md 规定交回用户执行）。阶段 1 的前端动效不依赖 Python 环境，可现在就做完并完整验证。
 
 ---
 

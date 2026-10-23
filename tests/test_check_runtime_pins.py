@@ -5,7 +5,7 @@
 #   ② 矩阵外的键（无 runner 产出）→ 只告警，但**必须被打印出来**（静默省略等于谎称全覆盖）；
 #   ③ SOURCE-BUILD-PROVENANCE 标记：证据齐备才算满足，缺证据与「未钉定」同等处置
 #      （防「换个更容易填的标记拿免检」的唯一防线）；
-#   ④ 缺槽位 / 缺键等结构缺陷 → rc=2（门禁本身坏了 ≠ 代码不合格）。
+#   ④ 缺槽位 / 缺键等结构缺陷 → rc=2（检查本身坏了 ≠ 代码不合格）。
 # 全部离线：_load_build_exe 被打桩成受控表，不触发网络也不读真实 build_exe 的数据。
 
 from __future__ import annotations
@@ -299,7 +299,7 @@ def test_signature_marker_without_registration_is_not_a_pass(monkeypatch: pytest
 
 
 def test_missing_slot_is_a_structural_failure_not_a_data_gap(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 缺槽位/空表/键不在矩阵内 = 门禁本身失效 → rc=2（与「代码不合格」的 rc=1 必须分开）
+    # 缺槽位/空表/键不在矩阵内 = 检查本身失效 → rc=2（与「代码不合格」的 rc=1 必须分开）
     table = _pinned_table()
     del table["windows-x64"]["node"]
     assert _run(monkeypatch, table, strict=False) == 2
@@ -309,16 +309,16 @@ def test_missing_slot_is_a_structural_failure_not_a_data_gap(monkeypatch: pytest
 def test_missing_build_exe_attribute_exits_two_instead_of_crashing(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # L-29：本门禁取的是 build_exe 的**私有**符号，改名/删除在 build_exe 侧没有任何提示。
+    # L-29：本检查取的是 build_exe 的**私有**符号，改名/删除在 build_exe 侧没有任何提示。
     # 旧写法直取属性 → AttributeError 崩溃栈 → rc=1，而 rc=1 在本脚本契约里专指「--strict
-    # 查到未钉定项」，于是「门禁自己没跑成」会被读成「发布链有未钉定的二进制」。
+    # 查到未钉定项」，于是「检查自己没跑成」会被读成「发布链有未钉定的二进制」。
     # 缺失一律 rc=2（同「空表 / 取不到表」那一档）。
     fake = _fake_module(_pinned_table())
     del fake._PINNED_RUNTIME_SHA256
     monkeypatch.setattr(checker, "_load_build_exe", lambda: fake)
     with pytest.raises(SystemExit) as excinfo:
         checker.check(strict=False)
-    assert excinfo.value.code == 2, "属性缺失被退成崩溃栈/rc=1：门禁失效与发布失败混同"
+    assert excinfo.value.code == 2, "属性缺失被退成崩溃栈/rc=1：检查失效与发布失败混同"
     err = capsys.readouterr().err
     assert "_PINNED_RUNTIME_SHA256" in err, f"报错须点名缺失的属性，否则无从恢复：{err}"
 
@@ -336,7 +336,7 @@ def test_emit_env_missing_attribute_exits_two_too(monkeypatch: pytest.MonkeyPatc
 
 def test_required_attr_inventory_covers_both_the_fake_and_the_real_build_exe() -> None:
     # 防空转：探测清单本身是「取用点」的镜像，清单为空或漏项时上面两条用例一律不会触发。
-    # ① 清单非空；② 本文件的替身模块提供齐这些符号（否则替身会被门禁自己判成缺失）；
+    # ① 清单非空；② 本文件的替身模块提供齐这些符号（否则替身会被检查自己判成缺失）；
     # ③ 真 build_exe.py 也提供齐这些符号（漏一个就是 check() 立刻 rc=2，CI 当场红）。
     required = list(checker._REQUIRED_BUILD_EXE_ATTRS)
     assert required, "探测清单为空 = L-29 的防线没装上"
@@ -352,7 +352,7 @@ def test_matrix_key_missing_from_table_is_structural(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(
         checker, "_load_build_exe", lambda: _fake_module(table, declared_keys=("windows-x64", "linux-x64"))
     )
-    assert checker.check(strict=True) == 2, "矩阵要建的平台在表里没有 = 覆盖缺口，须按门禁失效处理"
+    assert checker.check(strict=True) == 2, "矩阵要建的平台在表里没有 = 覆盖缺口，须按检查失效处理"
 
 
 def test_emit_env_exports_the_live_table(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

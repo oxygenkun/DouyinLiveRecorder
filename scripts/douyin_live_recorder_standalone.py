@@ -1710,7 +1710,7 @@ def select_source_url(stream: StreamInfo, proxy: str | None = None, record_forma
 # 为什么不复用主程序那份日志/i18n：本文件不依赖 src/，且 find_ffmpeg 只在启动时调一次，
 #   这里用一行 print 就够，不为一条日志引入 i18n 依赖。
 def should_prepend_bundled_ffmpeg_dir(bundled_dir: str, current_path: str) -> bool:
-    # 平台门控一律用 sys.platform 字面量（mypy 跨平台门禁要求）。非 darwin 恒 True = 行为逐字不变。
+    # 平台门控一律用 sys.platform 字面量（mypy 跨平台检查要求）。非 darwin 恒 True = 行为逐字不变。
     if sys.platform != "darwin":
         return True
     # 解释器自身被 Rosetta 转译时 machine() 报 x86_64 → 判据不成立、维持包内优先：
@@ -1772,7 +1772,7 @@ def build_ffmpeg_cmd(
     # -headers 必须用 \r\n 结尾(HTTP 头规范)，且必须与校验探针的 UA/Referer/Cookie
     # 完全一致(统一经 record_headers 构造)，否则出现「校验 200、ffmpeg 403」。
     # 本命令在本副本有**两个定义点**：此处的规范列表 + run_ffmpeg 内 Popen 前的内联列表
-    # (写入门禁要求参数内联在调用点、不得传拼接变量)。两处必须逐字对齐，改任一处即同步
+    # (写入检查要求参数内联在调用点、不得传拼接变量)。两处必须逐字对齐，改任一处即同步
     # 另一处；下面的 m3u8 移除 -reconnect_at_eof 守卫同样两处都要有
     # (回归锁 tests/test_ffmpeg_reconnect_args.py 扫描本文件、按定义点逐一断言守卫存在)。
     headers = record_headers(platform, cookies)
@@ -1921,7 +1921,7 @@ def run_ffmpeg(
     # 执行 ffmpeg：stderr 落盘(便于定位 403/超时)，返回 (返回码, 错误摘要)。
     # 返回码语义：0 成功；非 0 失败。调用方须按 rc 回传调度器成功/失败，
     # 禁止无条件记成功(否则按 host 熔断永不触发，坏线路会被无限重撞)。
-    # 安全说明：下方 Popen 用**调用点内联字面量列表**(写入门禁要求，不得传拼接变量)且显式
+    # 安全说明：下方 Popen 用**调用点内联字面量列表**(写入检查要求，不得传拼接变量)且显式
     # shell=False——不经 shell 解释，URL/文件名中的元字符(&、|、> 等)不可能被注入命令
     # (文件名已在 clean_name 清洗)。该列表即 build_ffmpeg_cmd 规范列表之外的第二处定义点，
     # 两处必须逐字对齐、改任一处即同步另一处，m3u8 移除 -reconnect_at_eof 的守卫同样两处都要。
@@ -1938,7 +1938,7 @@ def run_ffmpeg(
         logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{cmd_log}\n")
         logf.flush()
         # 形状与 build_ffmpeg_cmd 逐一对应(约束见该函数与本函数的注释)：列表仍为纯字面量
-        # 构造(无拼接变量)，下方的 del 只按字面量标志对删除，不引入注入面、门禁语义不变。
+        # 构造(无拼接变量)，下方的 del 只按字面量标志对删除，不引入注入面、检查语义不变。
         proc_args: list[str] = [
             ffmpeg_bin,
             "-y",

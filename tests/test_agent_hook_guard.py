@@ -4,17 +4,17 @@
 # 静默空洞成立，给出与事实相反的绿）：
 #   1) PreToolUse 三条拦截规则（批量重装 venv / 清理越界 / 工作区级通配删除）与放行面
 #      （AGENTS.md 给出的两条收尾清理命令、二级 pip 处置、常规开发命令）；
-#   2) PostToolUse 三条「对门禁三面隐形」的即时反馈（MUTATION 残留 / 行尾形态混存 / .mjs 未登记）；
+#   2) PostToolUse 三条「对检查三面隐形」的即时反馈（MUTATION 残留 / 行尾形态混存 / .mjs 未登记）；
 #   3) 触发条件与 AGENTS.md 的**一致性锁**：受保护目录集合须与文档「运行期产物目录」枚举逐项相等，
 #      改一侧不改另一侧即红；
 #   4) CLI 契约（stdin JSON → 出口按事件能力双轨）：Pre 命中 = exit 2 + stderr 阻断；Post 非阻断
 #      （provider 文档：exit 2 的 stderr 注入仅对 blockable 事件生效）= exit 0 + stdout JSON
 #      `hookSpecificOutput.feedback` 即时回传，证明注册形态与脚本入口对得上；
-#   5) 资产接线锁：.qoder/settings.json 的 hooks 指向本脚本、command 资产不复制门禁清单。
+#   5) 资产接线锁：.qoder/settings.json 的 hooks 指向本脚本、command 资产不复制检查清单。
 #      两处都在 .gitignore 忽略的 .qoder/ 内（AGENTS.md「dockerignore / gitignore 同源约定」），
-#      全新克隆缺该目录 → 用例 skip，不把本地资产状态冒充成仓库门禁。
+#      全新克隆缺该目录 → 用例 skip，不把本地资产状态冒充成仓库检查。
 #
-# 全部离线：不联网、不跑任何仓库门禁；子进程一律驱动本脚本自身。
+# 全部离线：不联网、不跑任何仓库检查；子进程一律驱动本脚本自身。
 
 from __future__ import annotations
 
@@ -324,7 +324,7 @@ def test_hook_registration_wires_the_guard() -> None:
     # 资产接线锁：.qoder/settings.json 的 hooks 必须把 PreToolUse(Bash) 与 PostToolUse(Write|Edit) 指向本脚本
     settings = ROOT / ".qoder" / "settings.json"
     if not settings.is_file():
-        pytest.skip("本地项目级 Qoder 资产目录未创建（.qoder/ 被 .gitignore 忽略，非仓库门禁）")
+        pytest.skip("本地项目级 Qoder 资产目录未创建（.qoder/ 被 .gitignore 忽略，非仓库检查）")
     registered = json.loads(settings.read_text(encoding="utf-8"))
     hooks = registered.get("hooks", {})
     pre = [record for record in hooks.get("PreToolUse", []) if "Bash" in record.get("matcher", "")]
@@ -336,7 +336,7 @@ def test_hook_registration_wires_the_guard() -> None:
 
 
 def test_command_asset_does_not_duplicate_gate_list() -> None:
-    # 命令资产只能引用门禁入口，不得复制清单——否则 AGENTS.md 章节更新后会静默漂移
+    # 命令资产只能引用检查入口，不得复制清单——否则 AGENTS.md 章节更新后会静默漂移
     command_file = ROOT / ".qoder" / "commands" / "dlr-dod.md"
     if not command_file.is_file():
         pytest.skip("本地项目级 Qoder 命令资产未创建（.qoder/ 被 .gitignore 忽略）")
@@ -360,7 +360,7 @@ def test_runtime_pin_file_change_triggers_check_reminder(tmp_path: Path) -> None
 
 
 def test_runtime_pin_check_scripts_itself_triggers_reminder(tmp_path: Path) -> None:
-    # check_runtime_pins.py 自身变更同样触发——改判定逻辑后不跑检查 = 「门禁本身失效」无人知
+    # check_runtime_pins.py 自身变更同样触发——改判定逻辑后不跑检查 = 「检查本身失效」无人知
     probe = tmp_path / "scripts" / "check_runtime_pins.py"
     probe.parent.mkdir(parents=True, exist_ok=True)
     probe.write_text("# probe\n", encoding="utf-8")

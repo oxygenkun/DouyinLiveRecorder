@@ -10,8 +10,8 @@
 # 现状：版本号已全部动态化，SYNC_TARGETS 为空——运行时（main.py / src/web_api.py）经
 # importlib.metadata 读 pyproject.toml，Dockerfile 经 APP_VERSION 构建参数注入，
 # i18n/zh_CN.po 不再携带版本号，README / CODE_WIKI 由人工维护、不在本脚本范围。
-# 故版本一致性门禁不是本脚本，而是 scripts/check_version.py（它查「动态化有没有被改回写死」，
-# 且在 AGENTS.md 门禁命令块里）；本脚本结构保留，供将来真出现写死版本时复用。
+# 故版本一致性检查不是本脚本，而是 scripts/check_version.py（它查「动态化有没有被改回写死」，
+# 且在 AGENTS.md 检查命令块里）；本脚本结构保留，供将来真出现写死版本时复用。
 #
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def sync_file(rel_path: str, patterns: list[tuple[str, str]], version: str, dry_
 
 def check_all(version: str) -> bool:
     # 检查所有文件版本号是否已一致。返回 True 表示全部一致。
-    # SYNC_TARGETS 为空时这里 vacuous True（见该常量处的说明），不得拿它当版本门禁。
+    # SYNC_TARGETS 为空时这里 vacuous True（见该常量处的说明），不得拿它当版本检查。
     all_ok = True
     for rel_path, patterns in SYNC_TARGETS:
         file_path = ROOT_DIR / rel_path
@@ -107,7 +107,7 @@ def check_all(version: str) -> bool:
 
 def main() -> None:
     # 退出码只在 --check 分支产生（0 一致 / 1 不一致）；同步与 --dry-run 分支一律正常退出，
-    # 它是「执行工具」，不要接成门禁命令（版本门禁见 scripts/check_version.py）。
+    # 它是「执行工具」，不要接成检查命令（版本检查见 scripts/check_version.py）。
     parser = argparse.ArgumentParser(description="同步 pyproject.toml 版本号到所有相关文件")
     parser.add_argument("version", nargs="?", default=None, help="指定新版本号（默认从 pyproject.toml 读取）")
     parser.add_argument("--check", action="store_true", help="仅检查一致性，不修改文件")

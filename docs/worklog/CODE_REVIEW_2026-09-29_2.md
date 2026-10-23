@@ -254,7 +254,7 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 - **证据**：`spider.async_req = fake_async_req` 无 monkeypatch/undo。假协程签名仅 `(url, proxy_addr, headers)`，同会话后续任何带 `data=` 的 spider 调用都会 TypeError 或拿到虎牙固定 JSON。同仓其余用例统一用 monkeypatch/setattr shim。
 - **修复建议**：改用 `monkeypatch.setattr(spider, "async_req", fake)`。
 
-#### M-26　前端门禁「后端不得强复验」锁已成假绿：生产代码已实现强复验，用例钉死旧字面量空过
+#### M-26　前端检查「后端不得强复验」锁已成假绿：生产代码已实现强复验，用例钉死旧字面量空过
 
 - **位置**：[tests/frontend/test_regression_2026_09_22_gates.mjs L707-L727](file:///d:/DouyinLiveRecorder/tests/frontend/test_regression_2026_09_22_gates.mjs#L707-L727)（已核验）
 - **证据**：两条 `doesNotMatch` 钉的是旧形状 `verify_web_password(_reauth, _stored)` 与旧文案「修改认证配置需复验当前口令」；生产实现（[src/web_api.py L1205-L1214](file:///d:/DouyinLiveRecorder/src/web_api.py#L1205-L1214)）的实际形状是 `verify_web_password(_reauth, _stored_pwd)`、文案是「修改 Web 认证配置必须复验…」，两个断言因字面不一致而**空洞成立**。Python 侧 `test_regression_2026_09_22_web_g.py` 锁的恰是相反新契约，两侧互相矛盾。实测 `node --test` 32/32 全绿——安全边界锁给出错误信心。
@@ -266,7 +266,7 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 - **证据**：monkeypatch 解析到的是全进程唯一 os 模块本体，而非被测模块命名空间；窗口内 loguru/其他后台线程的删除/重命名被替换（其中 L39 的替身把删除变 no-op）。仓库 AGENTS 约定为「浅拷贝 shim 后替换模块命名空间」。
 - **修复建议**：统一按 shim 约定 patch 被测模块自己的 os 引用。
 
-#### M-28　`tests/frontend/test_motion.mjs`（5 个用例）缺少 Python 包装，不进任何 CI 门禁
+#### M-28　`tests/frontend/test_motion.mjs`（5 个用例）缺少 Python 包装，不进任何 CI 检查
 
 - **位置**：[tests/frontend/test_motion.mjs](file:///d:/DouyinLiveRecorder/tests/frontend/test_motion.mjs)；CI 入口 [.github/workflows/ci.yml L540-L567](file:///d:/DouyinLiveRecorder/.github/workflows/ci.yml#L540-L567)（只点名另两个 mjs 的包装）
 - **证据**：全仓 grep 确认无任何 .py 引用 test_motion.mjs；node `--test` 指定文件不会发现同级其他文件。motion.js 的降级/清理回归锁在正常 CI 中从不执行。
@@ -391,8 +391,8 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 |---|---|---|---|
 | 48 | [src/web_tray.py L252-L259](file:///d:/DouyinLiveRecorder/src/web_tray.py#L252-L259) | 托盘「退出」无 server 分支 `os._exit(0)` 跳过 atexit，ffmpeg 不清理（生产入口恒传 server，仅测试可达） | 无 server 也走清理链 |
 | 49 | [msg_push.py L189、L79、L130、L348、L411、L492](file:///d:/DouyinLiveRecorder/msg_push.py#L189) | 多地址/收件人列表只换全角逗号，不 strip/不过滤空项，尾逗号或空格产生脏条目，单条 SMTP 拒绝使整批失败；[L239-L252](file:///d:/DouyinLiveRecorder/msg_push.py#L239-L252) STARTTLS 不支持时告警后仍明文提交邮箱授权码（fail-open）；[L25-L26](file:///d:/DouyinLiveRecorder/msg_push.py#L25-L26) opener 默认含 file/ftp 处理器且跟随跨主机重定向（管理员自配，盲 SSRF）；[L532-L575](file:///d:/DouyinLiveRecorder/msg_push.py#L532-L575) 残留手工调试死代码块 | strip+过滤空项；明文认证改为显式开关；scheme 白名单；删死代码 |
-| 50 | [scripts/check_annotations.py L518、L537](file:///d:/DouyinLiveRecorder/scripts/check_annotations.py#L518) | `--baseline` 等价性校验把违规条数直接当退出码，违规数为 256 倍数时 POSIX 回绕为 0（门禁假绿） | 统一 `1 if ... else 0` |
-| 51 | [scripts/patch_i18n_2026_09_12.py L23、L228-L233](file:///d:/DouyinLiveRecorder/scripts/patch_i18n_2026_09_12.py#L23)；[build_exe.py L948-L955](file:///d:/DouyinLiveRecorder/build_exe.py#L948-L955)；[scripts/run_gates.py L268-L278](file:///d:/DouyinLiveRecorder/scripts/run_gates.py#L268-L278)；[_ci_web_smoke.sh L44](file:///d:/DouyinLiveRecorder/scripts/_ci_web_smoke.sh#L44)；[smoke_test.py L281-L291](file:///d:/DouyinLiveRecorder/scripts/smoke_test.py#L281-L291) | 硬编码开发者本机绝对路径 `D:/DouyinLiveRecorder-dev`；声称透传 compile_po 退出码实际恒 0 且裸用 "python"；Node zip 在 Windows 分支裸 extractall（ffmpeg 侧有 realpath 越界防护，两侧不对称）；门禁 shell=True 执行仓内命令（可信但信任边界靠评审）；兜底 `pkill -f 'python web\.py'` 匹配面宽；HTML 报告插值未 html.escape | 分别改 `__file__` 推导/透传退出码与 sys.executable/统一解压防护/注释固化评审约束/收紧 pkill/转义 |
+| 50 | [scripts/check_annotations.py L518、L537](file:///d:/DouyinLiveRecorder/scripts/check_annotations.py#L518) | `--baseline` 等价性校验把违规条数直接当退出码，违规数为 256 倍数时 POSIX 回绕为 0（检查假绿） | 统一 `1 if ... else 0` |
+| 51 | [scripts/patch_i18n_2026_09_12.py L23、L228-L233](file:///d:/DouyinLiveRecorder/scripts/patch_i18n_2026_09_12.py#L23)；[build_exe.py L948-L955](file:///d:/DouyinLiveRecorder/build_exe.py#L948-L955)；[scripts/run_gates.py L268-L278](file:///d:/DouyinLiveRecorder/scripts/run_gates.py#L268-L278)；[_ci_web_smoke.sh L44](file:///d:/DouyinLiveRecorder/scripts/_ci_web_smoke.sh#L44)；[smoke_test.py L281-L291](file:///d:/DouyinLiveRecorder/scripts/smoke_test.py#L281-L291) | 硬编码开发者本机绝对路径 `D:/DouyinLiveRecorder-dev`；声称透传 compile_po 退出码实际恒 0 且裸用 "python"；Node zip 在 Windows 分支裸 extractall（ffmpeg 侧有 realpath 越界防护，两侧不对称）；检查 shell=True 执行仓内命令（可信但信任边界靠评审）；兜底 `pkill -f 'python web\.py'` 匹配面宽；HTML 报告插值未 html.escape | 分别改 `__file__` 推导/透传退出码与 sys.executable/统一解压防护/注释固化评审约束/收紧 pkill/转义 |
 
 > 注：本表编号 1-51，其中第 8、19、49、51 项各含多条同组子项；表后「N. 测试侧其余轻微项」另归并 8 条。合计轻微独立问题约 59 个，与第二节汇总口径一致。
 
@@ -401,7 +401,7 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 - [tests/test_anchor_rename.py L59-L65](file:///d:/DouyinLiveRecorder/tests/test_anchor_rename.py#L59-L65)：docstring 声称注释行改名后「整行激活」，断言锁的却是「保留单层 #」（注释意图与断言相反，易误导）。
 - [tests/test_bili_live_collector.py L43-L44](file:///d:/DouyinLiveRecorder/tests/test_bili_live_collector.py#L43-L44)、[test_huya_live_collector.py L47-L48](file:///d:/DouyinLiveRecorder/tests/test_huya_live_collector.py#L47-L48)：真机脚本清空 `_out_live` 无平台前缀过滤且不判目录，混入子目录会抛错、并行验证互删（手工脚本，影响小）。
 - [tests/test_cookie_cache.py L237-L259](file:///d:/DouyinLiveRecorder/tests/test_cookie_cache.py#L237-L259)：4 方 Barrier/join 无超时，worker 异常会令整个 pytest 挂死。
-- 深路径 patch 族：[test_stream_select.py L604、L670、L1004、L1029、L1239](file:///d:/DouyinLiveRecorder/tests/test_stream_select.py#L604)（`patch("src.stream_select.time.sleep")` 等改的是全进程 time 模块）、[test_regression_2026_09_22_utils.py L640](file:///d:/DouyinLiveRecorder/tests/test_regression_2026_09_22_utils.py#L640)（裸 patch builtins.open）、[test_regression_2026_09_22_net.py L723-L756](file:///d:/DouyinLiveRecorder/tests/test_regression_2026_09_22_net.py#L723)（字符串形式 patch httpx.AsyncClient）——仓库卫生门禁 R1 已知悉但未覆盖这些形态。
+- 深路径 patch 族：[test_stream_select.py L604、L670、L1004、L1029、L1239](file:///d:/DouyinLiveRecorder/tests/test_stream_select.py#L604)（`patch("src.stream_select.time.sleep")` 等改的是全进程 time 模块）、[test_regression_2026_09_22_utils.py L640](file:///d:/DouyinLiveRecorder/tests/test_regression_2026_09_22_utils.py#L640)（裸 patch builtins.open）、[test_regression_2026_09_22_net.py L723-L756](file:///d:/DouyinLiveRecorder/tests/test_regression_2026_09_22_net.py#L723)（字符串形式 patch httpx.AsyncClient）——仓库卫生检查 R1 已知悉但未覆盖这些形态。
 - [tests/test_notify.py L21](file:///d:/DouyinLiveRecorder/tests/test_notify.py#L21)、[test_srt_timeline_anchor.py L23](file:///d:/DouyinLiveRecorder/tests/test_srt_timeline_anchor.py#L23)：模块级 `sys.path.insert` 不回收（冗余导入路径）。
 - 时序脆弱：[test_scheduler.py L57-L93](file:///d:/DouyinLiveRecorder/tests/test_scheduler.py#L57-L93) cooldown=0.05 + 2× 余量的真实 sleep；[test_regression_2026_09_22_infra.py L533-L573](file:///d:/DouyinLiveRecorder/tests/test_regression_2026_09_22_infra.py) 工作线程真实 sleep 10s+3s；[test_record_watchdog.py L331-L354](file:///d:/DouyinLiveRecorder/tests/test_record_watchdog.py#L331-L354) 硬编码 `/tmp/out.ts`（跨平台隐患，现行路径有父目录豁免巧合不致误判）。
 - [tests/test_platform_danmaku_offline.py L405-L410](file:///d:/DouyinLiveRecorder/tests/test_platform_danmaku_offline.py#L405-L410)：monkey patch 的 undo 位于断言之后，失败路径泄漏（理论窗口）。
@@ -421,7 +421,7 @@ HLS-only 房间 `quality_index` 被无条件置 0，用户选任何档位都拉 
 5. **下载完整性**：ffmpeg/node 发行包先取官方 SHA256 再安装、不符 fail-closed；ffmpeg master 构建 GPG `--status-fd` + 40 位指纹集合验签；zip 手工解包含 Zip Slip 与解压炸弹（单文件 4GB/累计 8GB/100x）防护。
 6. **凭据卫生**：录制 URL 全链路 15 个文件、102 处 `mask_credentials` 调用；日志按房间名 ContextVar 关联；TLS 默认严格校验，证书豁免分控制面/拉流面并按平台生效。
 7. **并发与状态治理**：录制槽位在 Popen 前获取并在 finally 无条件释放；看门狗使用单调钟免疫时钟跳变、停滞观测区分「目录不可读/确实无产物」三态；弹幕采集器异常路径幂等 stop；配置热加载采用「新解析器整体替换 + 局部集合原子换位」避免半写污染。
-8. **工程纪律**：大量修复带有回归锁与设计决策注释；存在 `run_gates.py` 统一门禁、覆盖率门槛、注释等价性检查与 i18n 字符串提取门禁。
+8. **工程纪律**：大量修复带有回归锁与设计决策注释；存在 `run_gates.py` 统一检查、覆盖率门槛、注释等价性检查与 i18n 字符串提取检查。
 
 ---
 

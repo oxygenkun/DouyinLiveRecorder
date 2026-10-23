@@ -1,7 +1,7 @@
 # PROPOSAL_2026-10-02 — Linux arm64（aarch64）ffmpeg 支持：设计与审批记录
 
 > **文档性质**：本次改动的**已获批规格**（三个范围项已由用户逐条批准，见「二、决策记录」）。
-> 实现计划由本规格派生；长期约束本体仍写回 `AGENTS.md`，本文不复制判定逻辑、不复制门禁命令清单。
+> 实现计划由本规格派生；长期约束本体仍写回 `AGENTS.md`，本文不复制判定逻辑、不复制检查命令清单。
 > **事实源边界**：钉定值事实源是 `build_exe.py`；`AGENTS.md` 是约束唯一事实源；本文只记现状取证、
 > 边界划分、已批准改动与回滚方案。
 > **取证日期**：2026-10-02，Windows x64 本机 + 直接外网请求。凡未在本机实跑的结论一律标「未核实」。
@@ -39,13 +39,13 @@
 `ubuntu-26.04-arm` 亦存在）。取本仓沿用 `ubuntu-latest` 的同代际口径，选 **`ubuntu-24.04-arm`**。
 **未核实**：该标签是否计入本账号的免费额度（官方页未见定价口径）→ 由首次 CI 实跑裁定，见「八、交回用户的验证项」。
 
-### 3.2 改动点（四处同批，缺一即门禁红）
+### 3.2 改动点（四处同批，缺一即检查红）
 
 | # | 文件 | 改动 | 为什么必须同批 |
 | --- | --- | --- | --- |
 | 1 | `.github/workflows/build-release.yml` | 矩阵 `include` 追加 `- os: ubuntu-24.04-arm` + `platform: linux-arm64`（**位置插在 `ubuntu-latest` 之后、`macos-latest` 之前**） | `check_runtime_pins._runtime_matrix_keys()` 按 `os:` 行出现顺序返回键列表，而 `tests/test_check_runtime_pins.py::test_workflow_matrix_and_test_constant_stay_in_sync` 断言**与 `_MATRIX_KEYS` 逐序相等**（不是集合比较），插入位置即契约 |
 | 2 | 同上 | 两个 `if: matrix.platform == 'linux'` 步骤（`:298` Install ffmpeg + xvfb、`:368` Build executables + smoke test）改为 `startsWith(matrix.platform, 'linux')`；`if: matrix.platform != 'linux'`（`:374`）改为 `!startsWith(matrix.platform, 'linux')` | 否则 arm64 job 不装 xvfb、不走 `xvfb-run` 分支，GUI 冒烟在无头 arm64 上必红；而通用分支给它 `tee build_exe.log` 又会让它失去 xvfb |
-| 3 | `scripts/check_runtime_pins.py` | `RUNNER_TO_RUNTIME_KEY` 补 `"ubuntu-24.04-arm": "linux-arm64"`；并把上方「三平台 / windows-latest·ubuntu-latest 为 x64」注释改为四平台实况 | 未登记的 runner 标签走 `sys.exit(2)`（该函数 `:96-103`），属「门禁本身失效」档，会把发布链在 prepare 直接断掉 |
+| 3 | `scripts/check_runtime_pins.py` | `RUNNER_TO_RUNTIME_KEY` 补 `"ubuntu-24.04-arm": "linux-arm64"`；并把上方「三平台 / windows-latest·ubuntu-latest 为 x64」注释改为四平台实况 | 未登记的 runner 标签走 `sys.exit(2)`（该函数 `:96-103`），属「检查本身失效」档，会把发布链在 prepare 直接断掉 |
 | 4 | `build-release.yml` 的 `Verify artifact completeness` | `-lt 6` → `-lt 8`，错误文案改「期望 8 个：windows/linux/linux-arm64/macos × lite/full」；同文件头部与 `release` job 内「3 平台 ×2」注释同步 | 4 平台 ×（lite+full）= 8；`find artifacts -name '*.zip'` 现在数的是 Release 附件，漏改等于「残缺 Release 照发」 |
 
 另外两处**只改注释、不改行为**：`build-release.yml` 头部「三平台可执行文件构建」标题段、
@@ -97,7 +97,7 @@ digest 的权威性依据（实测 2026-10-02）：`api.github.com/repos/BtbN/FF
 - `_linux_arch() -> str`：`platform.machine()` 字面量分流，`arm64`/`aarch64` → `"linuxarm64"`，其余一律 `"linux64"`
   （保守判据与 `_windows_arch()` 同构：架构信息不可信时宁可装能跑的 x64）。
 - `_LINUX_FFMPEG_URLS: dict[str, str]`：**按 arch 一条完整 URL**，值是 `build_exe._FFMPEG_DOWNLOAD_URLS` 的同一条字面量。
-  物理上必然有两份（冻结 exe 里 import 不到根目录 build 脚本），故由回归锁比对两边逐字相等（见「六、测试与门禁」T-5），
+  物理上必然有两份（冻结 exe 里 import 不到根目录 build 脚本），故由回归锁比对两边逐字相等（见「六、测试与检查」T-5），
   不在本文维护第三份副本。
 - `_api_release_url(asset_url) -> str`：**从 URL 反解** `repo` 与 `tag`，拼出
   `https://api.github.com/repos/<repo>/releases/tags/<tag>`。不新增第二个 URL 常量，也就不可能出现
@@ -171,7 +171,7 @@ digest 的权威性依据（实测 2026-10-02）：`api.github.com/repos/BtbN/FF
   用 compose 起 arm64 的用户走的是 `pull_policy: build` 就地构建路径（MIN-18 的既有约定），
   那条路径在 arm64 主机上本来就能构建成功。这是刻意留下的分工，不是缺口。
 
-## 六、测试与门禁（每项给「删掉生产实现会不会红」的自评）
+## 六、测试与检查（每项给「删掉生产实现会不会红」的自评）
 
 | # | 测试 | 锁什么 | 新建/修改 |
 | --- | --- | --- | --- |
@@ -183,7 +183,7 @@ digest 的权威性依据（实测 2026-10-02）：`api.github.com/repos/BtbN/FF
 | T-6 | `tests/test_check_runtime_pins.py` | `_MATRIX_KEYS` 补 `"linux-arm64"`（插在 `linux-x64` 后、`macos-arm64` 前，与矩阵 `os:` 行序一致）；`test_real_matrix_parser_reads_workflow_runner_tags` 的合成样本不变 | 修改 |
 | T-7 | `tests/test_build_exe.py` | `_ALLOWED_HOSTS` **不动**（`github.com` 已在；运行期侧的 `api.github.com` 属 T-3 的 `DOWNLOAD_SOURCES`，两者是不同的锁，不得混用） | 只复核 |
 | T-8 | `tests/test_docker_publish_workflow.py` | 结构锁：触发只有 `tags: v*`；两个构建 job 的 runner 与 `--platform` 一一对应；merge job `needs` 二者；无 `secrets.` 引用（凭据必须走 GITHUB_TOKEN）；`cancel-in-progress: false` | 新建 |
-| T-9 | 全量门禁 | `python scripts/run_gates.py` + `pytest` + `scripts/check_coverage.py`（口径取 `AGENTS.md`「格式化命令」，本文不重述参数）；涉平台分支 → `mypy --platform linux` 增跑 | 收尾 |
+| T-9 | 全量检查 | `python scripts/run_gates.py` + `pytest` + `scripts/check_coverage.py`（口径取 `AGENTS.md`「格式化命令」，本文不重述参数）；涉平台分支 → `mypy --platform linux` 增跑 | 收尾 |
 
 **变异验证**：T-1/T-2/T-5 属新增安全不变量类（完整性真值表 + 两处副本一致性），**必做**；
 按 `AGENTS.md`「变异验证…当轮还原」用「内存备份→改写→跑→按字节还原」的单进程手法，
@@ -206,7 +206,7 @@ digest 的权威性依据（实测 2026-10-02）：`api.github.com/repos/BtbN/FF
   是无分隔符的按名模式（对任意层级生效，同目录的 `PROPOSAL_2026-09-22_binary-trust-policy.md` 即先例），
   `.gitignore:280` 已写明该前缀属正式记录、刻意不忽略。本次沿用前缀，故 AGENTS.md「镜像额外排除集」条目不动。
 - i18n：新日志文案一律 `i18n.tr(模板, **kw)`，模板补进 `zh_CN.po`/`en_US.json`/`en_GB.json`/`zh_TW.yaml`
-  四目录并重编 `.mo`（`test_runtime_templates_covered_by_catalog` 是硬门禁，漏补当场红）。
+  四目录并重编 `.mo`（`test_runtime_templates_covered_by_catalog` 是硬检查，漏补当场红）。
 
 ## 八、交回用户的验证项（代理权限/环境之外）
 

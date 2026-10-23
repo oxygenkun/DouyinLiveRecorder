@@ -13,8 +13,8 @@
 | v4.0.9.4 (2026-09-03 ~ 2026-09-06) — HLS 采集排除平台列表 / 画质选项增删与行内切换 / P0 分段容器错配修复 / 打包缺陷修复 / 全仓注释补齐与元数据同源同步 | 2026-09-03 |
 | v4.0.9.3 (2026-09-02) — 代码审查 20 项问题全量修复（cookie 缓存并发去重 singleflight 重写 / Web 非 ASCII 密码登录崩溃 / 探针异常留痕与节流自清理 / 64 位 ctypes 句柄截断 / 连接资源生命周期）+ mypy 全仓类型清零（tests / gui_legacy / scripts / standalone） | 2026-09-02 |
 | v4.0.9.2 (2026-08-28 ~ 2026-08-30) — Web 面板录制手动控制 / 虎牙·斗鱼蓝光细粒度画质档位 / 停止录制流程日志归档 / 性能审查优化落地（P1~P5）/ 探针退避窗口自愈与虎牙 FLV-first / Web 后台日志 sink 重建 / GUI 父进程日志句柄隔离 | 2026-08-28 |
-| v4.0.9.1 (2026-08-27 ~ 2026-08-28) — 高并发调度加固 / 本地化系统修复 / 编译与熔断门禁修复 / CI 工作流优化与重试收敛 | 2026-08-27 |
-| v4.0.9 (2026-08-23 ~ 2026-08-24) — 高并发多平台录制调度优化 / 录制反馈闭环 / 并发双模式 / Python 3.14 升级与语言键迁移 / 四语本地化目录统一与英式美式分流 / 类型与 CI 质量门禁修复 | 2026-08-23 |
+| v4.0.9.1 (2026-08-27 ~ 2026-08-28) — 高并发调度加固 / 本地化系统修复 / 编译与熔断检查修复 / CI 工作流优化与重试收敛 | 2026-08-27 |
+| v4.0.9 (2026-08-23 ~ 2026-08-24) — 高并发多平台录制调度优化 / 录制反馈闭环 / 并发双模式 / Python 3.14 升级与语言键迁移 / 四语本地化目录统一与英式美式分流 / 类型与 CI 质量检查修复 | 2026-08-23 |
 | v4.0.8.3 (2026-08-19 ~ 2026-08-22) — 主播名自动更新 / SSL 配置整合 / 四语国际化 / FFmpeg9·Node24 兼容 / 类型安全加固 / start_record 复杂度治理 / 窗口化崩溃加固 / 类型检查缺陷修复 | 2026-08-19 |
 | v4.0.8.2 (2026-08-16 ~ 2026-08-18) — 录制/弹幕/国际化/类型检查 系列修复 | 2026-08-16 |
 | v4.0.8.1 (2026-08-01 ~ 2026-08-09) — 注释规范 / 冒烟测试 / GUI 优雅退出 / 校验修复 整合 | 2026-08-01 |
@@ -41,11 +41,11 @@
 
 **🐛 修复的问题**
 - **P0 分段录制容器错配**：抖音原画 HEVC 因 TS+分段分支 `-segment_format` 误用 `ipod` 容器，`-c copy` 直接 `AVERROR(EINVAL)` 退出（Windows 退出码 4294967274）；H.264 则静默产出「MP4 内容 + .ts 扩展名」损坏文件。将「输出扩展名 → 内层容器」映射收敛为模块级常量 `SEGMENT_FORMAT_BY_SUFFIX`，新增 `tests/test_record_container.py` 固化断言；另修复 `src/spider.py` 的 `hevc_flv_url` 漏拼 `&codec=h265` 致 h265 判定漏判。
-- **flaky 告警根治**：`src/async_http.py` 删除跨循环 `run_coroutine_threadsafe(client.aclose(), ...)` 调度分支（根因：旧循环已停未关时协程永不 await、GC 报 "never awaited"）；`pyproject.toml` 显式过滤第三方 starlette/anyio 弃用告警，pytest 全量 0 警告门禁定稿。
+- **flaky 告警根治**：`src/async_http.py` 删除跨循环 `run_coroutine_threadsafe(client.aclose(), ...)` 调度分支（根因：旧循环已停未关时协程永不 await、GC 报 "never awaited"）；`pyproject.toml` 显式过滤第三方 starlette/anyio 弃用告警，pytest 全量 0 警告检查定稿。
 - **GUI 画质切换三缺陷**：键格式不匹配（序号前缀导致反查表 miss）、持久化丢失（写回后编辑器仍持旧快照被整文件覆盖）、显示重置（表格取自子进程旧日志值）——切换后剥离序号前缀查表、写回后同步编辑器快照、显示以配置文件为准。
 - **打包缺陷修复**：`pyproject.toml` 的 `[tool.setuptools].packages` 由 `["src"]` 改为 `["src", "src.platforms", "src.proto"]`，修复 `pip install .` 发行包缺失 `src/platforms`（各平台弹幕采集器）与 `src/proto`（抖音 protobuf）的运行时 `ModuleNotFoundError`。
 
-**🛠️ 仓库维护与质量门禁**
+**🛠️ 仓库维护与质量检查**
 - **全仓中文注释补齐**：41 文件 / +1370 行（平均密度 7.6%→20.4%），AST 等价性校验证逻辑零改动；新增 `scripts/check_annotations.py`（注释规范 + AST 等价性校验，三模式）接入 `ci.yml` 的 `static` job。
 - **八文件元数据同源同步**：以 `pyproject.toml` 为单一事实源，修正 `AGENTS.md` / `docker-compose.yaml` / `requirements.txt` / `Dockerfile` / `.gitignore` / `.dockerignore` / `.coveragerc-concurrency` 的版本、路径、目录清单与依赖漂移。
 - **四语本地化目录补齐**：经 `extract_i18n_strings.py` 补入 5 条缺失串，四目录键集合重一致（各 521 条），`zh_CN.mo` 重编译（`--check` 字节级同步通过）。
@@ -84,13 +84,13 @@
 - **Session 生命周期**：`sync_http.py` 新增 `WeakSet` 登记线程级 Session、`close_session()`（当前线程显式释放）与 `close_all_sessions()`（`atexit` 注册，进程退出统一优雅关闭全部连接池）。
 
 **🧹 风格约定 / 环境修复（低）**
-- **PEP 758 except 写法定稿**：实测 black 26.x 稳定风格就是无括号形式 `except A, B:`（加括号反而过不了格式门禁），采用报告备选方案并在 `AGENTS.md`「代码风格 → Black」显式记录约定（由 `requires-python >= 3.14` 下限保证语法合法）。
+- **PEP 758 except 写法定稿**：实测 black 26.x 稳定风格就是无括号形式 `except A, B:`（加括号反而过不了格式检查），采用报告备选方案并在 `AGENTS.md`「代码风格 → Black」显式记录约定（由 `requires-python >= 3.14` 下限保证语法合法）。
 - **venv 幽灵问题修复**：`.venv` 中 editable 安装原指向另一 checkout（`D:\DouyinLiveRecorder-coding`），`pip install -e .` 重装后 `import src.*` 确认解析到本工作区，消除「改了 A 目录、测试跑的是 B 目录」的问题。
 
 **🧹 mypy 全仓清零**
 - `tests/test_quality_tiers.py`：5 处 `mock.await_args.args[1]` 前补 `assert mock.await_args is not None`（typeshed 将 `await_args` 声明为 Optional，运行时保证非空但 mypy 无法收窄）。
 - `gui_legacy.py`：4 处——悬停效果 lambda 改具名闭包工厂、`command` 参数补 `str | Callable[[], Any]` 注解、`optionxform` 改具名函数 + `setattr` 绕过（对齐 `gui.py` 惯例）、补 `collections.abc.Callable` 导入。
-- `scripts/extract_i18n_strings.py`：动态 `getattr` 结果用 `cast` 收敛（`warn_return_any` 门禁），移除已无用的 `type: ignore`。
+- `scripts/extract_i18n_strings.py`：动态 `getattr` 结果用 `cast` 收敛（`warn_return_any` 检查），移除已无用的 `type: ignore`。
 - **单文件整合版（standalone）**：`douyin_live_recorder_standalone.py` 4 处告警清零——`json.loads` 返回值 `cast`、`_douyu_sign` 补 `isinstance(sign, dict)` 守卫（非 dict 直接返回 `None`，杜绝运行时崩溃）、新增 `PlatformResolver` Protocol 使 `PLATFORM_RULES` 分派表支持 `proxy=`/`cookies=` 关键字调用；导入清理移除未用的 `Callable`。
 
 **🧪 测试与验证**
@@ -144,12 +144,12 @@
 **🧪 测试与验证**
 - 日志归档专项：新增 `tests/test_log_archive.py`（14 用例：改名格式正则锁定、`_N` 序号去重不覆盖、缺失全跳过、单文件改名失败不中断整批、GUI/测试进程双守卫、`reopen_streams` 双态语义、web_console 绑定句柄轮转、hub `close_file` 后惰性重开、sink remove→add 往返幂等、main.py 归档 atexit 注册顺序静态锁）；`test_web_api.py` 增「停止录制触发归档」用例；`tests/conftest.py` 增设 `DOUYIN_DISABLE_LOG_ARCHIVE=1`（pytest 退出并非停止录制事件，不改名开发者真实日志）。
 - 新增 `tests/test_quality_tiers.py`（29 用例：子档位映射/索引折叠/虎牙就近降级/斗鱼重试链）、`tests/test_logger_console_sink.py`（3 用例：跟随当前 stderr / 替换而非追加 / None 静默）；`test_stream_select.py` 新增客户端整轮复用与逐请求头、退避窗口覆盖主循环周期、成功清除退避、虎牙 FLV-first 与斗鱼保持 HLS-first 用例；`test_record_failure_feedback.py` 增「停止录制中断不采样」用例；`test_web_api.py` 增录制开关端点用例。
-- 全量 `pytest` **806 passed / 2 skipped**（0 警告；较 08-29 新增 15 用例）；black / isort / `compile_po.py --check` / `mypy src/`（Windows + Linux 双平台，`stream.py:609` 已随 bitRate 声明修复）/ `uv lock --check` / `check_version.py` 全绿。类型门禁存 1 处已知遗留（`test_quality_tiers.py` 的 basedpyright 5 处 `await_args` Optional 访问），不影响运行时。
+- 全量 `pytest` **806 passed / 2 skipped**（0 警告；较 08-29 新增 15 用例）；black / isort / `compile_po.py --check` / `mypy src/`（Windows + Linux 双平台，`stream.py:609` 已随 bitRate 声明修复）/ `uv lock --check` / `check_version.py` 全绿。类型检查存 1 处已知遗留（`test_quality_tiers.py` 的 basedpyright 5 处 `await_args` Optional 访问），不影响运行时。
 - 三轮真机验证（虎牙 880214 / chuhe、斗鱼 3168536）：退避告警首次出现、FLV 稳定连录 6 分钟、`web_console.log` 恢复完整 DEBUG/WARNING；斗鱼 rate 钳制与回采行为实测吻合；Windows 真机 loguru 链路黑盒验证 `remove → rename → re-add` 归档可行（旧文件内容完整、新同名文件立即重建）。
 
-### v4.0.9.1 (2026-08-27 ~ 2026-08-28) — 高并发调度加固 / 本地化系统修复 / 编译与熔断门禁修复 / CI 工作流优化与重试收敛
+### v4.0.9.1 (2026-08-27 ~ 2026-08-28) — 高并发调度加固 / 本地化系统修复 / 编译与熔断检查修复 / CI 工作流优化与重试收敛
 
-> 本版本为 4.0.9 调度体系的审查修复与加固批次，并收尾本地化子系统：全量质量门禁 + 并行代码审查发现并修复多个高危/中危缺陷，i18n 目录经全仓 AST 扫描全量补全至 496 条、解除 i18n 模块语法阻塞并重新编译 `zh_CN.mo`；08-28 追加 CI 工作流优化（重试收敛为复合动作）、PEP 758 格式化随 black 26 落地与仓库元数据八文件同步。**无破坏性变更**（配置项与运行时语义完全兼容）。详细根因与验证见 [CODE_WIKI.md](../../CODE_WIKI.md)。
+> 本版本为 4.0.9 调度体系的审查修复与加固批次，并收尾本地化子系统：全量质量检查 + 并行代码审查发现并修复多个高危/中危缺陷，i18n 目录经全仓 AST 扫描全量补全至 496 条、解除 i18n 模块语法阻塞并重新编译 `zh_CN.mo`；08-28 追加 CI 工作流优化（重试收敛为复合动作）、PEP 758 格式化随 black 26 落地与仓库元数据八文件同步。**无破坏性变更**（配置项与运行时语义完全兼容）。详细根因与验证见 [CODE_WIKI.md](../../CODE_WIKI.md)。
 
 **✨ 新增功能**
 - **Web 配置行级追加 API**：`web_config.py` 新增 `append_config_line(config_file, section, key, value)`，在键/节缺失时按行级文本风格补建（与既有 `update_config_line` 互补），便于缺键配置的安全写入。
@@ -159,8 +159,8 @@
 
 **🐛 问题修复**
 - **i18n 本地化系统阻断（高危）**：`i18n.py`（3 处）与 `scripts/compile_po.py`（1 处）的 Python 2 风格 `except A, B:`（含一例三异常逗号）多异常写法改为 `except (A, B):`，解除 Python 3 硬 `SyntaxError`——此前 `i18n` 无法 `import`、`.mo` 无法编译、CLI/GUI/Web 本地化整体失效；修复后受管 3.13 与 3.14 运行时均合法，并重新编译 `zh_CN.mo`（496 条，`--check` 字节级同步）。
-- **CI black 门禁（PEP 758 格式化）**：上述 4 处元组括号随后按 black 26.5.1（`target-version=['py314']`，CI 与本地同版本）的 PEP 758 规范化统一为免括号形式（`except A, B:` 与 `except (A, B):` 在 3.14 下完全等价、语义零变化），CI `black --check` 恢复绿色；**此 4 处今后由 black 维护，勿手工改括号**。
-- **编译同步门禁恒真（P1）**：`scripts/compile_po.py` 的 `write_mo()` 改为纯内存产出（去除写盘副作用），落盘决策上移至调用方，`--check` 不再「先落盘再读回自比」（此前恒真），改为真实比对已提交 `.mo`；`ci.yml` 的 paths-filter 新增 `i18n/**`，纯翻译变更也会触发 static 门禁。
+- **CI black 检查（PEP 758 格式化）**：上述 4 处元组括号随后按 black 26.5.1（`target-version=['py314']`，CI 与本地同版本）的 PEP 758 规范化统一为免括号形式（`except A, B:` 与 `except (A, B):` 在 3.14 下完全等价、语义零变化），CI `black --check` 恢复绿色；**此 4 处今后由 black 维护，勿手工改括号**。
+- **编译同步检查恒真（P1）**：`scripts/compile_po.py` 的 `write_mo()` 改为纯内存产出（去除写盘副作用），落盘决策上移至调用方，`--check` 不再「先落盘再读回自比」（此前恒真），改为真实比对已提交 `.mo`；`ci.yml` 的 paths-filter 新增 `i18n/**`，纯翻译变更也会触发 static 检查。
 - **熔断探针租约自愈（高危）**：根治 `PlatformBreaker` half-open 探针泄漏——探针轮以 `continue` 结束且不上报样本时 `_probing` 标志永不复位、该 host 永久熔断直到进程重启；新增探针租约（`_PROBE_LEASE_SECONDS = 60s`）超时自动重新授予，实现自愈。
 - **调度成功采样缺口（中危）**：`start_record` 解析成功分支补报 `record_success(record_host)`（与失败分支对称），half-open 探针房间长录期间同 host 其余房间不再持续饿死。
 - **直下路径熔断采样缺口（P1）**：`main.py` 直下下载分支「非 200 / 网络异常」失败原在函数内部消化为 `False`、调用方不上报样本，坏线路绕开按 host 熔断被无限重撞；新增 `record_error(record_host)` 补报（被注释/退出标志的中断不计样本）。
@@ -176,14 +176,14 @@
 - **GUI 崩溃弹窗去重**：`gui.py` 顶层异常不再双弹窗/日志双份堆栈，`_bootstrap_error_sink` 置位标记后 re-raise 触发的 excepthook 据此跳过。
 
 **🔧 CI / 工程维护**
-- **CI 工作流优化（ci.yml 重写，job 与门禁语义不变）**：`actions/checkout` v5→v7、`setup-python` v6→v7（与 build-release.yml 对齐消除版本漂移）；apt 安装补强化参数（`DEBIAN_FRONTEND=noninteractive` + `Acquire::Retries=3` + `--no-install-recommends`，更抗网络抖动）；macOS `brew trust aws/tap` 拆为独立幂等步骤、`HOMEBREW_*` 变量改命令内 `export`；头注释补 job 拓扑图与「止于验证、不含部署」职责边界。
+- **CI 工作流优化（ci.yml 重写，job 与检查语义不变）**：`actions/checkout` v5→v7、`setup-python` v6→v7（与 build-release.yml 对齐消除版本漂移）；apt 安装补强化参数（`DEBIAN_FRONTEND=noninteractive` + `Acquire::Retries=3` + `--no-install-recommends`，更抗网络抖动）；macOS `brew trust aws/tap` 拆为独立幂等步骤、`HOMEBREW_*` 变量改命令内 `export`；头注释补 job 拓扑图与「止于验证、不含部署」职责边界。
 - **仓库元数据八文件同步**：requirements.txt / Dockerfile 过时的 `src/danmaku/` 路径注释修正为实际模块位置；`.dockerignore` 补 16 个排除项（本地工具目录 / `uv.lock` / `scripts/` / 双语文档等，镜像上下文瘦身）；`.gitignore` 补 `.mimosa/` 等；pyproject 清理死目录；docker-compose 示例版本对齐 `4.0.9.1`；`AGENTS.md` 模块计数 39→41 并新增 CI/workflow 约定小节。
 
 **🧪 测试与验证**
 - 新增 `tests/test_record_failure_feedback.py`（5 → 7 用例）、`tests/test_web_api.py` 缺键补建/边界用例；`test_scheduler.py` 探针租约自愈（15 → 16）、`test_i18n.py` 损坏 YAML 降级并适配 `write_mo()` 新签名。
 - 全量 `pytest` **744 passed / 2 skipped**；black / isort / mypy（Windows + Linux 双平台）/ basedpyright 全绿；`compile_po.py --check` 字节级同步、提取器零缺失；两 workflow YAML 结构断言（needs 链 / retry 调用计数 / action 版本计数）通过。
 
-### v4.0.9 (2026-08-23 ~ 2026-08-24) — 高并发多平台录制调度优化 / 录制反馈闭环 / 并发双模式 / Python 3.14 升级与语言键迁移 / 四语本地化目录统一与英式美式分流 / 类型与 CI 质量门禁修复
+### v4.0.9 (2026-08-23 ~ 2026-08-24) — 高并发多平台录制调度优化 / 录制反馈闭环 / 并发双模式 / Python 3.14 升级与语言键迁移 / 四语本地化目录统一与英式美式分流 / 类型与 CI 质量检查修复
 
 > 本批改动聚焦高并发（80+ 任务）多平台录制的调度中枢治理、录制侧反馈闭环与 Python 3.14 基线升级。详细根因与验证见 [CODE_WIKI.md](../../CODE_WIKI.md)。
 
@@ -211,11 +211,11 @@
 - 修正 en_US 内部混用的英式拼写（统一为美式 minimizes/minimized/canceled）；en_GB 原是 en_US 克隆，改写为真正英式（minimise/minimises/minimised/cancelled），仅在 4 条拼写相关条目上与 en_US 不同。
 - 重新编译 zh_CN.po → zh_CN.mo（compile_po.py --check 确认字节级同步），不影响任何运行时逻辑。
 
-**🧪 类型检查 / CI 质量门禁修复**
+**🧪 类型检查 / CI 质量检查修复**
 - 修复 CI `mypy src/` 两处报错：`i18n.py` 的 `ctypes.WinDLL` 平台门控（`sys.platform != "win32"` 早返回，双端干净）、`src/recorder_status.py` 三参 `getattr` 改为直接属性访问（消除 `no-any-return` 泄漏）。
 - 修复 CI `pytest` 在 C/POSIX locale 下 `detect_system_language()` 回退路径未过滤 `("C","POSIX")` 导致断言失败；测试中 4 处 `patch.dict(os.environ)` 改为 `monkeypatch.setenv/delenv`（遵循 AGENTS.md 强制规约，规避 Windows 32767 字符上限溢出）。
 - 修复 `src/config_io.py` 的 `read_config_value()` 在 Python 3.14 下含分隔符键 `write()` 抛 `InvalidWriteError` 的写回崩溃（内存完整序列化成功后才落盘，坏键回滚）。
-- 全仓 black 26.5.1 + `target-version=['py314']` 重排（剥除 PEP 758 `except (A, B):` 括号），本地 dev venv 升级至 3.14.7；四大门禁在 3.14 环境全绿。
+- 全仓 black 26.5.1 + `target-version=['py314']` 重排（剥除 PEP 758 `except (A, B):` 括号），本地 dev venv 升级至 3.14.7；四大检查在 3.14 环境全绿。
 
 **📦 构建 / 依赖 / 平台适配**
 - 版本号 `4.0.8.3` → `4.0.9`（唯一事实源）；`requires-python` 升 `>=3.14`、classifiers 收敛为仅 3.14；新增 `PyYAML>=6.0.3` 依赖（i18n 的 zh_TW.yaml 支持）。
@@ -224,7 +224,7 @@
 
 ### v4.0.8.3 (2026-08-19 ~ 2026-08-22) — 主播名自动更新 / SSL 配置整合 / 四语国际化 / FFmpeg9·Node24 兼容 / 类型安全加固 / start_record 复杂度治理 / 窗口化崩溃加固 / 类型检查缺陷修复
 
-> 本版本在 4.0.8.2 系列修复基础上补齐多项新增能力与底层兼容，并以 mypy / basedpyright / pytest(0 warnings) / black / isort 五工具门禁全绿收口。详细根因与验证见 [CODE_WIKI.md](../../CODE_WIKI.md)。
+> 本版本在 4.0.8.2 系列修复基础上补齐多项新增能力与底层兼容，并以 mypy / basedpyright / pytest(0 warnings) / black / isort 五工具检查全绿收口。详细根因与验证见 [CODE_WIKI.md](../../CODE_WIKI.md)。
 
 **👤 主播名自动更新（新增功能）**
 - `URL_config.ini` 每次解析到最新主播名时，若与配置不同则自动回写配置文件；主播改名时同步重命名以其命名的录制文件夹及内部全部相关文件（TS/FLV/弹幕 SRT/字幕等同前缀产物），保证路径引用完整。
@@ -301,7 +301,7 @@
 
 **🧪 静态检查 / CI 加固**
 - mypy / basedpyright 在 `src/` 与 `main.py` 全面清零（含 spider.py / sync_http.py / web_api.py `_FAILED_LOGINS` 补全 `deque` 类型参数消除 10 处级联告警）；`main.py` 的 `get_startup_info()` 改为返回 `object | None`（`sys.platform == "win32"` 门控保留）以根治 Windows 专属 typeshed 符号跨平台 `TYPE_CHECKING` 别名误报；`gui.py` / `build_exe.py` / `web.py` / `msg_push.py` 同期 basedpyright 0/0/0、mypy 通过。
-- 脚本健壮性：`scripts/check_coverage.py` 修复全局覆盖率 < 50% 时门禁被跳过、临时文件残留、`subprocess.run` 缺 `encoding`（Windows 非 UTF-8 locale 崩溃）；`scripts/smoke_test.py` 修复 Windows GBK 控制台 `UnicodeEncodeError` 崩溃与常量重定义、失败标记改 ASCII、新增 `_safe_print` 容错。
+- 脚本健壮性：`scripts/check_coverage.py` 修复全局覆盖率 < 50% 时检查被跳过、临时文件残留、`subprocess.run` 缺 `encoding`（Windows 非 UTF-8 locale 崩溃）；`scripts/smoke_test.py` 修复 Windows GBK 控制台 `UnicodeEncodeError` 崩溃与常量重定义、失败标记改 ASCII、新增 `_safe_print` 容错。
 - CI `lint` job 运行 Python 由 3.12 升到 3.13（与 `target-version` 最高值对齐，消除 AST 安全校验告警噪声），`black --check .` 格式违规已手工修复。
 - 全量测试约 635 passed / 2 skipped（排除已知沙箱删除保护项）。
 
@@ -400,9 +400,9 @@
 
 > 以下条目由根文档滚动归档迁入（2026-10-18），内容与迁入前逐字一致。
 
-### v4.2.0 (2026-09-12 ~ 2026-09-15) — 代码审查全量修复（~120 项·安全/并发/平台）+ 斗鱼「只出 SRT 无视频」根因定位与 HLS 分片层假绿探针 + 选源加固 + start_record 命令构造/平台分派单一定义点重构 + 仓库元数据同源同步与四语本地化一致性修复 + mypy 门禁扩面（范围下沉 `[tool.mypy].files`）与 6 处类型缺陷修复 + Linux CI 只读用例修复
+### v4.2.0 (2026-09-12 ~ 2026-09-15) — 代码审查全量修复（~120 项·安全/并发/平台）+ 斗鱼「只出 SRT 无视频」根因定位与 HLS 分片层假绿探针 + 选源加固 + start_record 命令构造/平台分派单一定义点重构 + 仓库元数据同源同步与四语本地化一致性修复 + mypy 检查扩面（范围下沉 `[tool.mypy].files`）与 6 处类型缺陷修复 + Linux CI 只读用例修复
 
-> 本版本（v4.2.0，2026-09-12 ~ 09-15）为一次覆盖安全、并发、平台层与门禁的综合性修复与加固周期。核心修复：① 定位并修复斗鱼等平台「仅生成弹幕 SRT、无视频文件」——HLS 播放列表层恒返 200，但边缘节点媒体分片全 404，ffmpeg 零媒体段产出；弹幕链路仅依赖 `room_id` 与视频解耦，故 SRT 照常写出。新增 HLS 分片层探针 `_probe_hls_segment`（把「列表 200」与「可录制」解耦）与三方向选源加固（配置兜底 / 观测增强 / 同源 FLV 候选回退）。② 收敛 `start_record` 五路 ffmpeg 命令构造为单一定义点、平台分派由 53 层 `elif` 改为分发表驱动，行为零差异（黄金快照 + 分派快照逐字节/逐项比对）。③ 完成 `CODE_REVIEW_FIX_1`（F-01~F-25，22 项落地 + 3 项暂缓）与 09-12 代码审查全量修复（约 120 项：SHA256 钉定、原子写、解压炸弹防护、singleflight 并发、斗鱼粘包 / B站看门狗 / Shopee 等平台修复）。④ 仓库元数据（pyproject 排除目录 / .gitignore / .dockerignore / AGENTS.md）同源同步，并修复 en_GB 目录 21 条误填繁体中文，四语目录重校准至 594 条一致。⑤ mypy 门禁范围下沉到 `pyproject.toml [tool.mypy].files` 单一事实源（`src/` → 全量代码含根入口 / `build_exe.py` / `scripts` / `tests`），并修复 6 处此前长期逃逸的类型缺陷——其中 `gui.py` 子进程自然结束后的 UI 收尾路径**必抛 `NameError`**（除该收尾路径外无功能行为改动）；另修复 Linux CI 上「只读配置」用例因原子写 `os.replace` 只校验目录权限而失效的问题。**无破坏性变更**（运行时语义全部保持）。详细根因与验证见 [CODE_WIKI.md](CODE_WIKI.md)。
+> 本版本（v4.2.0，2026-09-12 ~ 09-15）为一次覆盖安全、并发、平台层与检查的综合性修复与加固周期。核心修复：① 定位并修复斗鱼等平台「仅生成弹幕 SRT、无视频文件」——HLS 播放列表层恒返 200，但边缘节点媒体分片全 404，ffmpeg 零媒体段产出；弹幕链路仅依赖 `room_id` 与视频解耦，故 SRT 照常写出。新增 HLS 分片层探针 `_probe_hls_segment`（把「列表 200」与「可录制」解耦）与三方向选源加固（配置兜底 / 观测增强 / 同源 FLV 候选回退）。② 收敛 `start_record` 五路 ffmpeg 命令构造为单一定义点、平台分派由 53 层 `elif` 改为分发表驱动，行为零差异（黄金快照 + 分派快照逐字节/逐项比对）。③ 完成 `CODE_REVIEW_FIX_1`（F-01~F-25，22 项落地 + 3 项暂缓）与 09-12 代码审查全量修复（约 120 项：SHA256 钉定、原子写、解压炸弹防护、singleflight 并发、斗鱼粘包 / B站看门狗 / Shopee 等平台修复）。④ 仓库元数据（pyproject 排除目录 / .gitignore / .dockerignore / AGENTS.md）同源同步，并修复 en_GB 目录 21 条误填繁体中文，四语目录重校准至 594 条一致。⑤ mypy 检查范围下沉到 `pyproject.toml [tool.mypy].files` 单一事实源（`src/` → 全量代码含根入口 / `build_exe.py` / `scripts` / `tests`），并修复 6 处此前长期逃逸的类型缺陷——其中 `gui.py` 子进程自然结束后的 UI 收尾路径**必抛 `NameError`**（除该收尾路径外无功能行为改动）；另修复 Linux CI 上「只读配置」用例因原子写 `os.replace` 只校验目录权限而失效的问题。**无破坏性变更**（运行时语义全部保持）。详细根因与验证见 [CODE_WIKI.md](CODE_WIKI.md)。
 
 **🐛 修复的问题**
 - **斗鱼「只出 SRT、无视频」根因定位 + HLS 分片层假绿探针**：HLS 播放列表层恒返 200，但媒体分片落在另一边缘节点且全 404 → ffmpeg 拉到零媒体段、零字节产出；弹幕链路仅依赖 `room_id` 与视频解耦，SRT 照常写出。新增 `_probe_hls_segment()`（列表层 GET → 跟随 master 变体 → 对**末行分片**发 `Range bytes=0-0` 探测；分片 4xx/5xx 明确拒→不可达的「假绿」，200/206→可达；解析不出分片时**保守放行**），接入 `_validate_stream_url`，把「列表 200」与「可录制」解耦。
@@ -412,16 +412,16 @@
 - **F-13 抖音 signature 保持不编码**：对照上游 `dart_simple_live` 确认其直接字符串拼接、不 `encodeComponent`，与本仓逐字一致；贸然加 `quote()` 会让本端成为全网唯一异类指纹。用 `tests/test_douyin_signature_encoding.py`（4 例）锁定「原样拼接、无百分号编码」契约。
 - **F-12 sync_http SSL 作用域收窄**：`CERT_NONE` 上下文与 opener 由 import 期常驻改为惰性构造；新增 `sync_req(..., ssl_verify=None)` 单次覆盖（透传 urllib 与 requests 两路径）。修正原风险描述——`sync_req` 调用点全部位于 `src/spider.py`，生产链路无任何 `set_ssl_verify(False)`，CERT_NONE 路径在生产不可达。
 - **check_annotations 违规修复**：`tests/test_start_record_command_golden.py` 的 `class _Cap:` 三引号 docstring 改为 `#` 行注释（符合「禁 docstring」约束）；并修一处 `main.py` 只监测不录制分支误写 `main.recording_enabled`（模块级 `main` 是入口函数非模块对象，必抛 `AttributeError`）。
-- **mypy 门禁扩面 + 6 处类型缺陷修复（09-15）**：起于 CI typecheck 的 3 个报错，进而发现门禁只覆盖 `src/`，根目录入口与 `tests/` 从未被检查。修复：`src/platforms/huya.py` 补 `import i18n`（原 `except` 分支调用 `i18n.tr()` 却漏导入，帧解析异常时抛 `NameError` 掩盖真因）；`src/async_http.py` `_get_client` 复用分支改为在临界区内直接保存 `reused` 实例以完成类型收窄；`src/spider.py` liveme `lm_s_sign` 补 `str()`（`sign_data` 为 `dict[str, object]`）；`gui.py` 3 处——补 `from src.logger import child_process_env, logger`、`_has_unsaved_config_edits` 返回 `bool(...)`，以及**子进程自然结束后的 UI 收尾路径必抛 `NameError`**（`_process_ended(session_id)` 的 `session_id` 未定义）：修复未简单删参数（那会丢掉「丢弃旧会话迟到回调」的保护），而是把日志队列结束哨兵由裸 `None` 改为携带会话代号 `(session_id,)`，UI 线程取出后交 `_process_ended` 校验。
+- **mypy 检查扩面 + 6 处类型缺陷修复（09-15）**：起于 CI typecheck 的 3 个报错，进而发现检查只覆盖 `src/`，根目录入口与 `tests/` 从未被检查。修复：`src/platforms/huya.py` 补 `import i18n`（原 `except` 分支调用 `i18n.tr()` 却漏导入，帧解析异常时抛 `NameError` 掩盖真因）；`src/async_http.py` `_get_client` 复用分支改为在临界区内直接保存 `reused` 实例以完成类型收窄；`src/spider.py` liveme `lm_s_sign` 补 `str()`（`sign_data` 为 `dict[str, object]`）；`gui.py` 3 处——补 `from src.logger import child_process_env, logger`、`_has_unsaved_config_edits` 返回 `bool(...)`，以及**子进程自然结束后的 UI 收尾路径必抛 `NameError`**（`_process_ended(session_id)` 的 `session_id` 未定义）：修复未简单删参数（那会丢掉「丢弃旧会话迟到回调」的保护），而是把日志队列结束哨兵由裸 `None` 改为携带会话代号 `(session_id,)`，UI 线程取出后交 `_process_ended` 校验。
 - **Linux CI 只读用例修复（09-15，仅测试与文档改动）**：`test_read_config_value_missing_key_readonly_ok` 原用 `cfg.chmod(0o444)` 制造「不可写」，但 `read_config_value` 的写回已改为 `_atomic_write_text`（同目录临时文件 + `os.replace`）——`os.replace` 只校验目标**所在目录**的写权限、与目标文件权限位无关（root 还会整体绕过权限位），故 Linux 上写回照样成功；而 Windows 的目标文件只读属性会让 `replace` 直接失败，于是「本地 Windows 过、Linux CI 挂」。改为 `monkeypatch.setattr(config_io.os, "replace", _deny_replace)` 仅对目标配置路径抛 `PermissionError`、其余调用透传，跨平台稳定复现「写回被拒 → 记 warning + 返回默认值 + 原文件不被写入」降级分支；`AGENTS.md` 同步新增「只读用例不得只靠 `chmod`」约定，并区分 `config_io`（原子写）与 `utils.update_config`（直写）两种写回路径的用例写法。
 
 **✨ 新增功能 / 改进**
 - **start_record 命令构造与平台分派单一定义点（F-01）**：五路内联 `command=[]` 收敛为模块级 `_build_ffmpeg_output_args` / `_build_ffmpeg_input_args` / `_build_record_output_path` / `_ffmpeg_network_tuning`，容器映射全查 `SEGMENT_FORMAT_BY_SUFFIX`（零裸字面量）；`_resolve_platform_stream` 的 53 层 `elif` 改为 `_PLATFORM_RESOLVERS` 分发表（52 个平台各抽 `_resolve_<host>()`，共享 `_PlatformResolveContext`），新平台接入 = 追加一个处理函数 + 一条表项。附带修正两处行为漂移（TS 非分段无条件转 MP4、准备提示打印非分段文件名）。
 - **JS 签名脚本哈希钉定（F-25）**：`get_compiled_js` 读原始字节比对 `_JS_SHA256_EXPECTED` 基线，默认告警不阻断、`DLR_JS_STRICT_HASH=1` 拒绝执行，收敛签名脚本被篡改的运行期面。
 - **F-14 protobuf 兼容护栏**：本环境无 protoc，不重新生成 `douyin_pb2.py`（生成物 DO NOT EDIT）；改为 CI 前置 `tests/test_proto_runtime_compat.py` 断言「声明区间含上限 / runtime 满足区间 / runtime 不早于 gencode / 可 import 且 PushFrame 往返正常」，升到 8.x 立即变红提示先用同代 protoc 重新生成。
-- **mypy 门禁范围下沉为单一事实源（09-15）**：`pyproject.toml [tool.mypy].files` 固化为 `src` + 根入口（main / gui / web / i18n / msg_push）+ `build_exe.py` + `scripts` + `tests`；`ci.yml` typecheck 由 `mypy src/` 改为**无参数 `mypy`**，本地与 CI 跑同一条命令（显式传参会覆盖 `files`，只能排障收窄用，门禁结论以无参跑法为准）。同步补齐 `tests/` 15 处已漂移注解（含 `test_start_record_command_golden.py` 12 处缺注解、generator fixture 返回类型 `Iterator`→`Generator`、type ignore 需同时压制 mypy `assignment` 与 basedpyright `method-assign` 两种码）。
+- **mypy 检查范围下沉为单一事实源（09-15）**：`pyproject.toml [tool.mypy].files` 固化为 `src` + 根入口（main / gui / web / i18n / msg_push）+ `build_exe.py` + `scripts` + `tests`；`ci.yml` typecheck 由 `mypy src/` 改为**无参数 `mypy`**，本地与 CI 跑同一条命令（显式传参会覆盖 `files`，只能排障收窄用，检查结论以无参跑法为准）。同步补齐 `tests/` 15 处已漂移注解（含 `test_start_record_command_golden.py` 12 处缺注解、generator fixture 返回类型 `Iterator`→`Generator`、type ignore 需同时压制 mypy `assignment` 与 basedpyright `method-assign` 两种码）。
 
-**🛠️ 仓库维护与质量门禁**
+**🛠️ 仓库维护与质量检查**
 - **pyproject 排除目录同源补全**：`logs`/`backup_config` 原先只进部分工具——现已补齐到 black `.exclude`、isort `extend_skip`、mypy `exclude`、basedpyright `exclude`、coverage `omit`，五处统一「运行期产物目录（与 .gitignore/.dockerignore 同源维护）」注释。`.coveragerc-concurrency` 的 omit 一并对齐。
 - **.gitignore / .dockerignore 通配化**：移除已不存在的 `PERF_REVIEW_2026-08-28.md` 等逐文件名条目，改为 `PERF_REVIEW_*.md`/`CODE_REVIEW_*.md`/`DIAGNOSIS_*.md` 三组通配；.dockerignore 新增 `*.jsonl`。AGENTS.md 补 `.gitignore`/`.dockerignore` 两个条目与 `logs/`/`downloads/`/`backup_config/` 运行期目录、根文档 `CODE_REVIEW_FIX_1.md`。
 - **四语本地化一致性修复**：修复 `i18n/en_GB.json` 21 条值误填繁体中文（弹幕解析异常 7 条 + ffmpeg/Node 安装 SHA256 提示 14 条），按「en_GB 与 en_US 差异仅限拼写」回填英式英语；复核 `zh_CN(.mo)`/`en_US`/`en_GB`/`zh_TW` 四目录均 **594 条**键集两两零差异，en_US/en_GB 无中文残留、zh_TW 无未译；`zh_CN.mo` 重编译（595 条），`scripts/compile_po.py --check` 字节级同步通过。
@@ -430,7 +430,7 @@
 **🧪 测试与验证**
 - 全量 `pytest` **974 passed / 2 skipped / 0 failed**（909→929→944→974 递增）；前端 `node --test tests/frontend/*.mjs` 6 passed；`tests/test_stream_select.py` 新增 15 例（分片探针 + 加固）、`tests/test_platform_dispatch.py` 16 例、`test_douyin_signature_encoding.py` 4 例、黄金快照 `test_start_record_command_golden.py` 20 例。
 - `black --check --line-length 120 --target-version py314 .` 134 文件全绿；`isort --check-only` 全绿；`scripts/check_annotations.py` 0 违规（平均密度 22.1%）；`scripts/compile_po.py --check` 同步；`scripts/extract_i18n_strings.py` 运行时缺失 0 条；`scripts/check_version.py` PASS；mypy/basedpyright 改动文件 0 error。
-- 09-15 门禁扩面后：无参数 `mypy` **115 files 0 问题**（覆盖 src + 根入口 + `build_exe.py` + `scripts` + `tests`）；`pytest -q` 仍为 **974 passed / 2 skipped**；`pytest tests/test_config_io_readonly.py` 15 passed（CI 976 collected 一致）；Linux CI 由 1 failed / 975 passed 恢复全绿。
+- 09-15 检查扩面后：无参数 `mypy` **115 files 0 问题**（覆盖 src + 根入口 + `build_exe.py` + `scripts` + `tests`）；`pytest -q` 仍为 **974 passed / 2 skipped**；`pytest tests/test_config_io_readonly.py` 15 passed（CI 976 collected 一致）；Linux CI 由 1 failed / 975 passed 恢复全绿。
 
 ### v4.1.0 (2026-09-10 ~ 2026-09-11) — P0 修复 ffmpeg `-reconnect*` 缺值与 HLS 无限重连（直播只出字幕无视频）/ 代码审查 28 项修复 / 遗留 8+4 项推进 / i18n 形参日志 242 处全量迁移 / Web 面板窄视口修复 / 四语本地化补全
 
@@ -439,7 +439,7 @@
 **🐛 修复的问题**
 - **P0 ffmpeg `-reconnect*` 缺值 → 录制启动即 -22（EINVAL）**：09-10 审查重构把 `-reconnect_delay_max 60 / -reconnect_streamed / -reconnect_at_eof` 从 `-i` 之后移至之前时，后两个选项的布尔值 `1` 丢失，ffmpeg 把下一个选项名当作取值（`Unable to parse ... as boolean`）、输入未打开即退出；`-reconnect_delay_max 60` 因带值幸免。已在 `main.py` 补回取值，并同步修正 `_FFMPEG_ERRNO_HINTS[-22]` 文案（容器错配之外新增「输入选项解析失败」成因）。
 - **P0 HLS(m3u8) 输入禁用 `-reconnect_at_eof` → 直播只出字幕无视频**：m3u8 播放列表文件本身的 HTTP 响应结束即 EOF，该选项令 http 层在列表下载完处无限重连（实测特征：连续 `Will reconnect at <size> in N second(s), error=End of file`，1/3/7/15/31s 指数退避、无次数上限），hls demuxer 永远停在「待列表」阶段、一个媒体段都拉不到——ffmpeg 常驻不退出、视频零字节（`-loglevel error` 下无任何报错）。**受影响的正是抖音/斗鱼等 HLS 优先选源的房间**（虎牙走 FLV-first 不受影响）。修复：m3u8 输入在命令构造处移除该参数对（`main.py` 与 `scripts/douyin_live_recorder_standalone.py` 三处定义点同步），FLV 输入保留（CDN 掐断长连接时在 EOF 处重连续写同一文件）。对照实验：同命令加 `-t 10` 限时 60s 仍不退出且零字节产物；去掉该选项后 10s 录制 9MB 正常退出。
-- **代码审查 28 项修复（2026-09-10）**：ffmpeg 命令 `-reconnect*` 确立「位于 `-i` 之前且每个选项紧跟取值」；录制信号量先于 `Popen` 获取、启动段纳入 `try/finally` 防槽位泄漏；`process.wait(timeout=30)` 超时补 `kill()` 兜底；弹幕 SRT 文本注入转义（`_sanitize_srt_text`：`\n`→空格、`-->`→`->`，杜绝伪造时间轴）；弹幕采集器 `stop()/_run()` 握手顺序与 `_shutdown` 限时（防线程与 SRT 句柄双泄漏）；敏感配置掩码（`web_config.py` 键名正则 + `web/app.js` 密码框 + `utils.mask_credentials`）；探针末位候选放行语义对齐；`data={}` 空字典视为有效请求体；`src/ttwid.py` 非阻塞失败改串行重取；覆盖率门禁「模块查不到」改判失败等。
+- **代码审查 28 项修复（2026-09-10）**：ffmpeg 命令 `-reconnect*` 确立「位于 `-i` 之前且每个选项紧跟取值」；录制信号量先于 `Popen` 获取、启动段纳入 `try/finally` 防槽位泄漏；`process.wait(timeout=30)` 超时补 `kill()` 兜底；弹幕 SRT 文本注入转义（`_sanitize_srt_text`：`\n`→空格、`-->`→`->`，杜绝伪造时间轴）；弹幕采集器 `stop()/_run()` 握手顺序与 `_shutdown` 限时（防线程与 SRT 句柄双泄漏）；敏感配置掩码（`web_config.py` 键名正则 + `web/app.js` 密码框 + `utils.mask_credentials`）；探针末位候选放行语义对齐；`data={}` 空字典视为有效请求体；`src/ttwid.py` 非阻塞失败改串行重取；覆盖率检查「模块查不到」改判失败等。
 - **Web 面板直播间列表窄视口错位**：`table-layout: fixed` + 地址/名称列单行省略（悬停可见全 URL）+ ≤768px 横向滚动兜底，消除窄窗/高 DPI 下表头竖排、按钮溢出卡片、长 URL 折行三种错位。
 
 **✨ 新增功能**
@@ -447,7 +447,7 @@
 - **Web API 鉴权加固**：中间件统一注入 `X-Content-Type-Options: nosniff` / `X-Frame-Options: DENY`；新增公开端点 `GET /api/auth/status` 暴露认证开关与警告文案。
 - **hls.js 钉版 1.7.2**：`index.html` 的 `hls.js@latest` 钉到具体版本（jsdelivr CDN 供应链风险收敛，与 flv.js 钉版惯例对齐）。
 
-**🛠️ 仓库维护与质量门禁**
+**🛠️ 仓库维护与质量检查**
 - **遗留 8+4 项推进**：8 项决策类全部实施——hls.js 钉版、`http_config` TLS 校验拆「拉流专用 / 控制面通用」两路径、纯音频平台扩展名/容器/编码三方对齐（`.m4a`+aac+ipod / `.ts`+aac+mpegts）、notify 脚本 300s 超时 `kill` 兜底、Web 鉴权模型文档化、删除 `gui_legacy.py`、弹幕 SRT 落盘移出事件循环（`queue.SimpleQueue` + 独立写盘线程）、i18n `tr()` 接口；4 项真机验证类保守实施并补桩测试（`spider._safe_loads`JSON 安全解析 + URL scheme 白名单、`ws_client` 心跳超时兜底、`proxy` IPv6 字面量、`video_postprocess` 超时分类型告警）。
 - **元数据同源同步**：`uv.lock` 项目版本对齐 4.1.0（73 包依赖图未动）、`DouyinLiveRecorder.egg-info` 重新生成、`AGENTS.md` / `docker-compose.yaml` 等八文件版本与依赖核对无漂移、`scripts/check_version.py` PASS。
 - **四语本地化补全**：经 `extract_i18n_strings.py` 补入修复期新增串，四目录键集合完全一致（各 544 条），`zh_CN.mo` 重编译（545 条含头部空 msgid，`--check` 字节级同步通过）。

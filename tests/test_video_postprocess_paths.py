@@ -23,7 +23,7 @@
 #   · get_startup_info 的「os.name == nt 但 sys.platform 不是 win32」组合——这是
 #     交叉测试/异常环境里会走到的分支，不得尝试构造 Windows 专属对象。
 # Mock 口径：ffmpeg 由 _run_ffmpeg_checked 替身模拟；体积读取与 os.remove 都经
-# types.SimpleNamespace(**vars(mod)) 浅拷贝注入，不改 stdlib 模块本体（R1 门禁）。
+# types.SimpleNamespace(**vars(mod)) 浅拷贝注入，不改 stdlib 模块本体（R1 检查）。
 
 
 import datetime
@@ -99,7 +99,7 @@ def _recorder(sink: list[list[str]]) -> Any:
 
 
 def _os_shim(**overrides: Any) -> types.SimpleNamespace:
-    # 浅拷贝 os / os.path 再覆盖指定符号：避开「经模块命名空间改写 stdlib 本体」（R1 门禁）。
+    # 浅拷贝 os / os.path 再覆盖指定符号：避开「经模块命名空间改写 stdlib 本体」（R1 检查）。
     shim = types.SimpleNamespace(**vars(os))
     path_shim = types.SimpleNamespace(**vars(os.path))
     for name, value in overrides.items():
@@ -145,7 +145,7 @@ class TestStartupInfo:
         assert info is not None
         # 返回型是 object | None（跨平台），此处按 Windows 实际型取 dwFlags。STARTUPINFO 与
         # STARTF_USESHOWWINDOW 只存在于 Windows typeshed，裸引用会让 `mypy --platform linux`
-        # 这一路门禁红在 Linux 侧（AGENTS「平台符号双跑」），故常量取 getattr + 1（真实值）、
+        # 这一路检查红在 Linux 侧（AGENTS「平台符号双跑」），故常量取 getattr + 1（真实值）、
         # cast 也不以 STARTUPINFO 为目标；用例本身已由 skipif 保证只在 win32 运行。
         assert cast(Any, info).dwFlags & getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
 
@@ -340,7 +340,7 @@ class TestDiscardPartialOutput:
         warnings: list[str] = []
         monkeypatch.setattr(vp.logger, "warning", lambda msg, *a, **k: warnings.append(str(msg)))
         # 浅拷贝 shim 替换 vp 命名空间里的 os 引用：直接 setattr(vp.os, "remove", ...)
-        # 会改写全进程唯一的 os 模块本体（R1 门禁）。
+        # 会改写全进程唯一的 os 模块本体（R1 检查）。
         shim = types.SimpleNamespace(**vars(os))
         shim.remove = lambda *_a, **_k: (_ for _ in ()).throw(OSError("locked"))
         monkeypatch.setattr(vp, "os", shim)

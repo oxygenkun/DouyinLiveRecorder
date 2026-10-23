@@ -1,7 +1,7 @@
 # UI 现代化改造 — 工作进度追踪（Work Log）
 
 > 配套文档：`PROPOSAL_2026-09-29_ui-modernization.md`（设计 / 框架选型 / 兼容性契约 / 分步迁移计划）。
-> 本文件只记录**已完成与未完成**的进度事实，不重复设计理由。状态更新日期：2026-09-29（晚，阶段2 运行期门禁已全绿）。
+> 本文件只记录**已完成与未完成**的进度事实，不重复设计理由。状态更新日期：2026-09-29（晚，阶段2 运行期检查已全绿）。
 > 环境状态：用户已恢复 `.venv`（Python 3.14.7），阶段2 运行期验证已实跑（详见 §1.3）。
 
 ## 0. 总览状态表
@@ -41,18 +41,18 @@
 - `src/web_models.py`（新增）：9 个纯标准库 dataclass（LoginRequest / RoomCreate / RoomUpdate / RoomToggle / RoomQualityUpdate / QualityOptionsUpdate / RecordingToggle / ConfigUpdate / LanguageUpdate），以 `.parse(data)` classmethod 替代 pydantic `BaseModel`；缺字段/类型错→ValueError；bool 仅接受 Python bool；多余字段忽略。
 - 依赖清单：`requirements.txt` / `pyproject.toml` 同步删除 `fastapi>=0.140.0` 与 `pydantic>=2.13.4`；保留 `starlette>=1.3.1` / `uvicorn` / `python-multipart`；包名集合相等性经 `tests/test_regression_2026_09_22_gates.py` 实测通过；`uv.lock` / `DouyinLiveRecorder.egg-info` 经 `python scripts/sync_metadata.py` 重建（requires.txt 已无 fastapi/pydantic）。
 - 测试文件 `TestClient` import 切到 `starlette.testclient`：`tests/test_web_api.py`、`tests/test_web_config_locks.py`、`tests/test_danmaku_monitor.py`、`tests/test_regression_2026_09_22_web_g.py`（共 5 处）。
-- 新增 `tests/test_web_api_routes.py`：动态遍历 `app.routes`，断言 24 条路由（method/path 精确集合）+ `/web` 挂载点，取代被敏感门禁拦截的静态 `web_api_routes_baseline.json`（已删除）。
+- 新增 `tests/test_web_api_routes.py`：动态遍历 `app.routes`，断言 24 条路由（method/path 精确集合）+ `/web` 挂载点，取代被敏感检查拦截的静态 `web_api_routes_baseline.json`（已删除）。
 
-### 1.3 阶段2 — 运行期门禁实测（2026-09-29 晚，venv 恢复后全绿）
+### 1.3 阶段2 — 运行期检查实测（2026-09-29 晚，venv 恢复后全绿）
 
-**门禁读数**
+**检查读数**
 
-| 门禁 | 结果 |
+| 检查 | 结果 |
 | --- | --- |
 | `python scripts/run_gates.py` | **8/8 全绿**（black / isort / mypy / 注释规范 / compile_po / check_version / check_runtime_pins / pytest 兜底） |
 | `pytest`（全量） | **3248 passed, 14 skipped, 0 failed，warnings summary 为空** |
 | `pytest --cov=src` + `scripts/check_coverage.py` | 总覆盖 **83.98%**，43 模块全部达标 |
-| `basedpyright`（本地补充门禁） | **0 errors / 0 warnings / 0 notes** |
+| `basedpyright`（本地补充检查） | **0 errors / 0 warnings / 0 notes** |
 | `pytest tests/test_web_api.py tests/test_web_api_routes.py -q`（§2.1 指定） | 165 passed, 2 skipped, 0 warnings |
 | `node --test tests/frontend/*.mjs` | 65/65 全绿（含修正后的 MID-2241 源码级断言） |
 
@@ -60,13 +60,13 @@
 
 1. **P0：`@app.middleware("http")` 导入即崩** —— Starlette 无该装饰器方法，Web 面板整体不可用。修复：`add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)`，语义与 FastAPI 装饰器底层实现一致。
 2. **契约漂移：HTTPException 回纯文本** —— Starlette 内建 handler 把端点内 raise 的 HTTPException 回成 PlainTextResponse(detail)，`{"detail": ...}` JSON 结构丢失，批量安全不变量用例转红（TestAuthKeyReauth / TestOutboundTargetKeysValidated / TestInsecureBindInvariant 等）。修复：注册 FastAPI 同款 JSON handler（`headers` 透传保留 Retry-After 等用法）。
-3. **门禁对象更新**：`scripts/check_version.py` 的 web_api 版本检查对象从 `FastAPI(version=)` 换成 importlib.metadata 动态读取形态（MIN-2262 fail-closed 语义保留；DYNAMIC / 写死字面量 / 对象消失三分支变异验证通过）。
+3. **检查对象更新**：`scripts/check_version.py` 的 web_api 版本检查对象从 `FastAPI(version=)` 换成 importlib.metadata 动态读取形态（MIN-2262 fail-closed 语义保留；DYNAMIC / 写死字面量 / 对象消失三分支变异验证通过）。
 4. **测试锚点随迁移同步**：`tests/frontend/test_regression_2026_09_22_gates.mjs` MID-2241 的 `reauth_password` 字段扫描迁到 `src/web_models.py`、端点截取锚点迁到 `@_route(app, ["GET"], "/api/language")`；`test_web_api.py` 的 `/health` version 断言从 `app.version`（FastAPI 元数据，Starlette 无）改为同源 `wa._APP_VERSION`。
 5. **格式与注解收尾**：black/isort 对迁移期改动的 2 个文件重排（行尾形态逐文件核查未变）；`test_web_api_routes.py` fixture 补注解；`src/web_models.py` 补 9 条模型语义注释（密度 10.2%→达标，内容均经端点源码核实）。
 
 **残留事实（非阻塞）**
 
-- 本机 venv 仍装有 fastapi/pydantic（`pip install -r requirements.txt` 不卸载已删包）；代码与测试零引用，门禁不受影响。打包体积复测前建议用户在普通终端 `pip uninstall fastapi pydantic`。
+- 本机 venv 仍装有 fastapi/pydantic（`pip install -r requirements.txt` 不卸载已删包）；代码与测试零引用，检查不受影响。打包体积复测前建议用户在普通终端 `pip uninstall fastapi pydantic`。
 
 ---
 
@@ -152,7 +152,7 @@
 ### 2.2 阶段0 — 基线取证（未实测）
 
 - 改造前 API P50/P95、首屏资源字节数、GUI 建窗与表格刷新耗时、打包体积基线未系统实测。
-- 路由黄金快照曾以 `tests/web_api_routes_baseline.json` 形式落地，但被敏感内容门禁拦截，已在阶段2 改为 `tests/test_web_api_routes.py` 动态断言（drift-proof，不撞门禁）。
+- 路由黄金快照曾以 `tests/web_api_routes_baseline.json` 形式落地，但被敏感内容检查拦截，已在阶段2 改为 `tests/test_web_api_routes.py` 动态断言（drift-proof，不撞检查）。
 - 建议：环境恢复后，阶段5 收尾时用 `scripts/report_bundle_size.py` 补一次改造后体积读数，与历史体积注对账。
 
 ### 2.3 阶段3 — GUI 主题层（✅ 已完成，见 §1.4）
@@ -183,9 +183,9 @@
 
 ## 3. 阻塞点与环境前提（当前）
 
-已解除：用户已恢复 `.venv`（Python 3.14.7 + 全量依赖），阶段2 运行期门禁实跑全绿。Node v22.22.2 / Tk 9.0 可用。
+已解除：用户已恢复 `.venv`（Python 3.14.7 + 全量依赖），阶段2 运行期检查实跑全绿。Node v22.22.2 / Tk 9.0 可用。
 
-**残留注意**：venv 内 fastapi/pydantic 仍残留（已从清单删除但未卸载），代码零引用、门禁不受影响；打包复测前建议卸载。
+**残留注意**：venv 内 fastapi/pydantic 仍残留（已从清单删除但未卸载），代码零引用、检查不受影响；打包复测前建议卸载。
 
 ---
 

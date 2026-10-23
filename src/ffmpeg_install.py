@@ -497,7 +497,7 @@ def _master_source_allowed() -> bool:
 
 
 def install_ffmpeg_windows() -> bool:
-    # Windows 安装入口：按「架构 × FFMPEG_MASTER_ALLOWED 开关」分流（门禁理由见 _FFMPEG_MASTER_ENV）。
+    # Windows 安装入口：按「架构 × FFMPEG_MASTER_ALLOWED 开关」分流（检查理由见 _FFMPEG_MASTER_ENV）。
     # x86_64 只走 gyan.dev 官方源（带官方 SHA256 校验），失败时**仅当**开关取真才回落 BtbN master（仅
     # TOFU）；ARM64 因 gyan.dev 只发 x86_64（可经 x64 模拟），原生 arm64 只能来自 master，故未开启时用
     # 官方 x86_64 模拟、开启后先试原生 arm64 再退官方 x86_64 保底。失败不抛异常，由调用方决定后续提示。
@@ -541,7 +541,7 @@ def install_ffmpeg_windows() -> bool:
             return True
         # x86_64 官方源失败的兜底：BtbN master 构建（来自 ffmpeg-windows-builds 官方发布通道；
         # latest 别名不公布 .sha256，故仅 TOFU，完整性弱于官方 SHA256），受上面的 master_allowed
-        # 门禁、未开启时走不到这一行。它是「gyan.dev 慢/被阻」时的可用性兜底。
+        # 检查、未开启时走不到这一行。它是「gyan.dev 慢/被阻」时的可用性兜底。
         if master_allowed:
             logger.warning("Official gyan.dev source failed; trying BtbN master build fallback (TOFU, unverified) ...")
             if download_ffmpeg_master(execute_dir, arch="win64"):

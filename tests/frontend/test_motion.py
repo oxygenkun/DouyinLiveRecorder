@@ -6,7 +6,7 @@
 #
 # 为什么需要包装：`node --test <文件>` 只跑被点名的文件、不会发现同级其他 .mjs，而 CI 按
 # node-id 点名前端入口；没有这条包装，动效回归锁在 pytest 全量与 CI 里都不会执行。包进
-# pytest 与 ci.yml 的 node 清单两条回路，缺一条就会退回「游离门禁」。
+# pytest 与 ci.yml 的 node 清单两条回路，缺一条就会退回「游离检查」。
 #
 # 子进程驱动复用 tests/test_frontend_quality_ui.py 的 _run_node / _parse_node_summary
 # （MID-64 的管道挂死与 GBK 解码坑已在那侧沉淀成硬化代码，不复制第二份）。Node 缺失时

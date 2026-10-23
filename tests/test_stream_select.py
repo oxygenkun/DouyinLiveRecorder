@@ -1700,7 +1700,7 @@ def test_bounded_probe_get_contract_with_fake_client() -> None:
 # 5 处 HLS 探测日志裸传。占位符名一律保持 {url} 不变——改占位符名等于新增
 # 四语 msgid，须由 i18n 侧收口，不在本锁职责内。
 # 结构参照 tests/test_i18n_migration.py::test_gate_predicate_sees_concatenated_fstring：
-# 判据本体抽成函数，全文件扫描与判据自检用例共用，防止门禁自身假绿。
+# 判据本体抽成函数，全文件扫描与判据自检用例共用，防止检查自身假绿。
 # ---------------------------------------------------------------------------
 
 _LOGGER_METHODS = {"debug", "info", "success", "warning", "error", "critical", "exception", "trace", "log"}
@@ -1755,10 +1755,10 @@ def test_stream_select_all_url_logger_kwargs_masked() -> None:
 
 
 def test_mask_gate_predicate_sees_bare_url_kwarg() -> None:
-    # ② 判据自检（防门禁假绿）：把 _bare_url_kwarg_linenos 退回「只扫 logger 顶层
+    # ② 判据自检（防检查假绿）：把 _bare_url_kwarg_linenos 退回「只扫 logger 顶层
     # keywords」会让本用例变红——违规必须真的抓得到
     bare_nested = "logger.debug(\n    i18n.tr(\n        '探测解析异常: {url}',\n        url=playlist_url,\n    )\n)\n"
-    assert _bare_url_kwarg_linenos(bare_nested) == [4], "门禁漏抓：嵌套在 tr() 里的裸传 url= 必须命中"
+    assert _bare_url_kwarg_linenos(bare_nested) == [4], "检查漏抓：嵌套在 tr() 里的裸传 url= 必须命中"
     assert _bare_url_kwarg_linenos("logger.warning(i18n.tr('回退: {url}', url=same_origin))\n") == [1]
     # 反向：已包掩码与常量样例地址不得误报（否则全文件扫描会被文件里既有的合法写法整体打成红）
     masked = "logger.warning(i18n.tr('回退: {url}', url=utils.mask_credentials(same_origin)))\n"
@@ -2022,7 +2022,7 @@ def _is_probe_emit(node: ast.AST) -> TypeGuard[ast.Call]:
 
 def _probe_client_proxy_argument(call: ast.Call) -> ast.expr | None:
     # 取 _probe_client 调用点的 proxy 实参：本模块两处都按**位置**传（第 2 个形参 proxy_addr），
-    # 但关键字传法同样合法，两种都得认——只按 keyword 找会让位置实参悄悄逃过门禁（假绿）。
+    # 但关键字传法同样合法，两种都得认——只按 keyword 找会让位置实参悄悄逃过检查（假绿）。
     for keyword in call.keywords:
         if keyword.arg == "proxy_addr":
             return keyword.value
@@ -2206,7 +2206,7 @@ def test_probe_client_wiring_and_gate_coverage() -> None:
 
 
 def test_proxy_normalization_gate_predicate_sees_unnormalized_construction() -> None:
-    # ③ 判据正/反向自检（防门禁自身假绿）：删掉归一行、归一发生在构造之后都必须被抓到；
+    # ③ 判据正/反向自检（防检查自身假绿）：删掉归一行、归一发生在构造之后都必须被抓到；
     # 内联归一、构造前归一、以及不传 proxy 的直连构造不得误报
     bare = "def f(url, proxy_addr):\n    c = httpx.Client(timeout=5, proxy=proxy_addr, verify=True)\n"
     assert _unnormalized_proxy_constructions(bare) == ([2], 1, 0)

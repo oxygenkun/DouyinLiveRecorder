@@ -1,4 +1,4 @@
-# 运行时二进制 SHA256 钉定表的一致性检查（SEV-10 的门禁侧，CI 可调用）。
+# 运行时二进制 SHA256 钉定表的一致性检查（SEV-10 的检查侧，CI 可调用）。
 #
 # 职责：校验 build_exe.py 里那张「按平台分列的运行时二进制钉定表」的**完整性与形状**，
 #       并在发布路径上要求每一项都已填入官方值。
@@ -8,7 +8,7 @@
 #   从可跳过状态升级为硬失败，因此它是 fail-closed 机器的前半段（后半段是 --require-pinned）。
 #
 # 两种模式（退出码语义不同，务必区分）：
-#   默认（结构模式，进 AGENTS.md「格式化命令」门禁块）
+#   默认（结构模式，进 AGENTS.md「格式化命令」检查块）
 #       —— 只查表的结构：表非空、键覆盖 RELEASE_RUNTIME_KEYS、每键含该平台**实际存在**的全部槽位
 #          （通用槽位 + build_exe._EXTRA_EXECUTABLE_URLS 登记的独立归档件，且反向不许多留）、取值要么是
 #          64 位小写十六进制、要么是明显的占位/可疑值。占位值只告警不判红：「官方哈希还没人工核实」
@@ -28,12 +28,12 @@
 # 任何真实产物，又制造「每个键都被管住了」的错觉。矩阵覆盖检查（第 4 段）才是防漏的那半。
 #
 # 用法：
-#   python scripts/check_runtime_pins.py              # 结构检查（本地门禁 / ci.yml static）
+#   python scripts/check_runtime_pins.py              # 结构检查（本地检查 / ci.yml static）
 #   python scripts/check_runtime_pins.py --strict     # 发布检查（build-release.yml prepare）
 #   python scripts/check_runtime_pins.py --emit-env   # 打印 DLR_RUNTIME_SHA256 的 JSON 值（CI 注入用）
 #
 # 退出码：0 通过；1 --strict 下存在未钉定项（发布被拦）；2 结构缺陷 / 取不到表
-#         （属「门禁本身失效」，与「代码不合格」区分，同 run_gates.py 口径）。
+#         （属「检查本身失效」，与「代码不合格」区分，同 run_gates.py 口径）。
 
 from __future__ import annotations
 
@@ -77,10 +77,10 @@ def _load_build_exe() -> Any:
     return module
 
 
-# 本门禁从 build_exe 取用的全部属性（判定口径一项都不许缺）。
+# 本检查从 build_exe 取用的全部属性（判定口径一项都不许缺）。
 # 为什么要点名清单：这些是 build_exe 的私有符号，改名/删除在 build_exe 侧不会有任何提示，
 # 而本脚本直取属性时以 AttributeError 崩溃栈出场 = rc=1，与文件头「结构缺陷 / 取不到表 → rc=2」
-# 的分级契约冲突（rc=1 会被读成「发布链查出了问题」，而真相是「门禁自己没查」）。
+# 的分级契约冲突（rc=1 会被读成「发布链查出了问题」，而真相是「检查自己没查」）。
 # 清单必须与 check()/emit_env() 的取用点同源；新增取用点同批登记，否则探测形同虚设。
 _REQUIRED_BUILD_EXE_ATTRS: tuple[str, ...] = (
     "_PINNED_RUNTIME_SHA256",
@@ -102,8 +102,8 @@ def _require_build_exe_attrs(module: Any) -> None:
     missing = [name for name in _REQUIRED_BUILD_EXE_ATTRS if not hasattr(module, name)]
     if missing:
         print(
-            f"ERROR: {ROOT / 'build_exe.py'} 缺少发布链门禁依赖的属性 {missing}"
-            "——属「门禁本身失效」，按 rc=2 处理；请先恢复/改名该属性，不要把它读成钉定表有问题",
+            f"ERROR: {ROOT / 'build_exe.py'} 缺少发布链检查依赖的属性 {missing}"
+            "——属「检查本身失效」，按 rc=2 处理；请先恢复/改名该属性，不要把它读成钉定表有问题",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -111,7 +111,7 @@ def _require_build_exe_attrs(module: Any) -> None:
 
 def _runtime_matrix_keys() -> list[str]:
     # 从 build-release.yml 的 matrix.include 里解析出实际参与发布的 runner 标签，
-    # 映射为运行时键。解析失败即报「门禁本身失效」，绝不退化成「无平台可查 → 通过」。
+    # 映射为运行时键。解析失败即报「检查本身失效」，绝不退化成「无平台可查 → 通过」。
     if not _WORKFLOW.exists():
         print(f"ERROR: 找不到 {_WORKFLOW}，无法校验发布矩阵与钉定表的覆盖关系", file=sys.stderr)
         sys.exit(2)
@@ -234,7 +234,7 @@ def check(strict: bool) -> int:
     print(f"发布矩阵运行时键：{', '.join(matrix_keys)}")
 
     if problems:
-        print("\n[FAIL] 钉定表结构缺陷（门禁本身失效，按 rc=2 处理）:", file=sys.stderr)
+        print("\n[FAIL] 钉定表结构缺陷（检查本身失效，按 rc=2 处理）:", file=sys.stderr)
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         return 2
@@ -268,7 +268,7 @@ def check(strict: bool) -> int:
                 file=sys.stderr,
             )
             return 1
-        print("  → 本地门禁放行；build-release.yml 的 prepare job 以 --strict 拦下发布。")
+        print("  → 本地检查放行；build-release.yml 的 prepare job 以 --strict 拦下发布。")
     elif not unpinned_offmatrix:
         print("\n[OK] 全部槽位均已钉定（64 位十六进制）、已按第 4 类给出齐备证据，或已按官方签名档钉定指纹")
     return 0
@@ -279,7 +279,7 @@ def emit_env() -> int:
     # 占位值原样导出：build_exe 侧仍按形状判定为未钉定，因此这条通道不会把
     # 「没填」伪装成「已填」。
     module = _load_build_exe()
-    # 同 check()：--emit-env 是 CI 注入钉定值的通道，属性缺失时也必须 rc=2（门禁自己没跑成），
+    # 同 check()：--emit-env 是 CI 注入钉定值的通道，属性缺失时也必须 rc=2（检查自己没跑成），
     # 而不是 rc=1 崩溃栈——build job 会把「拿不到表」读成「表里有未钉定项」。
     _require_build_exe_attrs(module)
     table = cast("dict[str, dict[str, str]]", module._PINNED_RUNTIME_SHA256)

@@ -1,4 +1,4 @@
-# scripts/check_coverage.py 的回归锁（该门禁此前全库零回归锁，MID-2261）。
+# scripts/check_coverage.py 的回归锁（该检查此前全库零回归锁，MID-2261）。
 #
 # 口径：按「删掉某条 fail-closed 判据必须变红」组织用例，全部离线——只喂构造好的
 # coverage 报告 dict / 临时目录树，不跑 pytest 自身、不调用真实 .coverage。
@@ -8,16 +8,16 @@
 #      登记表腐烂）一律 rc=2 并打印**下一步命令**，绝不退回 WARN 或「全部通过」；
 #   B) MID-2259：判定面 = src/ 下**全部**模块，未登记阈值者按 GLOBAL_FLOOR 判定，
 #      新增 src/*.py 不再自动豁免；
-#   C) 数据文件比 src/、tests/ 最新 .py 陈旧 → rc=2（旧数据评门禁＝假绿）；
+#   C) 数据文件比 src/、tests/ 最新 .py 陈旧 → rc=2（旧数据评检查＝假绿）；
 #   D) 报告键匹配必须整段模块路径（含 src/）落在尾部，只含 tests/utils.py 的报告
 #      不得顶替 src/utils.py；
 #   E) 白名单（GATE_EXEMPT_MODULES）每条必须写理由，且指向真实存在的模块；
-#   F) CLI 出口必须把 0/1/2 三种 rc 原样 sys.exit（改成 `return` 就让门禁在 CI 里
+#   F) CLI 出口必须把 0/1/2 三种 rc 原样 sys.exit（改成 `return` 就让检查在 CI 里
 #      退化成一行装饰性输出）；
 #   G) MID-2259 分层：登记阈值 > 债务基线 > 全局下限；债务条目须有 tracker 出处与复核日期，
 #      豁免理由写「生成物」必须能在文件里找到生成器标记（DEBT_CEILING 是条目数闸门）。
 #
-# **组织口径：一个用例只做一次门禁判定**（机检见 test_each_case_performs_a_single_gate_judgment）。
+# **组织口径：一个用例只做一次检查判定**（机检见 test_each_case_performs_a_single_gate_judgment）。
 # 原因：多次判定共用同一份被 monkeypatch 改过的模块状态，而 setattr 要到用例 teardown 才生效——
 # 第二次判定读到的还是第一次那份数据，于是「先写新数据、后还原旧数据」这类追加写法一进来就
 # 产出成串假失败（单跑全绿、换个顺序就红）。确需两次判定的那一条用 ExitStack 把还原
@@ -43,7 +43,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# 门禁判定入口：本文件「一次判定一个用例」的机检按这份名单数调用次数。
+# 检查判定入口：本文件「一次判定一个用例」的机检按这份名单数调用次数。
 _JUDGMENTS = frozenset({"evaluate_report", "check_coverage", "main"})
 
 
@@ -62,7 +62,7 @@ def _read_this_file() -> str:
 
 check_coverage: Any = (
     _load_check_coverage()
-)  # 动态加载的门禁脚本：属性由 mypy 视角不可见，按 Any 处理（与 tests/test_run_gates.py 同法）
+)  # 动态加载的检查脚本：属性由 mypy 视角不可见，按 Any 处理（与 tests/test_run_gates.py 同法）
 
 # 登记表 + 白名单的全部模块：构造临时 root 时以它为「已登记面」，用例再各自追加新模块。
 _REGISTERED = tuple(check_coverage.MODULE_THRESHOLDS) + tuple(check_coverage.GATE_EXEMPT_MODULES)
@@ -75,7 +75,7 @@ def _make_root(tmp_path: Path, extra_modules: tuple[str, ...] = ()) -> Path:
     for module in _REGISTERED + tuple(extra_modules):
         path = tmp_path / module
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("# 占位模块（仅供门禁枚举，不执行）\n", encoding="utf-8")
+        path.write_text("# 占位模块（仅供检查枚举，不执行）\n", encoding="utf-8")
     return tmp_path
 
 
@@ -100,7 +100,7 @@ def _full_pass_report() -> dict[str, Any]:
 
 def test_registered_threshold_table_is_nonempty_and_points_at_real_modules() -> None:
     # 表为空 → evaluate_report 只会按下限评全部模块，登记语义静默消失；
-    # 键指向不存在的模块 → 门禁配置腐烂（模块改名后表没跟着改）。
+    # 键指向不存在的模块 → 检查配置腐烂（模块改名后表没跟着改）。
     assert check_coverage.MODULE_THRESHOLDS, "MODULE_THRESHOLDS 不得为空（AGENTS.md 认定它是阈值唯一事实源）"
     for module, threshold in check_coverage.MODULE_THRESHOLDS.items():
         assert (ROOT / module).is_file(), f"登记表阈值指向不存在的模块: {module}"
@@ -109,7 +109,7 @@ def test_registered_threshold_table_is_nonempty_and_points_at_real_modules() -> 
 
 def test_exempt_whitelist_entries_are_justified_and_real() -> None:
     # 白名单是 MID-2259 之后的「第三条路」，条目必须写明理由且指向真实模块，
-    # 否则它会重新变成「自动豁免」的旁门（正是本门禁要消灭的形态）。
+    # 否则它会重新变成「自动豁免」的旁门（正是本检查要消灭的形态）。
     assert isinstance(check_coverage.GATE_EXEMPT_MODULES, dict)
     for module, reason in check_coverage.GATE_EXEMPT_MODULES.items():
         assert (ROOT / module).is_file(), f"豁免名单指向不存在的模块: {module}"
@@ -153,12 +153,12 @@ def test_each_case_performs_a_single_gate_judgment() -> None:
         )
         if hits > 1 and not allowed:
             offenders[node.name] = hits
-    assert not offenders, f"以下用例在一次里做了多次门禁判定（判定之间未还原），会产生顺序假失败：{offenders}"
+    assert not offenders, f"以下用例在一次里做了多次检查判定（判定之间未还原），会产生顺序假失败：{offenders}"
 
 
 def test_subprocess_probes_compare_bytes_not_decoded_text() -> None:
     # AGENTS.md「探测子进程输出一律按字节比较」+「这类用例必须能单文件独立运行」：
-    # 本仓门禁口径要求 PYTHONUTF8=1，而子进程在中文 Windows 上按码页发本地化消息，
+    # 本仓检查口径要求 PYTHONUTF8=1，而子进程在中文 Windows 上按码页发本地化消息，
     # text=True/encoding= 会让解码进入判定路径（reader 线程抛 UnicodeDecodeError → stdout=None）。
     offenders: list[int] = []
     for node in ast.walk(ast.parse(_read_this_file())):
@@ -228,7 +228,7 @@ def test_exempt_module_does_not_block_the_gate(tmp_path: Path) -> None:
 def test_empty_files_report_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as excinfo:
         check_coverage.evaluate_report({"files": {}})
-    assert excinfo.value.code == 2, "files 为空必须按「门禁没跑」处理，不得继续判定"
+    assert excinfo.value.code == 2, "files 为空必须按「检查没跑」处理，不得继续判定"
     err = capsys.readouterr().err
     assert "--cov=src" in err, f"rc=2 必须打印下一步命令: {err}"
 
@@ -244,13 +244,13 @@ def test_root_without_src_dir_exits_2(tmp_path: Path) -> None:
     # 判定面为空（root 解析错位、src/ 被误删）→ 旧形态会打印「PASSED: All 0 module(s)」。
     with pytest.raises(SystemExit) as excinfo:
         check_coverage.evaluate_report(_report({"src/spider.py": 100.0}), tmp_path)
-    assert excinfo.value.code == 2, "枚举不到任何模块却继续判定 = 空门禁自证通过"
+    assert excinfo.value.code == 2, "枚举不到任何模块却继续判定 = 空检查自证通过"
 
 
 def test_stale_table_entry_exits_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # 登记表指向不存在的模块（改名后的残留）→ 门禁配置腐烂，按 rc=2 而不是 rc=1：
+    # 登记表指向不存在的模块（改名后的残留）→ 检查配置腐烂，按 rc=2 而不是 rc=1：
     # 让人去改表，而不是误以为「补测试就能变绿」。
     root = _make_root(tmp_path)
     broken = dict(check_coverage.MODULE_THRESHOLDS)
@@ -292,14 +292,14 @@ def test_unparseable_report_exits_2(
     def fake_run(*args: Any, **kwargs: Any) -> Any:
         return subprocess.CompletedProcess(args=list(args), returncode=1, stdout="", stderr="no data")
 
-    # 只换**门禁模块自己的** subprocess 全局引用，不动 stdlib 模块本体（patch subprocess
+    # 只换**检查模块自己的** subprocess 全局引用，不动 stdlib 模块本体（patch subprocess
     # 会波及同进程 harness 的守护线程与其它用例，AGENTS.md「patch main 的 subprocess」同族约定）。
     shim = types.SimpleNamespace(**vars(subprocess))
     shim.run = fake_run
     monkeypatch.setattr(check_coverage, "subprocess", cast(types.SimpleNamespace, shim))
     with pytest.raises(SystemExit) as excinfo:
         check_coverage.check_coverage(data_file=str(data), root=root)
-    assert excinfo.value.code == 2, "报告不可解析必须按「门禁没数据」处理，不得继续判定"
+    assert excinfo.value.code == 2, "报告不可解析必须按「检查没数据」处理，不得继续判定"
     assert "--cov=src" in capsys.readouterr().err
 
 
@@ -342,7 +342,7 @@ def test_stale_diagnosis_names_the_newest_source_file(tmp_path: Path) -> None:
     _touch(newer, old + 600.0)
 
     stale = check_coverage._data_is_stale(data, root)
-    assert stale is not None, "数据比源码陈旧却判为新鲜：陈旧门禁静默通过（MID-2261）"
+    assert stale is not None, "数据比源码陈旧却判为新鲜：陈旧检查静默通过（MID-2261）"
     _data_mtime, culprit, _culprit_mtime = stale
     assert culprit == newer, f"陈旧诊断应点名最新的那个文件，实际 {culprit}"
 
@@ -380,7 +380,7 @@ def test_stale_data_file_exits_2(
 
 
 def test_stale_check_covers_tests_dir_not_only_src(tmp_path: Path) -> None:
-    # 只比 src/ 会漏掉「仅改用例后拿旧数据判门禁」这一半形态：
+    # 只比 src/ 会漏掉「仅改用例后拿旧数据判检查」这一半形态：
     # 新增/删除用例同样让 .coverage 的读数失去代表性。
     root = _make_root(tmp_path)
     old = 1_700_000_000.0
@@ -397,7 +397,7 @@ def test_fresh_data_file_is_not_flagged(tmp_path: Path) -> None:
     _freeze_tree(root, old)
     data = root / ".coverage"
     _touch(data, old + 60.0)
-    assert check_coverage._data_is_stale(data, root) is None, "数据比源码更新却被判陈旧：门禁无法在正常流程下变绿"
+    assert check_coverage._data_is_stale(data, root) is None, "数据比源码更新却被判陈旧：检查无法在正常流程下变绿"
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +455,7 @@ def test_real_src_tree_enumeration_is_populated_and_classified() -> None:
 def test_cli_main_exits_with_the_gate_rc(gate_rc: int, monkeypatch: pytest.MonkeyPatch) -> None:
     # 上面几条直调判定函数，这组锁 **CLI 出口**：main() 必须把 rc 原样 sys.exit 出去。
     # 若有人把 `sys.exit(check_coverage(...))` 改成 `return`，脚本会恒以 0 结束——
-    # 门禁在 CI 里就变成一行装饰性输出（MIN-19 想消灭的正是这一族）。
+    # 检查在 CI 里就变成一行装饰性输出（MIN-19 想消灭的正是这一族）。
     # 这里只桩「取数据 + 判定」这一层（真实判定逻辑由上面各条分别锁），每个参数化实例只调一次
     # main()，因此不触发文件头的单次判定口径。
     seen: dict[str, Any] = {}
@@ -468,7 +468,7 @@ def test_cli_main_exits_with_the_gate_rc(gate_rc: int, monkeypatch: pytest.Monke
     monkeypatch.setattr(sys, "argv", ["check_coverage.py", "--data-file", "given/path"])
     with pytest.raises(SystemExit) as excinfo:
         check_coverage.main()
-    assert excinfo.value.code == gate_rc, f"rc={gate_rc} 未原样透出（退出码被改写 = 门禁被旁路）"
+    assert excinfo.value.code == gate_rc, f"rc={gate_rc} 未原样透出（退出码被改写 = 检查被旁路）"
     assert seen["data_file"] == "given/path", "--data-file 必须透传到判定层"
 
 
@@ -476,7 +476,7 @@ def test_cli_entrypoint_propagates_rc2_for_unusable_data(tmp_path: Path) -> None
     # 真实子进程跑一遍脚本，锁「rc=2 真的成了进程退出码」——in-process 那组只能证 sys.exit
     # 被调用，证不了 SystemExit 未被某处 except 吞掉。
     # 输出**按字节**判定（不用 text=True/encoding=）：中文 Windows 下子进程 stderr 是码页
-    # 编码的本地化文本，让解码进入判定路径就会在 UTF-8 门禁下炸 reader 线程。
+    # 编码的本地化文本，让解码进入判定路径就会在 UTF-8 检查下炸 reader 线程。
     proc = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "check_coverage.py"), "--data-file", str(tmp_path / "absent")],
         capture_output=True,
@@ -484,13 +484,13 @@ def test_cli_entrypoint_propagates_rc2_for_unusable_data(tmp_path: Path) -> None
         cwd=ROOT,
         check=False,
     )
-    assert proc.returncode == 2, f"CLI 未透出门禁失效码：rc={proc.returncode}\n{proc.stdout!r}\n{proc.stderr!r}"
+    assert proc.returncode == 2, f"CLI 未透出检查失效码：rc={proc.returncode}\n{proc.stdout!r}\n{proc.stderr!r}"
     assert b"--cov=src" in proc.stderr, proc.stderr
 
 
 # ---------------------------------------------------------------------------
 # G) MID-2259 白名单分层（登记阈值 > 债务基线 > 全局下限；豁免另设机检）
-#    组织口径沿用本文件：一个用例只做一次门禁判定；纯校验器逻辑直接调
+#    组织口径沿用本文件：一个用例只做一次检查判定；纯校验器逻辑直接调
 #    _validate_debt_and_exempt(today=…) 注入固定日期，不依赖真实时钟。
 # ---------------------------------------------------------------------------
 
@@ -530,7 +530,7 @@ def test_debt_entry_shadowing_a_passing_module_fails(tmp_path: Path, monkeypatch
 
 
 def test_debt_key_absent_from_src_exits_2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 表指向不存在的模块属「门禁配置腐烂」，与「不达标」不同类 → rc=2 逼人去改表。
+    # 表指向不存在的模块属「检查配置腐烂」，与「不达标」不同类 → rc=2 逼人去改表。
     root = _make_root(tmp_path, ("src/debt_mod.py",))
     monkeypatch.setattr(check_coverage, "COVERAGE_DEBT", {"src/renamed_away.py": _debt(20.0)})
     with pytest.raises(SystemExit) as exc:
@@ -592,7 +592,7 @@ def test_debt_count_cannot_exceed_ceiling(tmp_path: Path) -> None:
 
 
 def test_exempt_claiming_generated_code_is_machine_checked() -> None:
-    # 理由写「生成物」就得真在文件里找到生成器标记，否则就是拿一句注释把人写模块洗出门禁。
+    # 理由写「生成物」就得真在文件里找到生成器标记，否则就是拿一句注释把人写模块洗出检查。
     # 取真实仓库根 + 一个确定手写、且不含 GENERATED_MARKERS 任一标记的模块（src/proxy.py）：
     # 核对只对 ROOT 生效（tmp 桩树里是占位文件，核对它必然假阳性）。
     saved = check_coverage.GATE_EXEMPT_MODULES

@@ -13,9 +13,9 @@
 | --- | --- | --- | --- | --- |
 | F-1 | AGENTS.md:41-56 ↔ :672 | **直接冲突** | `except (A,B):` 是否被 black 强制去括号，文件给出两个相反事实 | 改 |
 | F-2 | AGENTS.md:662 ↔ :750-761 | **直接冲突** | 异常日志该写 f-string 还是 `i18n.tr()` 模板 | 改 |
-| F-3 | AGENTS.md:443,446-449 ↔ :695 ↔ ci.yml:232-233 | **冲突 + 陈旧** | mypy 门禁跑法三套口径，且 CI 注释已过期 | 改 |
+| F-3 | AGENTS.md:443,446-449 ↔ :695 ↔ ci.yml:232-233 | **冲突 + 陈旧** | mypy 检查跑法三套口径，且 CI 注释已过期 | 改 |
 | F-4 | AGENTS.md:281 ↔ :440-442 ↔ :672 | **三处不一致** | black/isort 命令形态三种，且「line-length 不继承」与自身声明矛盾 | 改 |
-| F-5 | AGENTS.md:281,695 vs ci.yml | **隐形门禁** | basedpyright 声明必过，但无命令、无 CI job | 改 |
+| F-5 | AGENTS.md:281,695 vs ci.yml | **隐形检查** | basedpyright 声明必过，但无命令、无 CI job | 改 |
 | F-6 | AGENTS.md:420-425 ↔ :262-265 | **意外摩擦** | venv 修复「须由用户执行」与「代理可绕代理跑 pip」并存，无中间档 | 改 |
 | F-7 | AGENTS.md 全文 | **空缺** | 没有「完成定义 / 收尾」章节——CODE_WIKI 更新日志、每日日志、真机验证都不在文件里 | 补 |
 | F-8 | AGENTS.md:652 | **空缺** | i18n 四目录规则漏了 `web/app.js` 内嵌目录 | 补 |
@@ -40,7 +40,7 @@
 
 > - **except 多异常写法（PEP 758，2026-09-02 定稿）**: 本仓统一写 `except A, B:`（不带括号），
 >   不写 `except (A, B):`——这不是风格偏好而是 black 26.x 稳定风格的强制要求：`black --check`
->   会把能放进一行的 `except (A, B):` 改写回无括号形式，加了括号反而过不了格式门禁。
+>   会把能放进一行的 `except (A, B):` 改写回无括号形式，加了括号反而过不了格式检查。
 
 **位置 B**：`AGENTS.md:46-56`（自我更正）
 
@@ -51,7 +51,7 @@
 **位置 C**：`AGENTS.md:672`（又回到 A 的旧结论）
 
 > Python 3.14 经 PEP 758 原生支持无括号的多异常捕获，而 black 在 `target-version = ['py314']` 下
-> 会**主动去掉** `except (A, B):` 的括号……② 不要把无括号写法"修回"加括号，否则违反 black 门禁
+> 会**主动去掉** `except (A, B):` 的括号……② 不要把无括号写法"修回"加括号，否则违反 black 检查
 > （black 会再次去括号，且 `black --check` 判违规）。
 
 **冲突性质**：B 已用实测证伪 A/C 的事实前提，但 A/C 未被标记为作废，仍以「硬约束」语气陈述。
@@ -59,7 +59,7 @@
 
 **对行为的影响**
 
-1. 读到 A/C 的代理会把「括号 → 无括号」当成**过门禁的必要动作**，从而批量改写存量代码，产生与功能无关的大 diff（B 明确禁止这种批量改动）。
+1. 读到 A/C 的代理会把「括号 → 无括号」当成**过检查的必要动作**，从而批量改写存量代码，产生与功能无关的大 diff（B 明确禁止这种批量改动）。
 2. 读到 B 的代理会认为括号写法合法 → 与 1 相反的行为。同一仓库两种结果。
 3. 更糟的外溢已发生：`src/spider.py:48-49` 依据 A 的口径写了
    `# 严禁改成 `except (A, B):`，否则会被误判为需要回溯兼容并破坏 3.14 语义。`
@@ -76,9 +76,9 @@
 ```md
 - **except 多异常写法（2026-09-12 定稿）**: 本仓统一写 `except A, B:`（不带括号，PEP 758，
   依赖 Python ≥3.14，与 `requires-python = ">=3.14"` 一致）。
-  - **性质：风格约定，不是格式门禁强制。** 2026-09-12 实测 `black --check` 对
+  - **性质：风格约定，不是格式检查强制。** 2026-09-12 实测 `black --check` 对
     `except (ValueError, TypeError) as e:` 返回 rc=0（unchanged），两种写法均可通过。
-    故**不得**以「过门禁」为由批量增删括号。
+    故**不得**以「过检查」为由批量增删括号。
   - 新增/修改代码写无括号；**存量带括号写法不要为对齐而批量改动**，
     可随相关功能改动顺手统一。
   - **不要**为「兼容 <3.14」而加括号——本仓不支持 3.13 及以下；语法/编译检查一律用项目 venv 的 Python 3.14。
@@ -139,7 +139,7 @@
 
 ---
 
-### F-3 ｜ mypy 门禁跑法：三套口径，且 CI 注释已过期
+### F-3 ｜ mypy 检查跑法：三套口径，且 CI 注释已过期
 
 **位置 A**：`AGENTS.md:443` + `:446-449`
 
@@ -147,7 +147,7 @@
 > mypy
 > ```
 > **`mypy` 不带路径参数**：检查范围由 `pyproject.toml [tool.mypy].files` 定义……
-> 显式传参（如 `mypy src/`）会**覆盖**该配置而只查 src/……**门禁结果以无参数跑法为准**（2026-09-15 定稿）。
+> 显式传参（如 `mypy src/`）会**覆盖**该配置而只查 src/……**检查结果以无参数跑法为准**（2026-09-15 定稿）。
 
 **位置 B**：`AGENTS.md:695`（平台符号门控条目）
 
@@ -161,7 +161,7 @@ C 的注释还停留在旧实践。三者并列时无法判断「平台符号改
 **对行为的影响**
 
 1. 按 B 执行 → 只查 `src/`，根目录入口漏检（正是 A 记录的 gui.py `logger`/`session_id` 逃逸事故）。
-2. 因 B 写死在「平台门控」这种高风险条目里，代理倾向于宁可信其有 → 退化为低覆盖门禁。
+2. 因 B 写死在「平台门控」这种高风险条目里，代理倾向于宁可信其有 → 退化为低覆盖检查。
 3. C 过期注释会把执行清单拉回旧口径。
 
 **建议改法**：保留双跑语义，去掉路径收窄（这样既保持全量范围，又保留 Linux 平台等价性）。
@@ -176,7 +176,7 @@ C 的注释还停留在旧实践。三者并列时无法判断「平台符号改
 `ci.yml:232-233` 注释同步为：
 
 ```yaml
-  # ubuntu runner 默认即为 linux 平台，等价于本地双跑门禁中的 `mypy --platform linux`
+  # ubuntu runner 默认即为 linux 平台，等价于本地双跑检查中的 `mypy --platform linux`
   # （AGENTS.md 平台符号门控约定；两条命令均不带路径参数，范围取 [tool.mypy].files）。
 ```
 
@@ -184,7 +184,7 @@ C 的注释还停留在旧实践。三者并列时无法判断「平台符号改
 
 ### F-4 ｜ black / isort 命令形态三套并存
 
-**位置 A**：`AGENTS.md:281`（tests 门禁）
+**位置 A**：`AGENTS.md:281`（tests 检查）
 
 > `pytest`（0 警告）、`black --check tests/`、`isort --check-only tests/`、`mypy tests/`、`basedpyright tests/`
 
@@ -198,7 +198,7 @@ C 的注释还停留在旧实践。三者并列时无法判断「平台符号改
 
 **位置 C**：`AGENTS.md:672`
 
-> 附带一条：black 的 `line-length` **不会从** `pyproject.toml` **继承到命令行**，门禁必须显式传参——
+> 附带一条：black 的 `line-length` **不会从** `pyproject.toml` **继承到命令行**，检查必须显式传参——
 > `python -m black --check --line-length 120 --target-version py314 <paths>` ……
 
 **冲突性质**：A、B 都直接/间接依赖 pyproject 里的 `[tool.black]`；C 断言它不生效，要求显式传参。
@@ -217,15 +217,15 @@ C 的注释还停留在旧实践。三者并列时无法判断「平台符号改
 > 注：`line-length` 是否真不继承，本次环境无可用 black 可执行文件未能实测（见第 4 节待核实项）。
 > 但**无论该前提真假**，都应当只保留一种命令写法。
 
-**建议改法**：在「格式化命令」章节固化唯一门禁命令块，把 A 改为引用它。
+**建议改法**：在「格式化命令」章节固化唯一检查命令块，把 A 改为引用它。
 
 替换 `AGENTS.md:438-444`：
 
 ````md
-## 格式化命令（门禁唯一基准，与 `ci.yml` 静态检查 job 逐字一致）
+## 格式化命令（检查唯一基准，与 `ci.yml` 静态检查 job 逐字一致）
 
 ```bash
-# 全仓（门禁口径；也可换成任意 <paths> 子集做收窄排障）
+# 全仓（检查口径；也可换成任意 <paths> 子集做收窄排障）
 python -m black --check --diff --line-length 120 --target-version py314 .
 python -m isort --check-only --diff --profile black --line-length 120 .
 mypy                      # 不带路径参数，范围取 pyproject [tool.mypy].files
@@ -239,22 +239,22 @@ python scripts/check_version.py
   CI 固定工具版本且有跨站 patches-filter 分支，显式写全可避免本地配置飘移造成
   「本地过、CI 挂」；**排除目录不需要传**，由 `pyproject [tool.black].exclude` /
   `[tool.isort].extend_skip` 继承。
-- `black .` / `isort .`（不带 `--check`）是写操作，仅用于纠格式，不在门禁回路里使用。
+- `black .` / `isort .`（不带 `--check`）是写操作，仅用于纠格式，不在检查回路里使用。
 ````
 
 并把 `AGENTS.md:281` 的 black/isort/mypy 三项改为：
 
 ```md
-- **tests/ 质量门禁（2026-08 起全绿，须保持）**: `pytest`（0 警告）+「格式化命令」章节的
+- **tests/ 质量检查（2026-08 起全绿，须保持）**: `pytest`（0 警告）+「格式化命令」章节的
   black / isort / mypy 三条（同样加 `--check` 与显式参数，路径换成 `tests/`），
-  + `basedpyright tests/`（0 error/0 warning，本地门禁，CI 不跑——见下）。
+  + `basedpyright tests/`（0 error/0 warning，本地检查，CI 不跑——见下）。
 ```
 
 ---
 
-### F-5 ｜ basedpyright：声明必过、没有命令、CI 不跑（隐形门禁）
+### F-5 ｜ basedpyright：声明必过、没有命令、CI 不跑（隐形检查）
 
-**位置**：`AGENTS.md:281`（列为须保持的门禁）、`AGENTS.md:404/407/410`（排除列表同步点）、
+**位置**：`AGENTS.md:281`（列为须保持的检查）、`AGENTS.md:404/407/410`（排除列表同步点）、
 `AGENTS.md:506/695`（提到报错码与 strict 行为）；`ci.yml` 全文无任何 basedpyright 步骤。
 
 **对行为的影响**
@@ -264,14 +264,14 @@ python scripts/check_version.py
    代理可能花大量时间清理不会被 CI 校验的告警（自我加戏），也可能直接跳过（漏干活）。
 3. 与 mypy 结论冲突时无裁决规则（`:695` 已出现 Windows 下必要、Linux 下 `reportUnnecessaryTypeIgnoreComment` 的双向场景）。
 
-**建议改法**：新增一小节，把它明确定位为「本地补充门禁」。
+**建议改法**：新增一小节，把它明确定位为「本地补充检查」。
 
 ```md
-### basedpyright（本地门禁，CI 不跑）
+### basedpyright（本地检查，CI 不跑）
 
 - 命令：`basedpyright`（不传路径，范围取 `pyproject [tool.basedpyright]`）；
   要求 **0 error / 0 warning**。
-- 与 mypy 分工：mypy 是跨平台 CI 门禁（`python_version = 3.14`）；basedpyright 是本地严格度补充。
+- 与 mypy 分工：mypy 是跨平台 CI 检查（`python_version = 3.14`）；basedpyright 是本地严格度补充。
 - **裁决规则**：CI 跑的是 mypy（Linux runner）。Linux 下才出现、Windows 下不出现的
   basedpyright 结论以 Linux 为准；反之同理——不要在 Windows 本地用
   `# type: ignore` 换取两边都静默（会触发 `reportUnnecessaryTypeIgnoreComment`）。
@@ -329,7 +329,7 @@ python scripts/check_version.py
 
 你实际执行的收尾标准目前只存在于工作区记忆里：
 
-> 工作节奏：……门禁全绿 + 端到端真机验证才算完成。收尾：更新 CODE_WIKI 更新日志 + 每日日志。
+> 工作节奏：……检查全绿 + 端到端真机验证才算完成。收尾：更新 CODE_WIKI 更新日志 + 每日日志。
 > 近期动态：每次改动后同步更新 CODE_WIKI.md / CODE_WIKI_EN.md 更新日志章节（固定收尾动作）。
 
 **对行为的影响**：只被 AGENTS.md 约束的代理会把「代码改完 + pytest 全绿」当成完成，
@@ -341,9 +341,9 @@ python scripts/check_version.py
 ```md
 ## 完成定义（Definition of Done）
 
-代码通过门禁 ≠ 完成。改动落地后按序执行，任一条不满足即为未完成：
+代码通过检查 ≠ 完成。改动落地后按序执行，任一条不满足即为未完成：
 
-1. **门禁全绿**：`pytest`（0 警告）+「格式化命令」章节四条 + `scripts/check_annotations.py`
+1. **检查全绿**：`pytest`（0 警告）+「格式化命令」章节四条 + `scripts/check_annotations.py`
    + `scripts/check_coverage.py`；CI 之外的 `basedpyright`（本地）同步核一次。
 2. **端到端真机验证**：涉及录制链路 / 选源 / ffmpeg 参数的改动，必须用真实 URL 增量跑一次
    （至少一个受影响平台），并把验证结果写进回复；**只有单测绿不算验证过**。
@@ -430,7 +430,7 @@ Web 面板显示未翻译或取不到字串，属于典型的「看起来全绿�
 
 > 新建用例须与被测模块同名……并用变异验证（临时改坏被测代码，确认测试变红）证明用例真能抓回归
 
-叠加 `:283`（pytest 0 警告 + 四工具门禁）与 `:289`（逐模块覆盖率 `check_coverage.py`），
+叠加 `:283`（pytest 0 警告 + 四工具检查）与 `:289`（逐模块覆盖率 `check_coverage.py`），
 任何新增/修改测试都会被拉到全流程成本。
 
 **建议改法**：加豁免档，避免「改一行就被拉满全套流程」。
@@ -620,8 +620,8 @@ Windows 无 coreutils（`ls`/`rm`/`find`/`head` 均不可用），两条命令�
 | F-1 | 已落地 | AGENTS.md 代码风格章节合并为唯一条文；已知坑 PEP 758 条目同口径化；`src/spider.py` 模块头注释更正 |
 | F-2 | 已落地 | 异常日志条目改为 `i18n.tr()` 模板写法，保留「必须带类型名 + 掩码 URL」 |
 | F-3 | 已落地 | 双跑改为 `mypy` + `mypy --platform linux`（均无路径）；`ci.yml:232-233` 注释同步 |
-| F-4 | 已落地 | 新增「格式化命令（门禁唯一基准）」章节；tests/ 门禁改为引用该节 |
-| F-5 | 已落地 | 新增「basedpyright（本地补充门禁，CI 不跑）」小节 |
+| F-4 | 已落地 | 新增「格式化命令（检查唯一基准）」章节；tests/ 检查改为引用该节 |
+| F-5 | 已落地 | 新增「basedpyright（本地补充检查，CI 不跑）」小节 |
 | F-6 | 已落地 | 依赖条目改为三级处置 + 破损检测三查法，并在依赖缺失排查处加指针 |
 | F-7 | 已落地 | 新增「完成定义（Definition of Done）」章节 |
 | F-8 | 已落地 | i18n 条目补 `web/app.js` 内嵌四语目录与前端校验命令 |

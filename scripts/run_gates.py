@@ -1,35 +1,35 @@
-# 一次性本地门禁入口（CI 之外唯一需要记住的门禁调用点）。
+# 一次性本地检查入口（CI 之外唯一需要记住的检查调用点）。
 #
-# 职责：把 AGENTS.md「格式化命令（门禁唯一基准）」章节列出的全部 --check 型门禁命令
+# 职责：把 AGENTS.md「格式化命令（检查唯一基准）」章节列出的全部 --check 型检查命令
 #       按原顺序在本机一次性跑完，任一失败以非 0 退出——把「CI 变红才知道红」提前到本地。
 #
 # 核心机制：命令清单**不在本脚本内复制**，而是运行时从 AGENTS.md 对应章节的 bash 代码块逐字
-#           解析。该章节是门禁命令的唯一事实源；另写一份清单就制造并行事实源，章节更新后门禁
+#           解析。该章节是检查命令的唯一事实源；另写一份清单就制造并行事实源，章节更新后检查
 #           会静默漂移。解析以 ` ```bash ` 围栏为硬边界：围栏外的行（如「isort 收尾清理」小节的
 #           PowerShell `Get-ChildItem ... | Remove-Item`）即使含管道也绝不参与。
 #
 # 控制约定（对齐 AGENTS.md「格式化命令」章节）：
 #   - `black .` / `isort .`（不带 --check）是写操作，永不进入本回路：解析时兜底拦截，即便章节
-#     代码块被误加入写型命令，本地门禁也不会改动手里的未提交文件。
+#     代码块被误加入写型命令，本地检查也不会改动手里的未提交文件。
 #   - `mypy` 不带路径参数，检查范围取 pyproject [tool.mypy].files（收窄仅用于排障）；
 #     `mypy --platform linux` 属条件增跑，此处照单执行，不做智能判断。
-#   - 门禁块行首的 `NAME=value ` 前缀按 bash 语义解析为**子进程环境变量**后从命令行剥掉
+#   - 检查块行首的 `NAME=value ` 前缀按 bash 语义解析为**子进程环境变量**后从命令行剥掉
 #     （cmd.exe 不认这种前缀，直送会被当成参数）。PYTHONUTF8=1 另有一份硬默认，见 GATE_CHILD_ENV。
 #   - 子进程 stderr 命中 FATAL_STDERR_PATTERNS 即判失败，即使 rc=0——isort 的「Unable to parse
-#     file」走 UserWarning 通道、rc 恒 0，只认退出码就是门禁假绿。
+#     file」走 UserWarning 通道、rc 恒 0，只认退出码就是检查假绿。
 #   - **本进程自己的** stdout/stderr 也必须是 UTF-8：两路输出最终都落在本进程 stdout 上，中文
-#     Windows（cp936）下 black 成功行的 `✨` 会让那次写入抛 UnicodeEncodeError 而炸掉门禁进程。
+#     Windows（cp936）下 black 成功行的 `✨` 会让那次写入抛 UnicodeEncodeError 而炸掉检查进程。
 #   - 执行形态：能按参数列表表达的命令走 shell=False（见 build_gate_argv），只有含 shell 结构符、
 #     或行首要执行 .bat/.cmd 时才退回 shell=True 字符串形态；清单事实源与判定口径均不变。
 #
 # 用法：
-#   python scripts/run_gates.py                          # 全量门禁（在仓库根目录执行）
+#   python scripts/run_gates.py                          # 全量检查（在仓库根目录执行）
 #   python scripts/run_gates.py --list                   # 只列出解析到的命令，不执行
 #   python scripts/run_gates.py --only mypy --only black # 收窄排障：子串匹配，参数形式不变
-#   python scripts/run_gates.py --keep-going             # 失败后续跑剩余门禁，最后汇总
+#   python scripts/run_gates.py --keep-going             # 失败后续跑剩余检查，最后汇总
 #
-# 退出码：0 全部通过；1 至少一条门禁失败（门禁变红）；2 清单来源缺失/为空/含写型命令
-#         （属「没跑」而非「跑过」，与真失败区分）；3 门禁可执行文件缺失（环境问题，便于排障）。
+# 退出码：0 全部通过；1 至少一条检查失败（检查变红）；2 清单来源缺失/为空/含写型命令
+#         （属「没跑」而非「跑过」，与真失败区分）；3 检查可执行文件缺失（环境问题，便于排障）。
 
 from __future__ import annotations
 
@@ -43,26 +43,26 @@ import sys
 import time
 from pathlib import Path
 
-# 项目根目录（scripts/ 的上一级），同时作为门禁命令的 cwd
+# 项目根目录（scripts/ 的上一级），同时作为检查命令的 cwd
 ROOT = Path(__file__).resolve().parent.parent
 
-# 门禁清单唯一事实源：AGENTS.md 的章节标题前缀 + 代码块围栏语言标记。
-# 用前缀匹配是因为标题带定稿日期后缀（「## 格式化命令（门禁唯一基准，2026-09-17 定稿）」）
+# 检查清单唯一事实源：AGENTS.md 的章节标题前缀 + 代码块围栏语言标记。
+# 用前缀匹配是因为标题带定稿日期后缀（「## 格式化命令（检查唯一基准，2026-09-17 定稿）」）
 SECTION_PREFIX = "## 格式化命令"
 FENCE_LANG = "```bash"
 
-# Ruff 的 format 默认写盘，check 仅显式修复时写盘；门禁只接收只读调用。
+# Ruff 的 format 默认写盘，check 仅显式修复时写盘；检查只接收只读调用。
 
 # 子进程环境的硬默认（MID-63，2026-09-20 定稿）。
 # isort 用**平台默认编码**读源文件：GBK locale 下含中文注释的文件会抛
 # UnicodeEncodeError → 只发一条 UserWarning「Unable to parse file」就跳过、rc 仍为 0，
-# 于是门禁在本地全绿却根本没查这些文件（被跳过的个数随仓库内容漂移，核对命令见 AGENTS.md）。
+# 于是检查在本地全绿却根本没查这些文件（被跳过的个数随仓库内容漂移，核对命令见 AGENTS.md）。
 # PYTHONUTF8=1 强制 UTF-8 读写，等价于 `-X utf8`，跨平台一致。
-# 与门禁块行首前缀的关系：前缀是**事实源里的声明**（ci.yml 逐字镜像），
-# 这里是**兜底**——即便有人在文档里删掉前缀，本地门禁也不会退回假绿形态。
+# 与检查块行首前缀的关系：前缀是**事实源里的声明**（ci.yml 逐字镜像），
+# 这里是**兜底**——即便有人在文档里删掉前缀，本地检查也不会退回假绿形态。
 GATE_CHILD_ENV: dict[str, str] = {"PYTHONUTF8": "1"}
 
-# 「告警即失败」清单：这些子串出现在门禁子进程的 stderr 里，即代表该工具**跳过了文件**
+# 「告警即失败」清单：这些子串出现在检查子进程的 stderr 里，即代表该工具**跳过了文件**
 # 而非「检查通过」。新增同类形态直接加一行，不要改成「忽略告警」。
 # pytest 的 warnings summary 走 stdout，主回路的逐行 stderr 转发覆盖不到它，故由 ci.yml 的
 # "Gate pytest warnings summary" 步骤与下方 gate_pytest_warnings_summary() 单独承担；
@@ -74,7 +74,7 @@ FATAL_STDERR_PATTERNS: tuple[str, ...] = (
     "Unable to parse file",  # isort/black：编码或解析失败的静默跳过（UserWarning，rc=0）
 )
 
-# bash 风格的行首环境变量前缀：`NAME=value` 后必须跟空白，且值不含空格（门禁命令均为如此）
+# bash 风格的行首环境变量前缀：`NAME=value` 后必须跟空白，且值不含空格（检查命令均为如此）
 _ENV_PREFIX_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(\S*)\s+")
 
 # 只有「这条命令确实要靠 shell 解释」时才退回 shell=True 的字符串形态（L-30 的兜底面）。
@@ -85,7 +85,7 @@ _SHELL_STRUCTURES: tuple[str, ...] = ("|", "&", ">", "<", "`", "$(", "${")
 
 # Windows 上 CreateProcess 不能直接执行批处理（只认 .exe，PATH 搜索也只补 .exe），
 # 必须由 cmd.exe 解释；行首解析到这两种扩展名时保持 shell 形态，绝不改成 argv 后
-# 把「找不到可执行文件」伪装成门禁失败（同 rc=3「工具没装」与 rc=1「代码不合格」必须分档的口径）。
+# 把「找不到可执行文件」伪装成检查失败（同 rc=3「工具没装」与 rc=1「代码不合格」必须分档的口径）。
 _BATCH_SUFFIXES: tuple[str, ...] = (".bat", ".cmd")
 
 
@@ -93,11 +93,11 @@ def ensure_utf8_streams() -> None:
     # 把**本进程**的 stdout/stderr 也换成 UTF-8：MID-63 那套语义的另一半，只钉子进程仍会失效。
     # GATE_CHILD_ENV 只管得到子进程，而两路输出最终都落在**本进程 stdout** 上——run_command
     # 逐行读子进程 stderr 再写 sys.stdout，black 成功行的 `All done! ✨ 🍰 ✨` 则走子进程 stdout
-    # 的直接继承写入。中文 Windows 的 cp936 编不出 U+2728 → UnicodeEncodeError 炸掉门禁自身，
-    # 表象是「rc=1 且只剩一段 Traceback」，而触发它的那条门禁其实是**通过**的。
+    # 的直接继承写入。中文 Windows 的 cp936 编不出 U+2728 → UnicodeEncodeError 炸掉检查自身，
+    # 表象是「rc=1 且只剩一段 Traceback」，而触发它的那条检查其实是**通过**的。
     #
-    # errors="replace"：将来某条门禁输出更冷门的码点，也只能丢一个字符的显示，绝不允许再演变成
-    # 「门禁进程崩溃 → 整回路没有结论」。与 build_exe._ensure_utf8_streams 同一手法。
+    # errors="replace"：将来某条检查输出更冷门的码点，也只能丢一个字符的显示，绝不允许再演变成
+    # 「检查进程崩溃 → 整回路没有结论」。与 build_exe._ensure_utf8_streams 同一手法。
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if not callable(reconfigure):
@@ -111,7 +111,7 @@ def ensure_utf8_streams() -> None:
 
 def split_env_prefix(line: str) -> tuple[dict[str, str], str]:
     # 剥掉行首的 `NAME=value ` 前缀（可连续多个），返回 (环境变量, 裸命令)。
-    # 必须由 extract 侧剥掉而不是丢给 shell：本地门禁的默认 shell 可能是 cmd.exe，
+    # 必须由 extract 侧剥掉而不是丢给 shell：本地检查的默认 shell 可能是 cmd.exe，
     # 它会把 `PYTHONUTF8=1` 当作命令的第一个参数而不是环境变量赋值。
     env: dict[str, str] = {}
     rest = line
@@ -124,7 +124,7 @@ def split_env_prefix(line: str) -> tuple[dict[str, str], str]:
 
 
 def extract_gate_env(agants_path: Path) -> dict[str, str]:
-    # 收集门禁块里声明的全部行首环境变量（多次声明以最后一次为准）。
+    # 收集检查块里声明的全部行首环境变量（多次声明以最后一次为准）。
     # 与 extract_gate_commands 读同一份围栏，故不会引入第二份事实源。
     if not agants_path.exists():
         return {}
@@ -143,7 +143,7 @@ def extract_gate_env(agants_path: Path) -> dict[str, str]:
 
 
 def extract_gate_commands(agants_path: Path) -> list[str]:
-    # 从 AGENTS.md「格式化命令」章节的第一个 bash 代码块逐行提取门禁命令。
+    # 从 AGENTS.md「格式化命令」章节的第一个 bash 代码块逐行提取检查命令。
     # 返回按原顺序排列的命令字符串列表；章节缺失时返回空列表，交调用方判定 rc=2。
     if not agants_path.exists():
         return []
@@ -158,7 +158,7 @@ def extract_gate_commands(agants_path: Path) -> list[str]:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        # 行尾注释必须先剥掉再执行：本地门禁的默认 shell 是 cmd.exe，不像 bash
+        # 行尾注释必须先剥掉再执行：本地检查的默认 shell 是 cmd.exe，不像 bash
         # 那样原生识别 `#`，`mypy   # 不带路径参数…` 直送会把注释当参数报 unrecognized
         _, command = split_env_prefix(_strip_trailing_comment(stripped))
         if command:
@@ -168,7 +168,7 @@ def extract_gate_commands(agants_path: Path) -> list[str]:
 
 def _strip_trailing_comment(line: str) -> str:
     # 剥行尾注释：只认「空白 + #」为注释起点（避免切碎 URL/含 # 的参数字面量）。
-    # 门禁命令均为简单命令行，不处理引号内的 #（shell=True 下双引号内的 # 本就不参与展开）。
+    # 检查命令均为简单命令行，不处理引号内的 #（shell=True 下双引号内的 # 本就不参与展开）。
     cut = len(line)
     for i in range(1, len(line)):
         if line[i] == "#" and line[i - 1] in " \t":
@@ -235,7 +235,7 @@ def is_write_command(cmd: str) -> bool:
 
 
 def run_command(cmd: str, extra_env: dict[str, str] | None = None) -> tuple[int, float, list[str]]:
-    # 执行单条门禁命令，返回 (退出码, 耗时秒, stderr 命中的致命告警子串列表)。
+    # 执行单条检查命令，返回 (退出码, 耗时秒, stderr 命中的致命告警子串列表)。
     # 输出通道的**实际**分工：
     #   stdout —— **不接管**（未传 stdout=，子进程直接继承本进程 stdout 句柄），故既不读也不扫。
     #             工具进度/结果行因此原样到达终端，代价是**本函数看不见 stdout**：只走 stdout 的
@@ -247,14 +247,14 @@ def run_command(cmd: str, extra_env: dict[str, str] | None = None) -> tuple[int,
     # 退出码：rc != 0 一律判失败（由 main() 的 `if rc == 0 and not hits:` 收口），--keep-going
     #         只控制「是否继续跑后续命令」，不影响该判定。
     # 解释器换绑：清单里的 `python` 统一换到当前解释器（见 _rebind_interpreter）——Windows 上
-    # python / py 启动器与 venv 可能混用，不换绑就会让门禁跑在与 pytest 不同的解释器上，
+    # python / py 启动器与 venv 可能混用，不换绑就会让检查跑在与 pytest 不同的解释器上，
     # 即「本地绿、CI 红」的成因。shell=True 只在 build_gate_argv 判「必须靠 shell 解释」时使用：
     # 字符串形态经 cmd.exe /c 时，解释器路径含空格的 venv 能否跑起来取决于 cmd 的引号剥层实现
     # （换台机器才知道红不红），参数列表把引号这一层整个消掉。
     t0 = time.monotonic()
-    # stdin=DEVNULL：门禁子进程不得继承调用方的 stdin。管道/IDE harness 下父进程的 stdin
+    # stdin=DEVNULL：检查子进程不得继承调用方的 stdin。管道/IDE harness 下父进程的 stdin
     # 可能已关闭，子进程（含 site 初始化）碰它即抛 OSError WinError 6（本地实测：pytest 经
-    # 管道调用时偶发）；门禁命令均不需要交互输入，接空设备是唯一安全选择。
+    # 管道调用时偶发）；检查命令均不需要交互输入，接空设备是唯一安全选择。
     child_env = dict(os.environ)
     child_env.update(GATE_CHILD_ENV)
     if extra_env:
@@ -307,7 +307,7 @@ def build_gate_argv(cmd: str) -> list[str] | None:
     # POSIX 走同一条代码，不再出现「本地一套引号语义、CI 另一套」的分叉。
     try:
         # posix=False：默认模式会把反斜杠当转义符吃掉，Windows 绝对路径 `C:\venv\Scripts\python.exe`
-        # 会被切成 `C:venvScriptspython.exe`（argv[0] 根本不存在，整条门禁退化成「工具没跑」）。
+        # 会被切成 `C:venvScriptspython.exe`（argv[0] 根本不存在，整条检查退化成「工具没跑」）。
         # 代价是 token 保留外层引号，故随后逐 token 手工剥一层。
         raw_tokens = shlex.split(cmd, posix=False)
     except ValueError:
@@ -342,7 +342,7 @@ def build_gate_argv(cmd: str) -> list[str] | None:
 
 def check_executables(cmds: list[str]) -> list[str]:
     # 预检命令解释器是否存在（python/mypy 等），返回缺失的可执行文件名。
-    # 门禁失败与「工具没装」必须区分：后者不该被报告成「代码不合格」。
+    # 检查失败与「工具没装」必须区分：后者不该被报告成「代码不合格」。
     # 裸 console-script 不在 PATH 时还要看能否 `python -m <name>`（当前解释器装了该包
     # 但未生成/未暴露 scripts 目录的情形，如 venv 未激活的 Windows），与 _rebind_interpreter
     # 的退化路径保持一致，否则会误报 rc=3。
@@ -375,7 +375,7 @@ def _module_unavailable(name: str) -> bool:
     return proc.returncode != 0
 
 
-# pytest 退出码 → 语义：兜底门禁必须把 rc 说明白，否则「rc=4 用法错」与「rc=5 一条用例都没
+# pytest 退出码 → 语义：兜底检查必须把 rc 说明白，否则「rc=4 用法错」与「rc=5 一条用例都没
 # 跑到」会被读成「跑过且无告警 = 通过」。口径以 _pytest.exitcodes 为准（2 中断、4 用法错、
 # 5 未收集到用例），避免后来者照抄错的映射。
 PYTEST_RC_SEMANTICS: dict[int, str] = {
@@ -398,7 +398,7 @@ _PYTEST_PASSED_PATTERN = re.compile(r"(?m)^(?:=+ )?(\d+) passed\b")
 def _pytest_passed_count(out: str) -> int:
     # 从 pytest 输出里取「通过用例数」；取末次汇总行（-q 只在结尾打一次，
     # 但 --reruns / -p xdist 等场景会先打中间行，故以最后一次读数为准）。
-    # 匹配不到即返回 0，由调用方判「门禁没跑到用例」。
+    # 匹配不到即返回 0，由调用方判「检查没跑到用例」。
     counts = _PYTEST_PASSED_PATTERN.findall(out)
     return int(counts[-1]) if counts else 0
 
@@ -409,7 +409,7 @@ def gate_pytest_warnings_summary() -> tuple[bool, str]:
     # 而把 pytest 写进那一章会让「格式化命令唯一基准」变成隐式测试清单（另见 main() 末尾）。
     # 返回 (通过, 诊断信息)：通过=True 表示「pytest 正常跑完且 warnings summary 为空」。
     #
-    # 三条 fail-closed 判据，缺一即门禁自我证明失效：
+    # 三条 fail-closed 判据，缺一即检查自我证明失效：
     #   ① 取真实退出码。丢弃 rc 时，pytest 以 rc=2/3/4/5 崩溃（收集期 ImportError、参数写错、
     #      一条用例都没跑到）只要 stdout 里没有 `= warnings summary =` 就照样 PASS。
     #   ② 接管 stderr 并扫同一份 FATAL_STDERR_PATTERNS：插件加载失败与编码错误只走 stderr，
@@ -446,13 +446,13 @@ def gate_pytest_warnings_summary() -> tuple[bool, str]:
             detail += f"；stderr 末尾: {tail}"
         return False, f"pytest 以 rc={rc}（{semantics}）退出，warnings summary 无从判定{detail}（{dur:.1f}s）"
     if hits:
-        return False, f"pytest rc=0 但 stderr 命中致命告警 {hits}（跳过/降级即门禁失效，{dur:.1f}s）"
+        return False, f"pytest rc=0 但 stderr 命中致命告警 {hits}（跳过/降级即检查失效，{dur:.1f}s）"
     passed = _pytest_passed_count(out)
     if passed <= 0:
         tail = " | ".join(line.strip() for line in out.strip().splitlines()[-5:] if line.strip())
         return False, (
             f"pytest rc=0 但输出里没有「N passed」汇总行（通过用例数=0）："
-            f"门禁根本没跑到用例，不得判通过（{dur:.1f}s）。末段输出: {tail}"
+            f"检查根本没跑到用例，不得判通过（{dur:.1f}s）。末段输出: {tail}"
         )
     if "= warnings summary =" in out:
         return False, f"pytest warnings summary 非空（{passed} passed，{dur:.1f}s）"
@@ -463,39 +463,39 @@ def main(argv: list[str] | None = None) -> int:
     ensure_utf8_streams()
     parser = argparse.ArgumentParser(
         prog="run_gates",
-        description="一次性运行 AGENTS.md「格式化命令」章节声明的全部本地门禁（只跑 --check 形式）",
+        description="一次性运行 AGENTS.md「格式化命令」章节声明的全部本地检查（只跑 --check 形式）",
     )
-    parser.add_argument("--list", action="store_true", help="只打印解析到的门禁命令，不执行")
+    parser.add_argument("--list", action="store_true", help="只打印解析到的检查命令，不执行")
     parser.add_argument(
         "--only",
         action="append",
         default=[],
         metavar="PATTERN",
-        help="只跑命令中含该子串的门禁（可重复），用于收窄排障；参数形式不变",
+        help="只跑命令中含该子串的检查（可重复），用于收窄排障；参数形式不变",
     )
     parser.add_argument(
         "--keep-going",
         action="store_true",
-        help="任一失败也继续跑完剩余门禁，最后汇总（默认首个失败即停）",
+        help="任一失败也继续跑完剩余检查，最后汇总（默认首个失败即停）",
     )
     args = parser.parse_args(argv)
 
     cmds = extract_gate_commands(ROOT / "AGENTS.md")
     if not cmds:
-        print("ERROR: 无法从 AGENTS.md「格式化命令」章节解析出门禁命令清单", file=sys.stderr)
-        print("       本地门禁是「没有跑」而不是「跑过了」，请勿宣布完成。", file=sys.stderr)
+        print("ERROR: 无法从 AGENTS.md「格式化命令」章节解析出检查命令清单", file=sys.stderr)
+        print("       本地检查是「没有跑」而不是「跑过了」，请勿宣布完成。", file=sys.stderr)
         return 2
 
     if args.only:
         cmds = [c for c in cmds if any(p in c for p in args.only)]
         if not cmds:
-            print(f"ERROR: --only {args.only} 未匹配到任何门禁命令", file=sys.stderr)
+            print(f"ERROR: --only {args.only} 未匹配到任何检查命令", file=sys.stderr)
             return 2
 
     # 兜底拦截：写型格式化命令绝不允许进入回路，宁可拒绝执行也不改动工作区
     unsafe = [c for c in cmds if is_write_command(c)]
     if unsafe:
-        print("ERROR: 门禁清单中出现写型格式化命令（格式器处于写入模式）:", file=sys.stderr)
+        print("ERROR: 检查清单中出现写型格式化命令（格式器处于写入模式）:", file=sys.stderr)
         for c in unsafe:
             print(f"  {c}", file=sys.stderr)
         return 2
@@ -507,7 +507,7 @@ def main(argv: list[str] | None = None) -> int:
 
     missing = check_executables(cmds)
     if missing:
-        print(f"ERROR: 以下门禁工具不可用: {', '.join(missing)}", file=sys.stderr)
+        print(f"ERROR: 以下检查工具不可用: {', '.join(missing)}", file=sys.stderr)
         print("       先修环境（见 AGENTS.md「依赖缺失排查顺序」），这不是代码通过。", file=sys.stderr)
         return 3
 
@@ -515,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
     total_t0 = time.monotonic()
     gate_env = extract_gate_env(ROOT / "AGENTS.md")
     if gate_env:
-        print(f"门禁子进程环境变量（来自 AGENTS.md 门禁块行首前缀）：{gate_env}")
+        print(f"检查子进程环境变量（来自 AGENTS.md 检查块行首前缀）：{gate_env}")
     for i, cmd in enumerate(cmds, 1):
         print(f"\n[{i}/{len(cmds)}] $ {cmd}", flush=True)
         rc, dur, hits = run_command(cmd, gate_env)
@@ -525,8 +525,8 @@ def main(argv: list[str] | None = None) -> int:
         if rc != 0:
             print(f"    -> [FAIL] rc={rc} ({dur:.1f}s)")
         else:
-            # rc=0 但 stderr 命中致命告警：工具跳过了文件 = 这一条门禁根本没查完
-            print(f"    -> [FAIL] rc=0 但 stderr 命中致命告警 {hits}（跳过文件即门禁失效，{dur:.1f}s）")
+            # rc=0 但 stderr 命中致命告警：工具跳过了文件 = 这一条检查根本没查完
+            print(f"    -> [FAIL] rc=0 但 stderr 命中致命告警 {hits}（跳过文件即检查失效，{dur:.1f}s）")
         failed.append(cmd)
         if not args.keep_going:
             break
@@ -534,17 +534,17 @@ def main(argv: list[str] | None = None) -> int:
     total = time.monotonic() - total_t0
     print("\n" + "=" * 72)
     if failed:
-        print(f"门禁未通过：{len(failed)} 条失败（共 {len(cmds)} 条，耗时 {total:.1f}s）")
+        print(f"检查未通过：{len(failed)} 条失败（共 {len(cmds)} 条，耗时 {total:.1f}s）")
         for c in failed:
             print(f"  [FAIL] {c}")
         print("按 AGENTS.md「完成定义」，此时不得宣布完成。")
         print("=" * 72)
         return 1
-    print(f"门禁全绿：{len(cmds)} 条全部通过（耗时 {total:.1f}s）")
+    print(f"检查全绿：{len(cmds)} 条全部通过（耗时 {total:.1f}s）")
     print("=" * 72)
     # DoD 第 1 步还包含 pytest（0 警告）+ check_coverage.py。
-    # warnings summary 兜底在此直接执行、但不进上方命令清单：那一章只声明格式化门禁，
-    # 把测试门禁写进去就又造出一处并行事实源。
+    # warnings summary 兜底在此直接执行、但不进上方命令清单：那一章只声明格式化检查，
+    # 把测试检查写进去就又造出一处并行事实源。
     print("\n[pytest warnings summary 兜底]")
     ok, msg = gate_pytest_warnings_summary()
     if ok:

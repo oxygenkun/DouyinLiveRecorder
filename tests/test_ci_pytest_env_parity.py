@@ -13,7 +13,7 @@
 #
 # 事故二（同日）：test job 的 apt 只装了 ffmpeg + xvfb，而 GUI 窗口层已迁 PySide6：ubuntu runner 缺
 #   libEGL.so.1 时 `from PySide6.QtGui import ...` 抛 ImportError，两个 Qt 测试模块以 collection error
-#   形态**中断整轮**（4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块门禁全部拿不到数据）。
+#   形态**中断整轮**（4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块检查全部拿不到数据）。
 #   故再钉两条：
 #     · apt 侧必须装 Qt 运行库（锚点 libegl1，见 _QT_RUNTIME_LIB_RE）——系统库不属于 pip 的兜底面；
 #     · test job 必须有一道 collect-only 闸门拦「整模块 skip 而 rc 仍为 0」的假绿。
@@ -160,7 +160,7 @@ def test_qt_window_layer_jobs_install_qt_runtime_libs() -> None:
         f"以下 job 会用到 Qt 窗口层却没有 apt 装 Qt 运行库：{sorted(offenders)}。"
         "PySide6 随 requirements.txt 安装，但 Qt 的 .so 还要 dlopen 系统库（libEGL.so.1 等），"
         "缺一枚时窗口层 import 即以 collection error 中断整轮 pytest（2026-10-18 实测："
-        "4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块门禁全部拿不到数据）"
+        "4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块检查全部拿不到数据）"
     )
 
 
