@@ -405,7 +405,7 @@ def test_run_gates_parses_all_gate_commands_and_env() -> None:
     for expected in (
         "ruff format --check",
         "ruff check --no-fix",
-        "check_annotations.py",
+        "compile_po.py --check",
         "check_runtime_pins.py",
     ):
         assert expected in joined, f"检查清单缺少 {expected!r}（AGENTS.md 章节可能被改）"

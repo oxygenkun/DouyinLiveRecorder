@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-# 与 scripts/check_annotations.py / pyproject 的排除面同源：运行时二进制目录与工具产物不参与扫描。
+# 与 pyproject 的排除面同源：运行时二进制目录与工具产物不参与扫描。
 _EXCLUDED_PARTS = {
     ".git",
     ".venv",

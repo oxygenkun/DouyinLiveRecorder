@@ -23,8 +23,7 @@ from .logger import logger
 # 因而自带一份 ResizableSemaphore 与 PlatformBreaker 的独立副本。改动本文件的并发语义
 # （容量/已持有分离、调容唤醒规则、熔断阈值与探针租约等）时必须逐方法 diff 后同步副本，
 # 不得假定两者已同步：两份 PlatformBreaker 并不等价（副本缺 _grant_probe / _end_probe /
-# error_rate / backoff_seconds，样本入队函数名也不同）。副本被 check_annotations.py 排除，
-# 但在 mypy 的 [tool.mypy].files 内，改动照样要过类型检查；细则见 AGENTS.md 的 standalone 条目。
+# error_rate / backoff_seconds，样本入队函数名也不同）。同步要求见 AGENTS.md 的 standalone 条目。
 
 
 # 探针租约时长：half-open 探针被授予后超过该时长仍未上报样本（未开播等待轮、

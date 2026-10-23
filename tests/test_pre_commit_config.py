@@ -1,6 +1,6 @@
 # .pre-commit-config.yaml 与 AGENTS.md「格式化命令（检查唯一基准）」的同源回归锁。
 #
-# 治理症状：五条仓库级检查（check_annotations / compile_po / check_version / check_runtime_pins /
+# 治理症状：四条仓库级检查（compile_po / check_version / check_runtime_pins /
 # check_skill_agents_consistency）曾只在 CI 与 `python scripts/run_gates.py` 执行，pre-commit 侧
 # 完全漏配——本地提交绿不等于检查全绿。本用例把「AGENTS.md 章节列出的每条常驻检查都必须在
 # pre-commit 找到对应 hook」钉成机检，新增检查漏配即刻拦下。
@@ -22,10 +22,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# AGENTS.md「格式化命令」章节列出的五条仓库级检查脚本（匹配口径取脚本相对路径子串：
+# AGENTS.md「格式化命令」章节列出的四条仓库级检查脚本（匹配口径取脚本相对路径子串：
 # entry 可再携带参数，只要脚本本身被调用即视为覆盖，不钉参数顺序与字符串完全相等）。
 REPO_LEVEL_GATE_SCRIPTS: tuple[str, ...] = (
-    "scripts/check_annotations.py",
     "scripts/compile_po.py",
     "scripts/check_version.py",
     "scripts/check_runtime_pins.py",
@@ -86,7 +85,7 @@ def _local_entries(cfg: dict[str, Any]) -> list[str]:
 
 
 def test_agents_gate_section_includes_repo_level_gates() -> None:
-    # 前置守卫：章节必须**确实列出**这五条检查脚本；若章节被误删，下面的覆盖用例会因
+    # 前置守卫：章节必须**确实列出**这四条检查脚本；若章节被误删，下面的覆盖用例会因
     # 「AGENTS.md 里根本没这条」而空过，反而给出「检查同源」的假绿（SEV-2219 同口径 fail-closed）。
     cmds = _load_agents_gate_commands()
     assert cmds, "未能从 AGENTS.md「格式化命令」章节解析到任何检查，同源锁失去基准"
@@ -105,7 +104,7 @@ def test_agents_gate_section_includes_formatter_tools() -> None:
 
 
 def test_pre_commit_local_hooks_cover_repo_level_gates() -> None:
-    # 核心回归锁：五份仓库级检查脚本必须在 local hook 的 entry 里出现（子串匹配，允许额外参数）。
+    # 核心回归锁：四份仓库级检查脚本必须在 local hook 的 entry 里出现（子串匹配，允许额外参数）。
     # 缺失任一条 = 本次修复回归，CI 与本地检查再次脱钩。
     entries = _local_entries(_load_pre_commit_config())
     missing = [s for s in REPO_LEVEL_GATE_SCRIPTS if not any(s in e for e in entries)]
@@ -125,8 +124,8 @@ def test_pre_commit_local_hooks_cover_ruff_tools() -> None:
 
 
 def test_repo_level_gate_hooks_share_system_pass_filenames_false_always_run() -> None:
-    # 结构不变量：五份仓库级检查 hook 必须 language=system + pass_filenames=false + always_run=true。
-    # 五个脚本按仓库根遍历做跨文件比对（i18n 双侧、版本号三处、钉定表对账、Skill 目录表与 AGENTS.md），
+    # 结构不变量：四份仓库级检查 hook 必须 language=system + pass_filenames=false + always_run=true。
+    # 四个脚本按仓库根遍历做跨文件比对（i18n 双侧、版本号三处、钉定表对账、Skill 目录表与 AGENTS.md），
     # 若允许 pass_filenames 会把 staged 文件当参数传入而破坏自身遍历；若非 always_run 则改 .po /
     # build_exe.py / pyproject.toml 时不触发，等于回到本次修复前的症状（语义细则见配置文件内注释）。
     cfg = _load_pre_commit_config()
@@ -188,5 +187,5 @@ def test_run_gates_is_invocable_as_single_hook_entry() -> None:
 
 # ───────────────────── 变异验证回归锁：故意去掉一条会红 ─────────────────────
 # 其余用例都是「配置文件 + AGENTS.md」两侧结构比对，不需真跑子进程；变异验证已由开发期一次性
-# 完成（临时移除 check_annotations hook 条目 → test_pre_commit_local_hooks_cover_repo_level_gates 变红），
+# 完成（临时移除 compile-po-check hook 条目 → test_pre_commit_local_hooks_cover_repo_level_gates 变红），
 # 此处不再就地改文件（AGENTS.md：变异改动必须当轮还原并带 MUTATION 标记）。

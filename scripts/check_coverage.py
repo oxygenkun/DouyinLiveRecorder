@@ -69,7 +69,6 @@ GLOBAL_FLOOR = 50.0
 # 被豁免的模块仍会打印读数（不参与判定），这样将来取消豁免时缺口立刻可见。
 GATE_EXEMPT_MODULES: dict[str, str] = {
     # protoc 生成的桩代码：标注 DO NOT EDIT、随 protobuf 版本重新生成，手改无意义；
-    # 与 scripts/check_annotations.py 的 EXCLUDE_FILES 同源（那里也排除它）。
     "src/proto/douyin_pb2.py": "protoc 生成物（DO NOT EDIT，不参与人工补测）"
 }
 

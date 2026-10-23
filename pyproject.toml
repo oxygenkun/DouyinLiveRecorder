@@ -189,8 +189,8 @@ extend-exclude = [
 line-ending = "auto"
 
 [tool.ruff.lint]
-# 只检查导入排序与文件读取错误，不引入额外风格或类型检查规则。
-select = ["I", "E902"]
+# 检查导入排序、文件读取错误与未定义名称，不引入额外风格或类型检查规则。
+select = ["I", "E902", "F821", "F822", "F823"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src", "i18n"]

@@ -103,7 +103,7 @@
 │   └── execjs/          # PyExecJS 类型存根（多个 .pyi）
 │
 ├── .agents/             # 项目级 Skill 资产（**已入库**：.gitignore 以 .agents/* + !.agents/skills/ 反选，其余内容物仍忽略）
-│   └── skills/          # 5 个 Skill 目录：dlr-dev-playbook / ffmpeg-command-construction / platform-source-selection / runtime-pin-verification / browser-skill（外部工具技能）
+│   └── skills/          # 项目技能目录，清单以 AGENTS.md「项目级 Skill」表为准
 │       └── .gitattributes # *.sh text eol=lf（仓库 core.autocrlf=true 会把 shebang 翻成 bash\r，限定在本子树生效）
 │
 ├── scripts/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
@@ -112,7 +112,6 @@
 │   ├── sync_version.py         # 从 pyproject.toml 同步版本号到遗留文件
 │   ├── compile_po.py           # 纯 Python po→mo 编译（CI --check 字节级检查）
 │   ├── extract_i18n_strings.py # i18n 待翻译串提取（AST 扫描，与四语目录比对）
-│   ├── check_annotations.py   # 注释规范检查 + 逻辑等价性校验（三模式，见下方「注释约定」章节）
 │   ├── run_gates.py            # 本地一次性检查入口：运行时解析 AGENTS.md「格式化命令」章节逐字执行（只跑 --check）
 │   ├── check_runtime_pins.py  # 运行时二进制 SHA256 钉定表检查：默认只查结构（rc=2 表缺陷），
 │   │                          #   --strict 供 build-release.yml 拦发布，--emit-env 输出 DLR_RUNTIME_SHA256

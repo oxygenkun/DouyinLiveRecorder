@@ -300,7 +300,6 @@ DouyinLiveRecorder/
 ├── pyproject.toml                      # Python 项目配置（版本号/工具配置/覆盖率检查单一事实源）
 ├── scripts/                             # 辅助脚本
 │   ├── check_version.py                # 版本号一致性校验（CI static job 调用）
-│   ├── check_annotations.py            # Annotation-convention & AST-equivalence checker (no docstrings / density floor / --baseline equivalence compare, invoked by the CI static job)
 │   ├── check_coverage.py               # Per-module coverage gate (invoked by the CI test job, thresholds in MODULE_THRESHOLDS)
 │   ├── compile_po.py                   # gettext catalog compiler (.po → .mo; --check zero-side-effect sync check, invoked by the CI static job)
 │   ├── extract_i18n_strings.py         # i18n pending-translation string extractor (AST scan + four-catalog comparison, maintenance-time tool)
@@ -1541,7 +1540,6 @@ This fix uniformly takes effect for **all platforms** (Bilibili/Douyu/Huya/Douyi
 - Import sorting: `ruff check --fix .`
 
 
-- Comment standard: Module/function descriptions uniformly use `#` line comments, **do not use triple-quote `"""` docstrings**; multi-line descriptions start each line with `#` (functional multi-line string literals excepted, e.g. templates/SQL, which should use single quotes + line concatenation instead of `"""`)
 
 ### Testing and Coverage
 
@@ -1668,6 +1666,16 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **Modified** · `docs/agent-reference/project-structure.md`, `docs/agent-reference/session-learnings.md` — The directory tree synced with the new modules and test files; lessons appended (the ADS fixture, the reserved-name measurement, the case-count attribution, the offscreen probe exit shape, measuring redundancy before editing, anchors over line numbers, and duplicate keys under `strict=True`)
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
+
+### 2026-10-23 — Remove the comment checker
+
+- Delete the comment density, docstring, module header, and snapshot comparison tool and its dedicated tests; remove CI, pre-commit, and check-list entries.
+- Ruff F821/F822/F823 now check undefined names; historical verification records remain intact.
+
+### 2026-10-23 — Simplify project agent instructions and skills
+
+- Condense AGENTS.md and the four project skills while retaining safety boundaries, check entry points, and domain procedures.
+- Correct decorator, locking, atomic-write test, and collector argument guidance; remove obsolete tool commands, repository-wide cleanup, repeated approvals, and mandatory daily memory. Full checks require an explicit user request.
 
 ### 2026-10-23 — Plain terminology for checks
 

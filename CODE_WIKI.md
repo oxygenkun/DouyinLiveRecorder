@@ -300,7 +300,6 @@ DouyinLiveRecorder/
 ├── pyproject.toml                      # Python 项目配置（版本号/工具配置/覆盖率检查单一事实源）
 ├── scripts/                             # 辅助脚本
 │   ├── check_version.py                # 版本号一致性校验（CI static job 调用）
-│   ├── check_annotations.py            # 注释规范与逻辑等价性校验（禁 docstring / 密度下限 / --baseline AST 等价比对，CI static job 调用）
 │   ├── check_coverage.py               # 逐模块覆盖率检查（CI test job 调用，阈值 MODULE_THRESHOLDS）
 │   ├── compile_po.py                   # gettext 翻译编译（.po → .mo；--check 零副作用校验同步，CI static job 调用）
 │   ├── extract_i18n_strings.py         # i18n 待翻译串提取器（AST 扫描 print/logger 字面量 + 四语目录比对，维护期使用）
@@ -1556,7 +1555,6 @@ async with websockets.connect(
 - 导入排序: `ruff check --fix .`
 
 
-- 注释规范: 模块/函数说明统一使用 `#` 行注释，**不使用三引号 `"""` 文档字符串**；多行说明每行以 `#` 开头（功能性多行字符串字面量除外，如模板/SQL，应改用单引号 + 换行拼接而非 `"""`）
 
 ### 测试与覆盖率
 
@@ -1683,6 +1681,16 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **修改内容** · `docs/agent-reference/project-structure.md`、`docs/agent-reference/session-learnings.md` — 目录树同步新增模块与测试文件；经验条目追加（ADS 夹具、保留设备名实测、用例数增量归因、offscreen 探针的退出形态、先测后改的冗余度量、锚点优于行号、`strict=True` 下的重复键）
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
+
+### 2026-10-23 — 移除注释检查工具
+
+- 删除注释密度、docstring、模块头及快照比对工具和专属测试，同步移除 CI、pre-commit 与检查清单入口。
+- 悬空名字检查交由 Ruff 的 F821/F822/F823 规则执行；历史验证记录保留。
+
+### 2026-10-23 — 精简项目 agent 约定与 skills
+
+- 压缩 AGENTS.md 与四个项目技能的重复规则和事故经过，保留安全边界、检查入口及领域操作配方。
+- 修正装饰器、锁、原子写回测试与 collector 参数示例；移除旧工具执行要求、全仓清理命令、重复审批和强制每日记忆。完整检查仅按用户明确要求运行。
 
 ### 2026-10-23 — 检查用语统一
 

@@ -10,20 +10,16 @@
 # 现被测面 = 解析/判定纯函数 + run_command 的真实子进程行为 + ensure_utf8_streams 的崩溃恢复
 # 分支。仍不跑任何**仓库检查**：run_command 的用例一律驱动 tmp_path 下的一次性子进程脚本，
 # 既快又与本机装了什么工具无关。
-# [2026-09-23 扩展] 新增两块被测面（SEV-2219 / MID-2256）：
+# [2026-09-23 扩展] gate_pytest_warnings_summary 的 fail-closed 判据（SEV-2219）：
 #   - gate_pytest_warnings_summary 的三条 fail-closed 判据（rc 参与判定、stderr 参与回路、
 #     「N passed > 0」见证）——桩化 subprocess.run，绝不真跑 pytest；
-#   - scripts/check_annotations.py 的 EXCLUDE_DIRS 与 pyproject 三处排除清单的跨文件同源锁
-#     （放本文件的理由见该小节注释）。
 
 from __future__ import annotations
 
 import importlib.util
 import io
-import re
 import subprocess
 import sys
-import tomllib
 import types
 from pathlib import Path
 from types import ModuleType
@@ -46,9 +42,9 @@ def _load_run_gates() -> ModuleType:
 
 run_gates = _load_run_gates()
 
-# 「格式化命令」章节 bash 代码块声明的检查条数（2026-09-20 基线：black/isort/mypy×2/注释/po/版本）。
+# 「格式化命令」章节 bash 代码块声明的检查条数：Ruff 两项与仓库脚本四项。
 # 断言用 >=：章节将来增行属放宽，不应弄红本用例；减少则说明清单被截断，必须拦。
-MIN_GATE_COMMANDS = 7
+MIN_GATE_COMMANDS = 6
 
 
 def test_extract_matches_agents_section() -> None:
@@ -326,7 +322,7 @@ def test_build_gate_argv_keeps_backslashes_and_quotes_stripped() -> None:
 @pytest.mark.parametrize(
     "cmd",
     [
-        "python scripts/check_annotations.py",
+        "python scripts/check_version.py",
         "ruff",
         "python -m ruff check --no-fix .",
     ],
@@ -396,7 +392,7 @@ def _fake_agents(tmp_path: Path) -> Path:
         "## 格式化命令（用例用）\n\n"
         "```bash\n"
         "PYTHONUTF8=1 python -m ruff format --check .\n"
-        "python scripts/check_annotations.py   # 条件增跑\n"
+        "python scripts/check_version.py   # 条件增跑\n"
         "```\n",
         encoding="utf-8",
     )
@@ -583,104 +579,6 @@ def test_pytest_rc_semantics_table_covers_documented_codes() -> None:
         assert rc in run_gates.PYTEST_RC_SEMANTICS, f"缺少 rc={rc} 的语义说明"
 
 
-# ---------------------------------------------------------------------------
-# 跨文件同源锁（MID-2256）：scripts/check_annotations.py 的 EXCLUDE_DIRS
-#
-# 为什么放在本文件：check_annotations.py 是「格式化命令」检查块里的一条（run_gates 逐字
-# 执行该块），它的扫描面就是这条检查的覆盖面；清单漂移会让「被删符号的残留调用点」
-# 被判成「全仓有绑定」而漏报（check_dangling_symbols 经 iter_source_files 聚合 global_bound）。
-# 方向刻意只做「pyproject 有、清单必须也有」——反向（清单更严）是允许的保守侧。
-# ---------------------------------------------------------------------------
-
-_DIRNAME_OK = re.compile(r"^[A-Za-z0-9._-]+$")
-
-
-def _normalize_exclude_token(token: str) -> str:
-    # 各工具写法归一为目录名：black 用 `\.git`（正则转义）、coverage 用 `*/.git/*`、
-    # isort 用 `.git`。注意 AGENTS.md「排除目录归一化必须先剥 **/ 再剥 */」的同族坑：
-    # 这里顺序固定为 去前缀 `**/` → 去前缀 `*/` → 去后缀 `/*`、`/**` → 去转义反斜杠。
-    name = token.strip().strip("|").strip()
-    for prefix in ("**/", "*/"):
-        if name.startswith(prefix):
-            name = name[len(prefix) :]
-    for suffix in ("/*", "/**"):
-        if name.endswith(suffix):
-            name = name[: -len(suffix)]
-    return name.replace("\\", "").strip("/").strip()
-
-
-def _pyproject_excluded_dirs() -> set[str]:
-    # 取 black exclude / isort extend_skip / coverage omit（含并行的 .coveragerc-concurrency）
-    # 清单里的**目录名**，用于要求 check_annotations 的扫描面不落后于它们。
-    raw = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    out: set[str] = set()
-
-    for token in raw["tool"]["ruff"]["extend-exclude"]:
-        out.add(_normalize_exclude_token(str(token)))
-
-    for pattern in raw["tool"]["coverage"]["run"]["omit"]:
-        out.add(_normalize_exclude_token(str(pattern)))
-
-    concurrency_rc = ROOT / ".coveragerc-concurrency"
-    assert concurrency_rc.exists(), ".coveragerc-concurrency 缺失：并发 job 的 omit 无源可对"
-    for line in concurrency_rc.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#") or not (stripped.startswith("*/") or stripped.startswith("**/")):
-            continue  # 只收 omit 形态的条目，跳过 ini 键值行与注释
-        out.add(_normalize_exclude_token(stripped))
-
-    # tests 只被 coverage 排除（不统计自己的覆盖率），check_annotations 必须**继续**扫 tests/；
-    # 纯文件后缀模式（.pyc）、glob（pytest-cache-files-*，由 is_excluded 的精确名匹配覆盖不到，
-    # 属另一条口径）与括号等正则残片都不算目录名，统一按字符集筛掉。
-    out.discard("tests")
-    return {name for name in out if _DIRNAME_OK.match(name) and "*" not in name}
-
-
-def test_check_annotations_exclude_dirs_cover_pyproject_excludes() -> None:
-    spec = importlib.util.spec_from_file_location(
-        "_check_annotations_for_exclude_lock", ROOT / "scripts" / "check_annotations.py"
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    excluded = set(cast("tuple[str, ...]", module.EXCLUDE_DIRS))
-    required = _pyproject_excluded_dirs()
-    # 见证扫描面非空：归一化写错时 required 会变成空集，「缺 0 项」成立却毫无意义
-    # （AGENTS.md「配置键审计的三个陷阱」同族的假绿形态）。
-    assert len(required) >= 20, f"pyproject 排除清单解析异常，只归一出 {len(required)} 项: {sorted(required)}"
-    missing = sorted(required - excluded)
-    assert not missing, (
-        "scripts/check_annotations.py 的 EXCLUDE_DIRS 落后 pyproject 的 Ruff/coverage 清单，"
-        f"缺: {missing}（悬空符号检查会把未排除目录里的同名绑定当成全仓绑定 → 漏报）"
-    )
-
-
-def test_check_annotations_scan_face_still_includes_tests_and_src() -> None:
-    # 反向兜底：补齐清单不得顺手把 tests/ 或 src/ 也排除掉——那会让密度/悬空符号检查
-    # 悄悄丢掉一半覆盖面（且因为「扫到了 0 个文件」而照样全绿）。
-    spec = importlib.util.spec_from_file_location(
-        "_check_annotations_for_scan_lock", ROOT / "scripts" / "check_annotations.py"
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    for keep in ("src", "tests", "scripts", "web"):
-        assert keep not in module.EXCLUDE_DIRS, f"{keep}/ 被排除出注释/悬空符号检查，检查覆盖面已塌陷"
-    files = module.iter_source_files(ROOT)
-    assert len(files) > 100, f"扫描面异常（{len(files)} 个文件），排除清单可能过宽"
-    assert any(p.name == "spider.py" for p in files), "src/spider.py 不在扫描面内"
-    assert any(p.suffix == ".js" for p in files), "web/ 前端资源不在扫描面内"
-
-
-# ---------------------------------------------------------------------------
-# [tool.mypy].exclude 失明回归锁（2026-10-03，随「exclude 目录名锚定」批次落地）
-#
-# mypy 的 exclude 是 re.search 对「相对路径 + 正斜杠归一、目录补尾 /」的子串匹配：裸目录名
-# （修复前的 "ffmpeg"/"node"）会把模块名含该词的源码整个排除出检查。危险之处在于这些文件
-# 后来被修干净了，改回裸名 mypy 照样全绿——失明只会静默复发，靠检查自身发现不了。
-# 锁的是语义不变量（files 扫描面内任何源文件都不得被任何 exclude 模式命中），不钉具体写法：
-# `^ffmpeg/` 与 `(^|/)ffmpeg/` 等价形态都放行；「exclude 不得覆盖源文件」才是承重判据。
 def test_ruff_discovery_keeps_product_and_test_files() -> None:
     # 直接问 Ruff 扫了哪些文件，避免再实现一份目录匹配器而得到假绿。
     proc = subprocess.run(
@@ -693,3 +591,35 @@ def test_ruff_discovery_keeps_product_and_test_files() -> None:
     scanned = {Path(name).relative_to(ROOT).as_posix() for name in proc.stdout.splitlines()}
     assert len(scanned) >= 200
     assert {"main.py", "gui.py", "web.py", "src/ffmpeg_install.py", "tests/test_node_install.py"} <= scanned
+
+
+@pytest.mark.parametrize(
+    ("source", "rule"),
+    [
+        ("def caller():\n    return missing_symbol()\n", "F821"),
+        ('__all__ = ["missing_symbol"]\n', "F822"),
+        ("value = 1\ndef caller():\n    print(value)\n    value = 2\n", "F823"),
+    ],
+)
+def test_ruff_reports_undefined_names(source: str, rule: str) -> None:
+    # 驱动真实 Ruff 与仓库配置，确保不同作用域的悬空名字仍被检查。
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--no-fix",
+            "--output-format",
+            "concise",
+            "--stdin-filename",
+            "src/_lint_probe.py",
+            "-",
+        ],
+        cwd=ROOT,
+        input=source,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert f" {rule} " in proc.stdout, proc.stdout + proc.stderr

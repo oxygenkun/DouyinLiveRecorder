@@ -101,8 +101,6 @@ def main_mod() -> ModuleType:
 
 
 # 收集 start_record 在某次调用中产出的 ffmpeg 命令 / 直下下载参数
-#   [历史注] 2026-09-23 前这段是类 docstring，与「注释统一 # 行注释、禁三引号 docstring」冲突
-#   （scripts/check_annotations.py 判违规），改为行注释、语义不变。
 class _Cap:
     def __init__(self) -> None:
         # SEV-2224：命令快照必须连带记录 check_subprocess 收到的 platform / danmaku_args。

@@ -102,7 +102,6 @@ tests/test_bili_live_collector.py
 tests/test_bilibili_danmaku.py
 tests/test_bilibili_danmaku_info.py
 tests/test_build_exe.py
-tests/test_check_annotations.py
 tests/test_check_coverage.py
 tests/test_check_runtime_pins.py
 tests/test_ci_frontend_registration.py

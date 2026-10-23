@@ -146,11 +146,11 @@ jobs:
       # uv.lock、DouyinLiveRecorder.egg-info/**、.coveragerc-concurrency、Dockerfile、
       # docker-compose.yaml、.github/workflows/**、.github/actions/** 归入 python 组。
 
-  # ── 1. 静态检查（格式 / 导入序 / 版本一致性 / 钉定表结构 / 翻译同步 / 注释规范）─
+  # ── 1. 静态检查（格式 / 导入序 / 版本一致性 / 钉定表结构 / 翻译同步）─
   # 各项检查都是「秒级、零运行时依赖」，合并进同一 job 可省去多次 runner 冷启动
   # （约 30~60s），同时用独立 step 名保留清晰的失败归因。
   static:
-    name: Static Checks (Ruff / version / pins / i18n / annotations)
+    name: Static Checks (Ruff / version / pins / i18n)
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -185,7 +185,7 @@ jobs:
           PYTHONUTF8: "1"
         run: python -m ruff format --check --diff .
 
-      - name: Run Ruff import check
+      - name: Run Ruff lint check
         env:
           PYTHONUTF8: "1"
         run: python -m ruff check .
@@ -221,12 +221,6 @@ jobs:
       # （.mo 随仓库分发，gettext 运行时只读 .mo；纯标准库实现）
       - name: Check i18n po/mo sync
         run: python scripts/compile_po.py --check
-
-      # 校验注释规范：禁用三引号 docstring（AGENTS.md 硬性约定——docstring 会进 AST，
-      # 而 # 注释不会）、注释密度下限、模块头存在性。纯标准库实现，无需装项目依赖。
-      # 大批量「只改注释」的改动另可先 --snapshot 建基线、改完 --baseline 验证逻辑未动。
-      - name: Check annotation conventions
-        run: python scripts/check_annotations.py
 
       # 校验 Skill 目录与 AGENTS.md「项目级 Skill」表格一致性：
       # 表格条目必须指向存在的目录与 SKILL.md，frontmatter name 必须与目录名一致，

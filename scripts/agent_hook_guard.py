@@ -152,8 +152,7 @@ _RUNTIME_PIN_MESSAGE = (
 )
 
 # 不参与行尾形态判定的目录名：工具生成目录 + 运行期产物目录 + 第三方运行时。
-# 取「pyproject [tool.isort].extend_skip 有的这里也得有」的保守方向（与
-# scripts/check_annotations.py 的 EXCLUDE_DIRS 同一口径），比那边更严不会误伤；
+# 取「pyproject [tool.ruff].extend-exclude 有的这里也得有」的保守方向，比那边更严不会误伤；
 # 漂移由 tests/test_agent_hook_guard.py 逐名比对钉住。
 # 为什么用**黑名单**而不是「只查 src/scripts/tests」的白名单：Hook 拿到的常常是绝对路径，
 # 工作副本目录名随机器变化（本仓就在 D:\DouyinLiveRecorder），白名单会让判定在别的检出路径上
