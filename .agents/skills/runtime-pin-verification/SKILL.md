@@ -5,13 +5,13 @@ description: 修改运行时下载源、钉定、签名或发布获取链路
 
 # 运行时钉定验证
 
-约束事实源：`AGENTS.md`「构建产物、依赖与运行时基线」。先判断修改的是发布、运行期安装还是 JS 执行，三类校验不能互相替代。
+约束事实源：`AGENTS.md`；构建、依赖与运行时基线的长期约束见 `docs/agent-reference/known-pitfalls.md`「构建产物、依赖与运行时基线」。先判断修改的是发布、运行期安装还是 JS 执行，三类校验不能互相替代。
 
 ## 找到修改面
 
 | 类别 | 入口与核验位置 |
 | --- | --- |
-| 发布 ffmpeg / node | build_exe._PINNED_RUNTIME_SHA256、_is_pinned、_slot_is_gated、require_pinned_hashes；check_runtime_pins.py |
+| 发布 ffmpeg / node | build_exe._PINNED_RUNTIME_SHA256、_is_pinned、_slot_is_gated、require_pinned_hashes |
 | 运行期自动安装 | ffmpeg_install / ffmpeg_linux_download / node_install，官方哈希与显式 TOFU 降级 |
 | JS / wasm | utils._JS_SHA256_EXPECTED、资源目录与下载点 |
 
@@ -29,6 +29,6 @@ SOURCE_BUILD_PROVENANCE 只用于 CI 自源码构建且上游无公布值的产�
 
 ## 验证选择
 
-修改本领域后运行 `python scripts/check_runtime_pins.py --strict`；按受影响路径选择 test_build_exe、test_ffmpeg_install、test_ffmpeg_linux_download、test_node_install 和 test_check_runtime_pins 用例。
+按受影响路径选择 test_build_exe、test_ffmpeg_install、test_ffmpeg_linux_download 和 test_node_install 用例，仅在需要 commit 时运行 pytest 与覆盖率检查。
 
-新安全不变量用例按根文件做变异验证；核对未钉定、签名失败、缺件必须失败，不能只测下载成功。完整检查时机仍遵守根文件，不自动发起全量检查或真实发布。
+用例覆盖未钉定、签名失败与缺件的失败路径，不能只测下载成功；不自动发起真实发布。

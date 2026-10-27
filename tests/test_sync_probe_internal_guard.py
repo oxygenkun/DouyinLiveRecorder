@@ -133,7 +133,7 @@ def _install_mock_transport(
         client._transport = httpx.MockTransport(_record)
         return client
 
-    # R1（tests/test_test_hygiene.py 的「禁改 stdlib/第三方模块本体」）不允许下面这种写法：
+    # 测试隔离约定不允许下面这种写法：
     # ss.httpx 就是全进程唯一的 httpx 模块对象，setattr 它的 Client 等于改 httpx.Client 本体，
     # 窗口内**任何别处**新建的 Client 都会拿到替身。改成 AGENTS 规定的 shim 形态——只替换
     # 被测模块命名空间里的 httpx 全局引用，真实 httpx 模块逐字不动，用例结束由 monkeypatch 还原。

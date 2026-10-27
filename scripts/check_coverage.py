@@ -10,7 +10,7 @@
 #    python scripts/check_coverage.py
 #    python scripts/check_coverage.py --data-file path/to/.coverage
 #
-# 退出码口径（与 scripts/run_gates.py 一致，必须区分「不达标」与「检查没跑」）：
+# 退出码口径（区分「不达标」与「检查没跑」）：
 #    0  全部模块达标
 #    1  有模块低于阈值 / 有模块在数据里查不到（= 覆盖率不达标或数据不含被测模块）
 #    2  无 coverage 数据可读（忘了跑 pytest --cov=src、数据文件缺失、JSON 生成失败、数据比源码

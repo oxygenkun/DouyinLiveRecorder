@@ -1,12 +1,12 @@
 # 语法与静态结论裁定
 
-先核对 `AGENTS.md`「Python 版本」「代码风格」，用项目 venv 的 Python 3.14 对具体代码取证。
+先核对 `AGENTS.md`「code style and dev environment」，用项目 venv 的 Python 3.14 对具体代码取证。
 
 不落盘的语法检查：读取目标文件后 `compile(source, filename, "exec")` 或 `ast.parse(source)`；纯语法争议不必导入完整应用或编译整棵目录。
 
 - PEP 758 的 `except A, B:` 在项目解释器合法；有 as 绑定时必须带括号。不要根据旧 Python 经验改风格。
-- 编译只能裁定语法，不证明名称已绑定、类型或运行时正确；后者须核对调用点或跑针对性行为测试。
+- 编译只能裁定语法，不证明名称已绑定、类型或运行时正确；后者须核对调用点，针对性行为测试在需要 commit 时运行。
 - AST 无法区分多异常括号形式与换行符形态；分别用既有 PEP 758 测试、Ruff 及字节行尾检查验证。
 - Windows 专属符号问题看 [跨平台检查](platform-type-gating.md)，不重新安装旧类型检查工具。
 
-剔除已证伪结论，修复有证据的问题；检查时机仍按根文件，不自动全量验收。
+剔除已证伪结论，修复有证据的问题；pytest 与覆盖率仅在需要 commit 时执行。

@@ -36,8 +36,6 @@ omit =
     */logs/*
     */backup_config/*
     */.mimosa/*
-    */.qoder/*
-    */.qoder-credits/*
     */.agents/*
     */.workbuddy/*
     */.codebuddy/*

@@ -285,8 +285,6 @@ TRAE_AGENT_CODE_WIKI.md
 PERF_REVIEW_*.md
 
 # 本地工具 / 审查生成物（与 .dockerignore 及 pyproject 各工具排除列表同源维护）
-.qoder/
-.qoder-credits/
 # .agents/ 整体是本地工具目录，但 skills/ 必须入库：scripts/check_skill_agents_consistency.py
 # 是 CI 的 required check，干净检出缺该目录会退 2（SR-06，docs/worklog/CODE_REVIEW_2026-10-04.md）。
 # 写法必须是「排除内容物 + 反选子目录」：直接写 .agents/ 会让 git 不再下钻该目录，

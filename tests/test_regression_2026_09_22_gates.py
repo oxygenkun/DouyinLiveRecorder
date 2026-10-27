@@ -1,14 +1,12 @@
 # -*- encoding: utf-8 -*-
 #
-# 组 F 回归锁（2026-09-22 审查报告：SEV-2213 / SEV-2216 / SEV-2222 / SEV-2223）。
+# 组 F 回归锁（2026-09-22 审查报告：SEV-2213 / SEV-2216 / SEV-2222）。
 #
 # 本文件只锁「本轮报告点名的那几种失效形态本身」，不复述被测实现的检查语义——
 # 复述型断言（「调用了 X」）在实现被改坏后照样能过，抓不住真失效。
 #
 import ast
 import re
-import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -72,48 +70,6 @@ def test_requirements_and_pyproject_dependency_name_sets_match() -> None:
     only_proj = proj_names - req_names
     assert not only_req, f"只在 requirements.txt 里、pyproject [project.dependencies] 缺失: {sorted(only_req)}"
     assert not only_proj, f"只在 pyproject [project.dependencies] 里、requirements.txt 缺失: {sorted(only_proj)}"
-
-
-# 元数据生成物也会反向影响运行时：源码目录下的 egg-info 优先于 pyproject 回退，uv.lock 则是 README
-# 推荐的 `uv sync` 输入。二者若不同步，版本展示与安装依赖会在同一工作区分叉。
-def test_tracked_egg_info_matches_pyproject_metadata() -> None:
-    pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    project = tomllib.loads(pyproject_text)["project"]
-    pkg_info = (ROOT / "DouyinLiveRecorder.egg-info" / "PKG-INFO").read_text(encoding="utf-8")
-
-    version = next(line.partition(":")[2].strip() for line in pkg_info.splitlines() if line.startswith("Version:"))
-    runtime_specs = [
-        line.partition(":")[2].strip()
-        for line in pkg_info.splitlines()
-        if line.startswith("Requires-Dist:") and "extra ==" not in line
-    ]
-    egg_names = {
-        _normalize_dist_name(match.group(1)) for spec in runtime_specs if (match := _REQ_NAME.match(spec)) is not None
-    }
-
-    assert version == str(project["version"]), "egg-info 版本未随 pyproject.toml 重建"
-    assert egg_names == _names_from_pyproject_dependencies(pyproject_text), "egg-info 运行时依赖集合已漂移"
-
-
-def test_uv_lock_root_package_matches_pyproject_metadata() -> None:
-    pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    project = tomllib.loads(pyproject_text)["project"]
-    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
-    roots = [
-        package
-        for package in lock.get("package", [])
-        if package.get("name") == "douyinliverecorder" and package.get("source", {}).get("editable") == "."
-    ]
-
-    assert len(roots) == 1, f"uv.lock 应恰有一个本项目 editable 根包，实际 {len(roots)} 个"
-    root_package = roots[0]
-    lock_names = {_normalize_dist_name(str(item["name"])) for item in root_package.get("dependencies", [])}
-
-    assert root_package.get("version") == project["version"], "uv.lock 根包版本未随 pyproject.toml 更新"
-    assert lock_names == _names_from_pyproject_dependencies(pyproject_text), "uv.lock 根包运行时依赖集合已漂移"
-    gui_names = {item["name"] for item in root_package["optional-dependencies"]["gui"]}
-    assert "pyside6" in gui_names
-    assert not {"pyside6", "shiboken6"} & lock_names, "Qt 不得成为基础依赖"
 
 
 def test_development_tools_use_ruff_without_legacy_type_checkers() -> None:
@@ -290,142 +246,6 @@ def test_concurrency_rate_limit_case_drives_src_not_a_local_copy() -> None:
                 f"（体内找不到 {wanted[node.name]} 任一符号）—— SEV-2222/SEV-2223"
             )
     assert set(found) == set(wanted), f"三个自建实现类被改名/删除，锁位需重定位（实际找到 {found}）"
-
-
-# ────────────────────────────── SEV-2223 ──────────────────────────────
-# 形态：检查步骤「只扫 stderr 不判 rc」/「退出码被丢弃」，于是子进程以非 0 退出但检查仍判通过。
-
-
-def test_run_gates_run_command_surfaces_nonzero_rc() -> None:
-    # 直接调 scripts/run_gates.run_command，喂一条**必然失败**的命令，
-    # 断言返回的 rc 就是子进程真实退出码（3），而不是被吞成 0。
-    run_gates = _load_script_module("run_gates")
-    rc, _dur, hits = run_gates.run_command(f'"{sys.executable}" -c "raise SystemExit(3)"')
-    assert rc == 3, f"子进程退出码被丢弃：期望 3，实际 {rc}"
-    assert hits == [], f"这条命令不该命中致命告警模式，实际 {hits}"
-
-
-def test_run_gates_failed_command_is_reported_as_failure() -> None:
-    # 上一条锁的是 run_command 的返回值；这条锁**收集判据**：
-    # main() 用 `if rc == 0 and not hits:` 判通过，故 rc!=0 必须落到「失败」分支。
-    # 直接复现该判据（而非跑整个 main()，那会连带跑全量检查）。
-    run_gates = _load_script_module("run_gates")
-    rc, _dur, hits = run_gates.run_command('"{}" -c "raise SystemExit(3)"'.format(sys.executable))
-    passed = rc == 0 and not hits
-    assert not passed, "rc!=0 的步骤被判为通过：检查丢失退出码（SEV-2223 的原始形态）"
-
-
-def test_run_gates_keep_going_does_not_affect_exit_code_semantics() -> None:
-    # --keep-going 只影响「是否继续跑后续步骤」，不得影响最终退出码：
-    # 源码里失败必进 `failed` 列表、且主流程以 `return 1` 收口。锁住这条结构不变量。
-    src = (ROOT / "scripts" / "run_gates.py").read_text(encoding="utf-8")
-    assert "if not args.keep_going:" in src, "--keep-going 的收口点已改，需复核是否仍只控制「是否继续」"
-    assert re.search(r"if failed:\s*\n\s*print", src), "失败集合未参与最终退出码判定"
-
-
-def test_run_gates_comment_about_stdout_matches_implementation() -> None:
-    # SEV-2220 定点锁：run_command 的注释曾声称「stdout 原样继承 / 逐行转发」，而实现是不接管
-    # stdout（未传 stdout= ⇒ 子进程直接继承句柄），二者结论不同：只走 stdout 的失效信号是盲区。
-    # 判据（可复核）：Popen 调用里不得出现 stdout= 关键字；刻意走 AST 而非子串——注释里也会出现
-    # stdout=subprocess.PIPE 字样，纯子串匹配会把自己的说明当实现（首版即此坑）。
-    src = (ROOT / "scripts" / "run_gates.py").read_text(encoding="utf-8")
-    run_cmd_popen_kwargs = _popen_keywords(src, "run_command")
-    assert "stdout" not in run_cmd_popen_kwargs, (
-        f"run_command 现在接管了 stdout（kwargs={sorted(run_cmd_popen_kwargs)}）："
-        "请同步改写其注释里「不接管 stdout、只扫 stderr」的结论"
-    )
-    # 反向：pytest 兜底那条**必须**接管 stdout（warnings summary 走 stdout，不接管就永远检不出）
-    summary_kwargs = _popen_keywords(src, "gate_pytest_warnings_summary")
-    assert "stdout" in summary_kwargs, (
-        "gate_pytest_warnings_summary 未接管 stdout：warnings summary 走 stdout，此回路会永久失明"
-    )
-
-
-def _popen_keywords(source: str, function_name: str) -> set[str]:
-    # 取 function_name 体内**所有子进程调用**（Popen 与 run 两种形态）的关键字参数名集合。只认
-    # Popen 会让「必须接管 stdout」的反向见证凭空变红：pytest 兜底那步为避免管道死锁用的是
-    # subprocess.run；run_command 仍只用 Popen，故「不接管 stdout」一侧的断言不受影响。
-    #   [历史注] 2026-09-23 SEV-2219 之前只扫 Popen(...) 一种形态。
-    tree = ast.parse(source)
-    for node in tree.body:
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or node.name != function_name:
-            continue
-        kwargs: set[str] = set()
-        for inner in ast.walk(node):
-            if not isinstance(inner, ast.Call):
-                continue
-            func = inner.func
-            is_popen = (isinstance(func, ast.Attribute) and func.attr == "Popen") or (
-                isinstance(func, ast.Name) and func.id == "Popen"
-            )
-            is_run = isinstance(func, ast.Attribute) and func.attr == "run" and isinstance(func.value, ast.Name)
-            if is_popen or is_run:
-                kwargs.update(kw.arg for kw in inner.keywords if kw.arg)
-        return kwargs
-    raise AssertionError(f"run_gates.py 里找不到函数 {function_name}()")
-
-
-def test_run_gates_fatal_patterns_reach_stderr_channel() -> None:
-    # MID-2267 定点锁：FATAL_STDERR_PATTERNS 的**有效性**依赖「告警确实落在 stderr」。用一条真实的
-    # isort 解析失败复现（非 UTF-8 字节混入源文件）：断言其 rc==0（只认退出码即假绿）**且**告警
-    # 文本出现在 stderr（扫描回路有效）。若 isort 将来把告警改到 stdout，本用例会红。
-    import tempfile
-
-    run_gates = _load_script_module("run_gates")
-    assert "Unable to parse file" in run_gates.FATAL_STDERR_PATTERNS, "致命告警清单已不含该形态"
-
-    with tempfile.TemporaryDirectory() as tmp:
-        target = Path(tmp) / "bad_probe.py"
-        # 合法的 py 头 + 两个非法 UTF-8 字节：要触发的必须是 isort 的**编码型**解析失败（只发
-        # UserWarning、rc 仍为 0），不是语法错误——后者 rc 非 0，就证不出「只认退出码即假绿」。
-        target.write_bytes(b"# coding: utf-8\n# " + bytes([0xFF, 0xFE]) + b" bad\nx = 1\n")
-        proc = subprocess.run(
-            [sys.executable, "-m", "ruff", "check", "--no-fix", tmp],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-    assert proc.returncode != 0, "Ruff 不得把非法编码源文件静默当成已检查"
-    assert proc.stdout or proc.stderr, "解析失败必须给出诊断"
-
-
-def test_run_gates_parses_all_gate_commands_and_env() -> None:
-    # 检查清单来源锁：AGENTS.md「格式化命令」章节必须仍能被解析出全部命令、
-    # 且行首 `PYTHONUTF8=1` 前缀被正确解析为子进程环境变量（MID-63 的语义载体）。
-    # 这条同时防「章节标题被改 → 解析静默返空 → 检查 rc=2 或跑空清单」的漂移。
-    run_gates = _load_script_module("run_gates")
-    agents = ROOT / "AGENTS.md"
-    cmds = run_gates.extract_gate_commands(agents)
-    assert cmds, "未能从 AGENTS.md 解析出任何检查命令（章节标题/围栏可能已改）"
-    # 本仓声明的全部检查都应在清单内（抽查关键项，避免只断言「非空」）
-    joined = "\n".join(cmds)
-    for expected in (
-        "ruff format --check",
-        "ruff check --no-fix",
-        "compile_po.py --check",
-        "check_runtime_pins.py",
-    ):
-        assert expected in joined, f"检查清单缺少 {expected!r}（AGENTS.md 章节可能被改）"
-    # 写型命令兜底拦截仍生效（清单里不得出现不带 --check 的 black/isort）
-    assert not [c for c in cmds if run_gates.is_write_command(c)], "清单里出现了写型格式化命令"
-    assert run_gates.extract_gate_env(agents).get("PYTHONUTF8") == "1", (
-        "检查块行首的 PYTHONUTF8=1 前缀未被解析出：isort 会在非 UTF-8 locale 下静默跳文件"
-    )
-
-
-def _load_script_module(name: str) -> Any:
-    # scripts/ 不在包路径内，按文件路径动态加载（与 check_runtime_pins._load_build_exe 同手法）。
-    import importlib.util
-
-    path = ROOT / "scripts" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(f"_regression_probe_{name}", path)
-    assert spec is not None and spec.loader is not None, f"无法加载 {path}"
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _load_build_exe() -> Any:

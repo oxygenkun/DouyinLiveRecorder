@@ -22,7 +22,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import re
 import shlex
 from pathlib import Path
@@ -34,13 +33,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "docker-publish.yml"
 
-# 「这个 job 必须跑在哪个 runner 上、产出哪个平台」的对应表。判据取原生 runner 而不是
-# 「platforms 里出现两个平台」：build-release.yml 的发布矩阵已用 ubuntu-24.04-arm（并由
-# scripts/check_runtime_pins.py 的 RUNNER_TO_RUNTIME_KEY 登记为 linux-arm64），本表与之同口径。
-# [评审 I-2 补的机检] 上面那句「同口径」此前只是评论：本表把标签又硬编了一份，而唯一登记点
-# RUNNER_TO_RUNTIME_KEY 从不与本工作流比对——「workflow 换标签 + 本表跟着改」两侧同改仍全绿，
-# 而新标签从未登记。同源断言落在 test_arch_jobs_run_on_matching_native_runners，登记表按文件
-# 路径动态加载、不在本文件复述标签清单（复述即第二份事实源）。
+# 构建 job 与原生 runner、镜像平台的对应关系。
 ARCH_JOBS: dict[str, tuple[str, str]] = {
     "docker-build-amd64": ("ubuntu-latest", "linux/amd64"),
     "docker-build-arm64": ("ubuntu-24.04-arm", "linux/arm64"),
@@ -100,26 +93,6 @@ def _load_workflow() -> dict[Any, Any]:
 @pytest.fixture(scope="module")
 def data() -> dict[Any, Any]:
     return _load_workflow()
-
-
-def _runner_registry() -> dict[str, str]:
-    # runner 标签 ↔ 运行时键的唯一登记点（scripts/check_runtime_pins.py::RUNNER_TO_RUNTIME_KEY），
-    # 按文件路径动态加载取常量，**不在本文件复制一份标签清单**——复制即造出第二份事实源。
-    # 加载先例取同仓既有两处：check_runtime_pins._load_build_exe 与 tests/test_check_runtime_pins.
-    # _load_checker（scripts/ 不在包路径内，只能 spec_from_file_location；该脚本 main() 受 __name__
-    # 守卫，模块级只有常量定义，import 期零副作用、零联网）。
-    # 「读不到就显式失败」而非返回空 dict：空表会让下面的成员断言在真空里成立（假绿），
-    # 而登记表本身失效属「检查坏了」档，与 check_runtime_pins 走 sys.exit(2) 的口径一致。
-    path = ROOT / "scripts" / "check_runtime_pins.py"
-    spec = importlib.util.spec_from_file_location("_runner_registry_for_docker_publish_lock", path)
-    if spec is None or spec.loader is None:
-        raise AssertionError(f"无法按文件路径加载 {path}，runner 登记表读不到即判失败")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    registry = cast("dict[str, str]", module.RUNNER_TO_RUNTIME_KEY)
-    if not registry:
-        raise AssertionError(f"{path} 的 RUNNER_TO_RUNTIME_KEY 为空——唯一登记点已失效，本锁无从比对")
-    return registry
 
 
 def _triggers(doc: dict[Any, Any]) -> dict[Any, Any]:
@@ -233,19 +206,11 @@ def test_only_tag_push_can_publish_latest(data: dict[Any, Any]) -> None:
 
 
 def test_arch_jobs_run_on_matching_native_runners(data: dict[Any, Any]) -> None:
-    registry = _runner_registry()
     seen_runners: list[str] = []
     for name, (runner, image_platform) in ARCH_JOBS.items():
         job = _job(data, name)
         actual = str(job["runs-on"])
         assert actual == runner, f"{name} 必须跑在原生 {runner} 上，不得用 QEMU 交叉构建"
-        # 评审 I-2 的跨文件同源断言：本 job 实际用的 runner 标签必须**已在唯一登记点里**。
-        # 只看「与 ARCH_JOBS 相等」不够——那张表就硬编在本文件里，两侧一起改就同时成立；
-        # 与登记表比对才抓得住「这个标签根本没被登记过」（改名的典型形态：ubuntu-24.04-arm64）。
-        assert actual in registry, (
-            f"{name} 的 runs-on={actual!r} 不在 scripts/check_runtime_pins.py::RUNNER_TO_RUNTIME_KEY 里；"
-            f"新增 runner 标签必须同批登记，否则发布链的运行时覆盖校验根本不知道有这个平台（已登记：{sorted(registry)}）"
-        )
         seen_runners.append(actual)
         build = _build_step(job, name)
         # 入参名实测取自 docker/build-push-action 的 action.yml：是 platforms（不是 platform）。

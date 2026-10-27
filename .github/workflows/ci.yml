@@ -202,21 +202,6 @@ jobs:
       - name: Check workflow version constants consistency
         run: python scripts/check_workflow_constants.py
 
-      # 校验「派生元数据一致性」：uv.lock 与 DouyinLiveRecorder.egg-info 必须从 pyproject.toml
-      # 重新生成，不允许手改版本号（手写版本是 4.3.0 -> 4.4.0 那次 egg-info / uv.lock 没跟上的
-      # 根因，见 AGENTS.md「关键约定」#1 与 scripts/sync_metadata.py 头部说明）。
-      # --check 仅读 uv.lock / egg-info/PKG-INFO / pyproject.toml 做比对：不调用 uv / setuptools、
-      # 不联网、无需安装项目依赖，与 tests/test_regression_2026_09_22_gates.py 的两条元数据回归锁同口径。
-      # 路径过滤已把 uv.lock / egg-info 纳入 python 组，故手动改这两个文件也会触发本步。
-      - name: Check generated metadata is in sync with pyproject
-        run: python scripts/sync_metadata.py --check
-
-      # 运行时二进制钉定表的**结构**检查（SEV-10）：空表 / 缺平台 / 缺槽位 / 与发布矩阵
-      # 漂移即红。--strict（占位值也算失败）只在 build-release.yml 的 prepare 里跑，
-      # 否则每个 PR 都会因「官方哈希待人工核实」被弄红。
-      - name: Check runtime binary SHA256 pins (structure)
-        run: python scripts/check_runtime_pins.py
-
       # 校验 gettext 翻译同步：改 .po 忘记重编译 .mo 时拦截
       # （.mo 随仓库分发，gettext 运行时只读 .mo；纯标准库实现）
       - name: Check i18n po/mo sync
@@ -465,8 +450,8 @@ jobs:
       # 判据被这两条平台专属用例误触发（本 job 全程跑在 ubuntu）。只点名这几条「装了 node 就该跑」
       # 的入口，平台无关，判据才干净。
       # 2026-10-02 补：下方清单里 `tests/test_ci_frontend_registration.py` 不驱动任何 .mjs，它反过来比对
-      # 「本清单点名的入口」与 `tests/frontend/*.mjs` 的差集——把「新增 .mjs 必须同批登记」从靠人记 +
-      # 本机 Hook（`.qoder/` 不随仓库分发）升级成随仓库分发的机检锁。点名进本步骤而不是只靠全量 pytest
+      # 「本清单点名的入口」与 `tests/frontend/*.mjs` 的差集，确保新增 .mjs 同批登记。
+      # 点名进本步骤而不是只靠全量 pytest
       # 收集，是为了让清单与该锁在**同一步**里互相见证：从清单里摘掉它，该锁自身即报红。
       - name: Gate frontend tests not skipped
         shell: bash

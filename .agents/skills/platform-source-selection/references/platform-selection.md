@@ -1,6 +1,6 @@
 # 平台候选检查
 
-约束见 `AGENTS.md`「流地址探针与可达性校验」「平台接口、签名与流地址解析」。
+约束见 `AGENTS.md` 与 `docs/agent-reference/known-pitfalls.md`「流地址探针与可达性校验」「平台接口、签名与流地址解析」。
 
 - 虎牙：检查 _PROBE_BACKOFF_PLATFORMS、_FLV_FIRST_PLATFORMS 与主循环周期，避免退避刚记入就过期。
 - 斗鱼：保留同 token HLS 候选和 HLS 优先；解析使用 extract_douyu_rid_param / extract_douyu_room_id，域名扩展同时覆盖 URL 准入和平台分发。

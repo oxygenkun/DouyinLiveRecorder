@@ -52,13 +52,13 @@ _SECONDS_RAW = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("
 SECONDS = int(_SECONDS_RAW) if _SECONDS_RAW.isdigit() else 30
 ```
 
-用项目解释器对脚本跑 `--collect-only -q`，确认快速返回。0 收集的手动脚本须符合现有 hygiene 例外；新增测试优先离线可收集。
+提交前用项目解释器对脚本跑 `--collect-only -q`，确认快速返回；新增测试优先离线可收集。
 
 ## 验证选择
 
 - 并发：超时 join 后断言线程已退出，平台分支按当前实现分别驱动。
 - 子进程：本地化系统工具按字节比较，相关文件另跑单文件模式检查码页问题。
-- 安全不变量：优先内存构造错误输入；必须磁盘变异时按 AGENTS.md 留标记、finally 原字节还原。
+- 安全不变量：用错误输入驱动真实生产路径；临时改动在 finally 中还原。
 - Qt：探测实际子模块和系统库；还原翻译登记及窗口资源，不以整模块 skip 代替必要验证。
 
-先运行直接相关测试；不因读取本配方自动启动完整检查。
+仅在需要 commit 时运行 pytest 与覆盖率检查；日常可编写测试，不自动执行。

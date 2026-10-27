@@ -60,6 +60,9 @@ Dynamic: license-file
 
 简体中文&nbsp;&nbsp;|&nbsp;&nbsp;[**English**](README_EN.md)
 
+
+> 开发检查：pytest 与覆盖率仅在需要 commit 时执行；日常编辑不自动运行。现行约定见 [AGENTS.md](AGENTS.md)，历史更新记录中的已退役工具不作为当前要求。
+
 ## 💡 简介
 
 [![Python Version](https://img.shields.io/badge/python-v3.14%2B-blue?logo=python)](https://www.python.org/downloads/)

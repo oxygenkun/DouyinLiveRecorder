@@ -236,7 +236,7 @@ def test_ws_heartbeat_timeout_closes_connection(monkeypatch: pytest.MonkeyPatch)
         heartbeat_interval=0.05,  # 极短间隔
     )
     # 超时阈值是 _heartbeat_loop 内的局部变量、无法 monkeypatch，靠 hang 时长大于默认 1.05s 触发。
-    # MID-66（tests/test_test_hygiene.py R1）：websockets 是三方模块本体，setattr 到它上面等于全进程
+    # MID-66：websockets 是三方模块本体，setattr 到它上面等于全进程
     # 换掉 connect——同会话其它用例的连接都会吃到假实现；正确写法是浅拷贝替身，只替换 ws_client
     # 命名空间里的全局名。
     _ws_shim = types.SimpleNamespace(**vars(ws_client.websockets))

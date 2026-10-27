@@ -91,7 +91,7 @@ src/proto/douyin.proto
 src/proto/douyin_pb2.py
 src/proto/douyin_pb2.pyi
 tests/test_ab_sign.py
-tests/test_agent_hook_guard.py
+tests/test_agents_pitfall_index.py
 tests/test_anchor_rename.py
 tests/test_async_http.py
 tests/test_async_http_lock.py
@@ -103,7 +103,6 @@ tests/test_bilibili_danmaku.py
 tests/test_bilibili_danmaku_info.py
 tests/test_build_exe.py
 tests/test_check_coverage.py
-tests/test_check_runtime_pins.py
 tests/test_ci_frontend_registration.py
 tests/test_ci_pytest_env_parity.py
 tests/test_ci_retry_action.py
@@ -209,7 +208,6 @@ tests/test_regression_2026_09_29_wp_b_netguard.py
 tests/test_regression_2026_10_18_gui_output_chain.py
 tests/test_regression_2026_10_18_root_entries.py
 tests/test_room.py
-tests/test_run_gates.py
 tests/test_scheduler.py
 tests/test_scripts_error_paths.py
 tests/test_shopee_landing_guard.py
@@ -228,7 +226,6 @@ tests/test_stream_select.py
 tests/test_sync_http.py
 tests/test_sync_probe_internal_guard.py
 tests/test_tars_frames.py
-tests/test_test_hygiene.py
 tests/test_tiktok_hls_quality_index.py
 tests/test_ttwid.py
 tests/test_twitch_live_collector.py

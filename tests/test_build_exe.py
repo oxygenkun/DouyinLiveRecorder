@@ -44,7 +44,7 @@ _ALLOWED_HOSTS = frozenset({"www.gyan.dev", "evermeet.ca", "github.com", "api.gi
 
 
 def _load_build_exe() -> Any:
-    # 与 scripts/check_runtime_pins.py 同一手法：根目录模块不在包路径内，按文件路径显式加载；
+    # 根目录模块不在包路径内，按文件路径显式加载；
     # build_exe 的 import 期只有常量定义（main() 受 __name__ 守卫），故加载无副作用。
     spec = importlib.util.spec_from_file_location("_build_exe_runtime_probe", ROOT / "build_exe.py")
     assert spec is not None and spec.loader is not None
@@ -178,7 +178,7 @@ def test_unknown_family_raises_instead_of_skipping_silently(monkeypatch: pytest.
 
 
 def test_runtime_slots_cover_both_pinnable_components() -> None:
-    # 钉定表按槽位分列；槽位集合与 runtime_slots_for() 不一致时，check_runtime_pins 会静默少查一类。
+    # 钉定表按 runtime_slots_for() 返回的槽位分列。
     assert set(build_exe.RUNTIME_SLOTS) == {"ffmpeg", "node"}
     for key, entry in build_exe._PINNED_RUNTIME_SHA256.items():
         assert set(entry) == set(build_exe.runtime_slots_for(key)), f"{key} 的槽位集合不完整"

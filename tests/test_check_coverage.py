@@ -23,7 +23,7 @@
 # 产出成串假失败（单跑全绿、换个顺序就红）。确需两次判定的那一条用 ExitStack 把还原
 # **推到两次判定之间**（见 test_stale_table_entry_exits_2_then_clean_table_passes）。
 #
-# 加载方式与 tests/test_run_gates.py 相同：scripts/ 不在包路径内，用
+# 加载方式：scripts/ 不在包路径内，用
 # spec_from_file_location 显式加载，避免 sys.path 注入被 isort 重排到 import 之前。
 
 import ast
@@ -60,9 +60,7 @@ def _read_this_file() -> str:
     return Path(__file__).resolve().read_text(encoding="utf-8")
 
 
-check_coverage: Any = (
-    _load_check_coverage()
-)  # 动态加载的检查脚本：属性由 mypy 视角不可见，按 Any 处理（与 tests/test_run_gates.py 同法）
+check_coverage: Any = _load_check_coverage()  # 动态加载的检查脚本：属性由 mypy 视角不可见，按 Any 处理
 
 # 登记表 + 白名单的全部模块：构造临时 root 时以它为「已登记面」，用例再各自追加新模块。
 _REGISTERED = tuple(check_coverage.MODULE_THRESHOLDS) + tuple(check_coverage.GATE_EXEMPT_MODULES)

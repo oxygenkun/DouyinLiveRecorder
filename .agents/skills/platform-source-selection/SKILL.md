@@ -5,7 +5,7 @@ description: 修改平台解析、选源、探针、画质映射或新增平台
 
 # 平台选源与画质
 
-约束事实源：`AGENTS.md`「流地址探针与可达性校验」「平台接口、签名与流地址解析」「画质档位与选源映射」「装饰器与平台兜底契约」。按修改路径选择参考：
+约束事实源：`AGENTS.md`；本领域长期约束见 `docs/agent-reference/known-pitfalls.md`「流地址探针与可达性校验」「平台接口、签名与流地址解析」「画质档位与选源映射」「装饰器与平台兜底契约」。按修改路径选择参考：
 
 | 修改范围 | 参考 |
 | --- | --- |
@@ -16,4 +16,4 @@ description: 修改平台解析、选源、探针、画质映射或新增平台
 
 新增平台先核对 URL 准入与 main 分发表、返回结构、Cookie/代理/UA、画质和脱敏；只测试函数返回值不足以证明房间可进入监控。
 
-相关测试从 test_stream_select、test_stream、test_spider、test_spider_hardening、test_platform_dispatch 中选；新安全不变量做变异验证，真机与完整检查时机见根文件。
+相关测试从 test_stream_select、test_stream、test_spider、test_spider_hardening、test_platform_dispatch 中选；仅在需要 commit 时运行 pytest 与覆盖率检查，真机验证遵守根文件。

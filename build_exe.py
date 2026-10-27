@@ -60,8 +60,7 @@ EXE_SUFFIX = ".exe" if IS_WIN else ""
 # 体积优化：运行期不可达模块的排除清单（每项体积为 2026-09-24 本机 Windows lite 构建实测值，
 # 基线发布目录 82.77MB）。进表判据只有一条：能指出它在产物里、且运行期不可达——靠「看着像没用」
 # 排除会在某个平台/分支上变成 ModuleNotFoundError（冻结产物里该错误只在运行时炸，测试覆盖不到）。
-# 新增项须：① 用 scripts/report_bundle_size.py 复测体积；② 本地 `python build_exe.py --smoke
-# --no-runtime` 三入口冒烟通过后才可提交。
+# 新增排除项应确认运行期不可达，并验证冻结入口。
 BLOAT_EXCLUDES: tuple[str, ...] = (
     # pydantic v1 兼容层的 mypy 插件：pydantic/v1/mypy.py 顶层 `from mypy.errorcodes import ErrorCode`
     # 会把整个 mypy 包（0.71MB / 69 个文件）拖进产物，是基线里唯一一处「开发工具链泄漏」。
@@ -473,7 +472,7 @@ RUNTIME_SLOTS: tuple[str, ...] = ("ffmpeg", "node")
 # 凭空多出没有公布值的钉定义务。查「这个键该有几个槽」一律用 runtime_slots_for()。
 
 # 发布矩阵覆盖的运行时键（<os>-<arch>），与 .github/workflows/build-release.yml 的四平台矩阵同源；
-# scripts/check_runtime_pins.py 校验钉定表对它的覆盖完整性。
+# 构建入口按当前平台校验对应运行时槽位。
 RELEASE_RUNTIME_KEYS: tuple[str, ...] = ("windows-x64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64")
 
 # 尚未核实官方哈希的占位标记。判定「是否已钉定」只看形状（64 位十六进制），
@@ -499,10 +498,10 @@ OFFICIAL_SIGNATURE_PIN = "PINNED-OFFICIAL-GPG-SIGNATURE"
 #   2) 把 64 位十六进制小写值替换下表的 UNVERIFIED_PIN（**不得凭本地下载结果填写**——那只会把
 #      「构建机已中毒」固化成基线）；上游确实只给签名不给哈希时改填 OFFICIAL_SIGNATURE_PIN，并把
 #      「签名 URL + 完整 40 位主钥指纹」同批登记进 _RUNTIME_GPG_SIGNATURES（只改表不登记 = 未满足，
-#      --strict 照旧拦，见 _is_signature_satisfied）。
+#      构建入口仍会拒绝，见 _is_signature_satisfied）。
 #   3) 也可不改本表、由 CI 用 DLR_RUNTIME_SHA256（JSON）注入同一批值，把「发布密钥」与代码仓分离；
 #      两种来源都接受槽位名或下载文件名做键。
-# 表内仍是占位值时，`python scripts/check_runtime_pins.py --strict` 与 CI 发布链一律失败——这是刻意
+# 表内仍是占位值时，CI 构建入口拒绝下载对应运行时——这是刻意
 # 设计，不得为了「让 CI 变绿」而回填自算哈希或放宽判定。
 #
 # 当前取值（2026-10-18 起）：node × 5 段全部取自 nodejs.org/dist/v24.22.0/SHASUMS256.txt，并与同版本
@@ -686,8 +685,7 @@ def _is_signature_satisfied(value: str, key: str, slot: str) -> bool:
 
 def _slot_is_gated(value: str, key: str, slot: str) -> bool:
     # 「这个槽位今天算不算被管住了」的**唯一**口径 = 已钉定的官方哈希 ∨ 证据齐备的第 4 类。
-    # scripts/check_runtime_pins.py 必须调本函数而不是自己判 _is_pinned，否则会出现两份判定、
-    # 第 4 类在某一侧被漏认（AGENTS.md 禁止并行事实源的同一条）。
+    # 各消费方复用本函数，避免遗漏第 4 类满足方式。
     # [2026-09-26] 第三个析取项「官方签名档」（_is_signature_satisfied）并入，仍只有本函数一个口径。
     return (
         _is_pinned(value) or _is_source_build_satisfied(value, key, slot) or _is_signature_satisfied(value, key, slot)
@@ -1366,7 +1364,7 @@ def _download_nodejs(target_dir: Path) -> bool:
 #             两周（钉它等于预埋一次 404）；月末标签实测保留到 2024-10-31，URL 与 digest 双双不可变。
 #             代价：内置版本落后于上游 latest（现为 n9.0.1-11-ge47273f4d9，latest 已到 n9.0.2），升级须
 #             人工换标签 + 换钉定值；资产体积实测 2026-09-27：linux64 126,600,656 B、linuxarm64
-#             108,761,296 B，体积检查须按 report_bundle_size.py 实跑复核，不估算。
+#             108,761,296 B，体积读数来自当时的实际产物。
 #   [历史注] linux 两槽曾用 johnvansickle static 构建（amd64 41,888,096 B），换走的唯一原因是它只发
 #   *.md5、无 SHA256，导致 --strict 长期拦下发布。
 #   两条运行期源（src/ffmpeg_install.py / src/ffmpeg_master_download.py，类别 ②）与本表**互不覆盖**：
@@ -1407,8 +1405,7 @@ def _ffmpeg_source_url() -> str:
 # （ffprobe-9.0.2.zip，26,104,193 B；其 .sig 与 ffmpeg 同为已钉主钥的子钥 4E7BEC998E920EE1 签出）。
 # gyan.dev 与 BtbN 的归档里 ffmpeg+ffprobe 同包，完整性已由该平台的 ffmpeg 槽一并覆盖，故本表
 # **不含** windows/linux 键——给同包成员另立一个没有独立公布值的钉定槽，等于凭空造一个假闸门。
-# 本表的键集合就是「哪些运行时键多一个下载槽位」的唯一事实源：runtime_slots_for() 与
-# scripts/check_runtime_pins.py 的槽位覆盖面都由它推导，不得在第二处再列一遍槽位名。
+# 本表的键集合由 runtime_slots_for() 推导为下载槽位，不在第二处复制槽位名。
 _EXTRA_EXECUTABLE_URLS: dict[str, dict[str, str]] = {
     "macos-x64": {"ffprobe": "https://evermeet.ca/ffmpeg/ffprobe-9.0.2.zip"},
     "macos-arm64": {"ffprobe": "https://evermeet.ca/ffmpeg/ffprobe-9.0.2.zip"},
@@ -1996,8 +1993,7 @@ def _ensure_utf8_streams() -> None:
     # pytest 进程内被调用时（tests/test_build_exe.py 三条用例经 main() 调用），sys.stdout/stderr 正是 pytest
     # fd 捕获的 EncodedFile（原 errors="replace"），裸调等于把框架资产就地改成 strict，此后任何非 UTF-8 字节
     # 落进捕获文件都会在收尾读回时抛 UnicodeDecodeError，表现为「pytest 整轮无结论 + 无关用例报 FAILED/ERROR」
-    # （2026-09-23 故障根因，见 DIAGNOSIS_2026-09-23_pytest-teardown-crash.md）。与 scripts/run_gates.py 的
-    # 同款实现同一口径，改一侧须同步另一侧（那里已是 replace）。
+    # （2026-09-23 故障根因，见 DIAGNOSIS_2026-09-23_pytest-teardown-crash.md）。
     os.environ["PYTHONUTF8"] = "1"
     for s in (sys.stdout, sys.stderr):
         reconfigure = getattr(s, "reconfigure", None)

@@ -7,7 +7,8 @@
 #   2) 「目录缺失 = 检查自身失效（2）」与「表格条目指向不存在路径 = 一致性不合格（1）」
 #      必须是两档不同结论，后者不得被前者吞掉。
 #   3) SKILL.md 的四条判据各自能单独转红：文件存在 / frontmatter name 与目录名对齐 /
-#      声明 AGENTS.md 为约束事实源 / 引用的 AGENTS.md 章节实际存在。
+#      声明 AGENTS.md 为约束事实源 / 引用的文档章节实际存在（AGENTS.md 与
+#      docs/agent-reference/ 外迁明细两类载体都在判据内）。
 #   4) 真实仓库面必须自证一致（AGENTS.md 表格 ↔ .agents/skills/ 目录）。
 #
 # 全部离线：一致性判定的用例一律在 tmp_path 造面后 monkeypatch 模块级常量，不触碰真实资产；
@@ -25,8 +26,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _load_checker() -> ModuleType:
-    # 沿用仓内惯例（test_run_gates.py / test_i18n.py）：scripts/ 不在包路径内，用
-    # spec_from_file_location 显式加载，避免 sys.path 注入被 isort 重排到 import 之前
     spec = importlib.util.spec_from_file_location(
         "_skill_consistency_probe", ROOT / "scripts" / "check_skill_agents_consistency.py"
     )
@@ -59,11 +58,19 @@ def _build_agents_md(rows: list[tuple[str, str]], extra_headers: tuple[str, ...]
     return "".join(lines)
 
 
-def _build_skill_md(name: str, refs_agents: bool = True, section: str = "已知坑") -> str:
-    # 造一份最小 SKILL.md；refs_agents=False 用于验证「未声明约束事实源」必须转红
+def _build_skill_md(
+    name: str,
+    refs_agents: bool = True,
+    section: str = "已知坑",
+    extra_ref: tuple[str, str] | None = None,
+) -> str:
+    # 造一份最小 SKILL.md；refs_agents=False 用于验证「未声明约束事实源」必须转红；
+    # extra_ref 用于验证「引用了 AGENTS.md 外迁明细」时同样按真实标题判定
     body = f"# {name}\n"
     if refs_agents:
         body += f"\n约束事实源：`AGENTS.md`「{section}」\n"
+    if extra_ref is not None:
+        body += f"\n细分约束见 `{extra_ref[0]}`「{extra_ref[1]}」\n"
     return f"---\nname: {name}\ndescription: 触发词\n---\n\n{body}"
 
 
@@ -165,6 +172,49 @@ def test_external_skill_is_exempt_from_agents_reference(tmp_path: Path, monkeypa
     )
     _point_checker_at(monkeypatch, tmp_path)
     assert checker.main() == 0
+
+
+def _write_companion_doc(root: Path, headers: tuple[str, ...]) -> Path:
+    # 造一份 AGENTS.md 外迁明细：章节标题由用例给定，正文不参与判定
+    path = root / "docs" / "agent-reference" / "known-pitfalls.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# 已知坑明细\n\n" + "".join(f"## {h}\n\n正文\n\n" for h in headers), encoding="utf-8")
+    return path
+
+
+def test_companion_doc_section_reference_is_rc0(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 外迁明细里的真实标题必须能解析成功，不能被当成「非 AGENTS.md 引用」静默跳过
+    _make_skill(tmp_path, "some-skill", extra_ref=("docs/agent-reference/known-pitfalls.md", "外迁主题"))
+    (tmp_path / "AGENTS.md").write_text(
+        _build_agents_md([("某技能", ".agents/skills/some-skill/")]),
+        encoding="utf-8",
+    )
+    _write_companion_doc(tmp_path, ("外迁主题",))
+    _point_checker_at(monkeypatch, tmp_path)
+    assert checker.main() == 0
+
+
+def test_dangling_companion_doc_section_is_rc1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 明细文档存在但章节被改名/删除，同样必须转红
+    _make_skill(tmp_path, "some-skill", extra_ref=("docs/agent-reference/known-pitfalls.md", "早已删除的章节"))
+    (tmp_path / "AGENTS.md").write_text(
+        _build_agents_md([("某技能", ".agents/skills/some-skill/")]),
+        encoding="utf-8",
+    )
+    _write_companion_doc(tmp_path, ("外迁主题",))
+    _point_checker_at(monkeypatch, tmp_path)
+    assert checker.main() == 1
+
+
+def test_missing_companion_doc_is_rc1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 引用了不存在的明细文档：不能静默放过，否则断链又退化成「看不见」
+    _make_skill(tmp_path, "some-skill", extra_ref=("docs/agent-reference/missing.md", "任意章节"))
+    (tmp_path / "AGENTS.md").write_text(
+        _build_agents_md([("某技能", ".agents/skills/some-skill/")]),
+        encoding="utf-8",
+    )
+    _point_checker_at(monkeypatch, tmp_path)
+    assert checker.main() == 1
 
 
 def test_consistent_skill_is_rc0(

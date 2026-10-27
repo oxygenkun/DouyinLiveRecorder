@@ -1,17 +1,14 @@
 # ci.yml「Gate frontend tests not skipped」的 node-id 清单 ↔ `tests/frontend/*.mjs` 的完备性回归锁。
 #
 # 治理症状（M-28）：`node --test <文件>` 只跑被点名的那一个文件、不会顺带发现同级其他 `.mjs`，
-# 于是不进清单就等于该文件的全部回归锁在正常 CI 中从不执行，CI 依旧全绿。这条约束原先只有
-# AGENTS.md 的文字与 `scripts/agent_hook_guard.py` 的 PostToolUse 规则两处载体；后者在 `.qoder/`
-# 本地工具目录（不随仓库分发、不得进镜像），对其它贡献者与 CI 本身都不成立，漏登记仍会漂回仓库。
+# 于是不进清单就等于该文件的全部回归锁在正常 CI 中从不执行，CI 依旧全绿。
 # 本文件把同一判据压成随仓库分发的机检锁：枚举目录下的用例本体与清单点名的入口求差集，非空即红。
 #
 # 事实源关系：清单本体仍在 ci.yml，本文件只**读取**它，不另抄一份副本（定位方式与
 # tests/test_ci_retry_action.py 同口径——按 YAML 结构取步骤，不按行号、不按全文正则）。
 #
-# 为什么不照抄 Hook 的判据：Hook 认「同目录同名 `.py` 包装」，而现存包装里有两位于 tests/ 顶层
-# 且与 `.mjs` 不同名（`test_frontend_quality_ui.py`、`test_frontend_regression_gates.py` 各驱动
-# 一份），照它写会把既有合法形态判红。本文件改按「已登记的包装实际引用了哪个用例本体」
+# 现存包装里有两位于 tests/ 顶层且与 `.mjs` 不同名（`test_frontend_quality_ui.py`、
+# `test_frontend_regression_gates.py` 各驱动一份），因此按「已登记的包装实际引用了哪个用例本体」
 # 建立映射，映射取自包装源码里的路径常量，不靠命名巧合。
 #
 # 双向钉（对齐 tests/test_pre_commit_config.py 的「清单 ↔ 配置」口径）：
@@ -156,9 +153,6 @@ def _dangling_entries() -> list[str]:
 
 
 def test_gate_step_and_both_scan_faces_are_parseable() -> None:
-    # 本锁的两个输入面（ci.yml 清单 / tests/frontend 目录）各自非空才谈得上差集。
-    # 判据都写在 helper 里，这里显式跑一次，让「基准塌了」以一条独立、可读的红呈现，
-    # 而不是藏在后面某条断言的连锁失败里（同 tests/test_test_hygiene.py 的 test_scan_root_is_not_empty）。
     node_ids = _registered_node_ids()
     cases = _frontend_cases()
     assert node_ids, "清单为空"

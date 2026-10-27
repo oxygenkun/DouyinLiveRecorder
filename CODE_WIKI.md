@@ -1682,6 +1682,20 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
 
+### 2026-10-27 — 简化 Agent 检查流程
+
+- pytest 与覆盖率仅在需要 commit 时执行，日常编辑不自动运行。移除统一检查入口、元数据同步、独立运行时钉定检查、测试卫生检查与打包体积报告工具，以及相关调用和专用测试。发布构建直接读取 build_exe.py 内置钉定表。
+- 下方旧条目记录当时的工具与验证结果，不作为当前检查要求；现行规则以 AGENTS.md 为准。
+
+### 2026-10-27 — 移除 Qoder 专属 Hook
+
+- 删除 Hook 执行脚本、专用测试及 AGENTS.md 中的本地 Hook / Command 约定；移除项目结构说明、相关维护注释与 Qoder 工具目录排除项。通用安全规则、前端 CI 登记检查及历史记录保留。
+
+### 2026-10-23 — AGENTS.md「已知坑」明细外迁
+
+- 18 个主题的约束正文与「本机 y123 部署补丁边界」逐字迁入 `docs/agent-reference/known-pitfalls.md`；根文件只留同序主题索引与「修改对应行为前先读该主题」的路由句。
+- 3 份 SKILL.md 与 5 份技能参考的章节引用改指明细卷；一致性检查支持「任意 `.md` + 章节名」并新增索引↔标题同序锁（`tests/test_agents_pitfall_index.py`）。
+
 ### 2026-10-23 — 移除注释检查工具
 
 - 删除注释密度、docstring、模块头及快照比对工具和专属测试，同步移除 CI、pre-commit 与检查清单入口。

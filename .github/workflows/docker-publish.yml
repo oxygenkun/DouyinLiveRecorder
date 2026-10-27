@@ -134,7 +134,7 @@ jobs:
     name: Image (linux/arm64)
     needs: prepare
     # 必须是原生 arm64 runner：与 ubuntu-24.04-arm 的接入方式同 build-release.yml 的发布矩阵
-    # （该标签已在 check_runtime_pins.RUNNER_TO_RUNTIME_KEY 登记为 linux-arm64）。
+    # 该标签与发布矩阵的 Linux arm64 原生 runner 保持一致。
     # 改成 ubuntu-latest 不会报错，只会在 QEMU 下模拟 aarch64 把整层重活重演一遍。
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90

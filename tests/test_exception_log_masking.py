@@ -32,8 +32,6 @@ _EXCLUDED_PARTS = {
     "dist",
     "__pycache__",
     ".workbuddy",
-    ".qoder",
-    ".qoder-credits",
     "node_modules",
     "typings",
     "downloads",

@@ -431,7 +431,7 @@ def _setup_case(main: ModuleType, monkeypatch: pytest.MonkeyPatch, case: dict[st
     # start_record 的 except 会吞掉真实异常、loguru 队列在测试进程里又会卡死，故把
     # logger.error/warning 改为收进 _Cap.errors，断言失败时随消息一并输出。
     #   [历史注] 2026-09-21 MID-66 之前落盘到 tests/_exc.log：路径写死盘符、CI/Linux 失效，
-    #   且在仓库里留一次性产物（现由 tests/test_test_hygiene.py 的 R4 规则拦住 *.log 残留）。
+    #   且在仓库里留一次性产物。
     def _capture(level: str, msg: object) -> None:
         cap.errors.append(f"[{level}] {msg}\n{traceback.format_exc()}")
 

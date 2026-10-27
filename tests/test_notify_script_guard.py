@@ -14,7 +14,7 @@
 #      Linux CI 上真实执行（平台专属分支不得靠 skipif 让 CI 跳过；CI 全在 ubuntu）。
 #
 # 打桩面只有 subprocess（浅拷贝 shim 后替换 src.notify 命名空间里的引用，不改 stdlib 本体，
-# tests/test_test_hygiene.py R1）与超时常量；脱敏 / 分支选择 / 退化路径全部走真实代码。
+# AGENTS.md 测试约定）与超时常量；脱敏 / 分支选择 / 退化路径全部走真实代码。
 # 唯一真起进程的是最后那条端到端用例，判定只看耗时与日志文本，从不解码子进程输出
 # （taskkill/python 在中文 Windows 上按 GBK 码页回显）。
 
@@ -179,7 +179,7 @@ def _install_subprocess_stub(
 ) -> None:
     # 浅拷贝 vars(subprocess) 成 SimpleNamespace 后**只替换 src.notify 命名空间里的引用**：
     # 直接 monkeypatch.setattr(subprocess, "Popen", ...) 改的是全进程唯一的 stdlib 模块本体，
-    # 会波及 harness 守护线程与其他用例（AGENTS + tests/test_test_hygiene.py R1）。
+    # 会波及 harness 守护线程与其他用例。
     # PIPE / TimeoutExpired 仍从真 subprocess 继承，故生产代码里的异常判定照常成立。
     shim = types.SimpleNamespace(**vars(subprocess))
     shim.Popen = popen

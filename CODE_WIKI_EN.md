@@ -1667,6 +1667,20 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
 
+### 2026-10-27 — Simplify Agent validation
+
+- Run pytest and coverage checks only when a commit is needed. Remove the combined gate runner, metadata sync, standalone runtime-pin checker, test-hygiene checks, bundle-size reporter, and their callers and dedicated tests. Release builds read the pin table directly from build_exe.py.
+- Older entries describe historical tools and results, not current validation requirements. AGENTS.md defines the current policy.
+
+### 2026-10-27 — Remove the Qoder-specific hook
+
+- Remove the hook script, dedicated tests, local Hook / Command rules in AGENTS.md, project structure entry, related maintenance comments, and Qoder tool-directory exclusions. Keep general safety rules, frontend CI registration checks, and historical records.
+
+### 2026-10-23 — Long-tail `AGENTS.md` "Known pitfalls" moved to a dedicated document
+
+- The constraint text of 18 topics plus the "y123 local deployment patch boundary" moved verbatim into `docs/agent-reference/known-pitfalls.md`; the root file keeps only a same-order topic index and the "read the topic before touching the behaviour" routing line.
+- Section references in 3 `SKILL.md` files and 5 skill references now point at the detail volume; the consistency check accepts "<any `.md`> + section names" and a new lock (`tests/test_agents_pitfall_index.py`) pins the index to the headings in order.
+
 ### 2026-10-23 — Remove the comment checker
 
 - Delete the comment density, docstring, module header, and snapshot comparison tool and its dedicated tests; remove CI, pre-commit, and check-list entries.

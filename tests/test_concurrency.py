@@ -67,7 +67,7 @@ def _fake_douyin_clock(monkeypatch: pytest.MonkeyPatch) -> _FakeClock:
     # 写法的坑（AGENTS.md「测试编写强制约定」）：绝不允许
     # monkeypatch.setattr(stream_select.time, "sleep", ...)——stream_select.time 是 stdlib
     # time 模块本体，改它波及全进程（loguru enqueue 线程、harness 守护线程），
-    # 且被 tests/test_test_hygiene.py 的 R1 直接判红。必须浅拷贝成替身后替换模块全局引用。
+    # 必须浅拷贝成替身后替换模块全局引用。
     fake = _FakeClock()
     shim = types.SimpleNamespace(**vars(time))
     shim.time = fake.time

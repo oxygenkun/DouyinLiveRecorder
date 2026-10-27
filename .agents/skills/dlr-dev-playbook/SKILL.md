@@ -17,4 +17,4 @@ description: 新功能设计、测试编写、运行日志排障、跨平台故�
 | 范围不清、需要判断是否澄清 | [范围判断](references/engineering-principles.md) |
 | 确需浏览器交互 mockup | [可选可视化工具](references/visual-companion.md) |
 
-验证按改动选择相关测试；完整检查、清理和文档更新的时机统一遵守 AGENTS.md，不额外增加审批、固定汇报模板或全量检查。
+按改动选择和编写相关测试；仅在需要 commit 时运行 pytest 与覆盖率检查。日常不自动测试或全量检查，清理和文档更新遵守 AGENTS.md。

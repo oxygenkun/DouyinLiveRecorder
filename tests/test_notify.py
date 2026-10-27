@@ -40,7 +40,7 @@ assert sys.path.count(_REPO_ROOT) == _PATH_BASELINE, "仓库根被永久留在 s
 # M-30：命令一律用 sys.executable，不写死字面量 `python`——生产 run_script 以 shell=False +
 # shlex.split 在 PATH 里查找可执行文件，Linux/CI 镜像常只提供 python3（无 python 软链），旧写法在
 # CI 上「正常完成 / 超时」两条用例必失败，本机 Windows 单跑必绿——典型的「本地绿、CI 红」。换绑
-# 口径与 tests/test_run_gates.py::test_run_command_rebinds_interpreter_to_current_python 同族。
+# 子进程使用当前项目解释器。
 # 必须 shlex.quote：路径可能含空格，且 run_script 走 shlex.split(posix=True)——单引号内的 Windows
 # 反斜杠按字面保留，round-trip 无损。本文件其余两处「可执行文件字面量」刻意不改写：
 #   __definitely_not_a_real_binary_42__ 要的正是「PATH 里查不到」⇒ OSError 分支；

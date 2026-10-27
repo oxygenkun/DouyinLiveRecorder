@@ -9,7 +9,8 @@
 #   1. AGENTS.md「项目级 Skill」表条目 → 目录与 SKILL.md 必须存在
 #   2. SKILL.md frontmatter name 必须与目录名一致
 #   3. SKILL.md 必须声明 AGENTS.md 为约束事实源
-#   4. SKILL.md 引用的 AGENTS.md 章节标题必须实际存在
+#   4. SKILL.md 引用的 Markdown 文档章节标题必须实际存在（AGENTS.md，或 AGENTS.md 外迁的
+#      docs/agent-reference/*.md 明细；两类引用都要能被解析到真实标题）
 #   5. .agents/skills/ 下存在但未被 AGENTS.md 表登记的项目级 Skill 目录（告警）
 #
 # 用法：
@@ -97,36 +98,37 @@ def _parse_frontmatter(skill_md_text: str) -> dict[str, str]:
     return result
 
 
-def _extract_agents_section_headers(agents_text: str) -> list[str]:
-    # 提取 AGENTS.md 中所有 ## 和 ### 标题
+def _extract_markdown_section_headers(markdown_text: str) -> list[str]:
+    # 提取 Markdown 文档中所有 ## 和 ### 标题
     headers: list[str] = []
-    for m in re.finditer(r"^(#{2,3})\s+(.+)$", agents_text, re.MULTILINE):
+    for m in re.finditer(r"^(#{2,3})\s+(.+)$", markdown_text, re.MULTILINE):
         headers.append(m.group(2).strip())
     return headers
 
 
-def _extract_skill_referenced_sections(skill_md_text: str) -> list[str]:
-    # 从 SKILL.md 中提取它声称引用的 AGENTS.md 章节关键词
-    # 匹配模式：`AGENTS.md`「...」 或 `AGENTS.md` 的 "..." 章节引用
-    refs: list[str] = []
-    seen: set[str] = set()
-    # 中文书名号引用：AGENTS.md「已知坑 → xxx」或 AGENTS.md「xxx」
-    for m in re.finditer(r"AGENTS\.md[`'」\s]*[「\"']([^」\"']+)[」\"']", skill_md_text):
-        ref = m.group(1).strip()
-        if ref not in seen:
-            refs.append(ref)
-            seen.add(ref)
-    # 也匹配「约束事实源」行里的章节路径
-    for m in re.finditer(r"约束事实源.*?AGENTS\.md[^\n]*?[「\"']([^」\"']+)[」\"']", skill_md_text):
-        ref = m.group(1).strip()
-        if ref not in seen:
-            refs.append(ref)
-            seen.add(ref)
+# 章节引用的统一形态：`path/to/doc.md` 后紧跟一个或多个「章节名」。
+# 同一文档连续列多节（「A」「B」）必须全部解析，否则只有首节受检、其余会静默断链。
+_DOC_SECTION_REF_RE = re.compile(r"(?P<doc>[\w./-]+\.md)`?\s*(?P<sections>(?:[「\"'][^」\"']+[」\"']\s*)+)")
+_SECTION_NAME_RE = re.compile(r"[「\"']([^」\"']+)[」\"']")
+
+
+def _extract_skill_referenced_sections(skill_md_text: str) -> list[tuple[str, str]]:
+    # 从 SKILL.md 中提取 (文档路径, 章节名) 二元组；文档既可能是 AGENTS.md，
+    # 也可能是 AGENTS.md 外迁到 docs/agent-reference/ 的明细文档。
+    refs: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for m in _DOC_SECTION_REF_RE.finditer(skill_md_text):
+        doc = m.group("doc").strip()
+        for sm in _SECTION_NAME_RE.finditer(m.group("sections")):
+            ref = (doc, sm.group(1).strip())
+            if ref not in seen:
+                refs.append(ref)
+                seen.add(ref)
     return refs
 
 
 def _check_section_ref_exists(ref_text: str, headers: list[str]) -> bool:
-    # 检查引用文本是否能匹配到某个 AGENTS.md 标题
+    # 检查引用文本是否能匹配到某个文档标题
     # 引用可能是「已知坑 → ffmpeg 命令构造与容器格式」这种路径形式
     # 取最后一段（→ 分隔后的末段）做精确匹配
     parts = re.split(r"[→►]", ref_text)
@@ -145,12 +147,19 @@ def _check_section_ref_exists(ref_text: str, headers: list[str]) -> bool:
     return False
 
 
+def _section_headers_for(doc_name: str, cache: dict[str, list[str] | None]) -> list[str] | None:
+    # 按仓库相对路径加载被引用文档的标题；缺失返回 None（由调用方转成硬失败，不静默跳过）
+    if doc_name in cache:
+        return cache[doc_name]
+    doc_path = _REPO_ROOT / doc_name
+    headers: list[str] | None = None
+    if doc_path.is_file():
+        headers = _extract_markdown_section_headers(doc_path.read_text(encoding="utf-8"))
+    cache[doc_name] = headers
+    return headers
+
+
 def ensure_utf8_streams() -> None:
-    # 把本进程 stdout/stderr 固定为 UTF-8 且显式给 errors：本脚本的成功/失败汇总行含
-    # U+2713/U+2717（✓/✗），中文 Windows 控制台默认 cp936 编不出这两个码点 → print 抛
-    # UnicodeEncodeError 炸掉脚本本身；pre-commit 侧不像 run_gates 会给子进程注入 PYTHONUTF8=1，
-    # 故接进检查链后必现。与 run_gates、agent_hook_guard 的同名函数同根因同手法；
-    # errors="replace" 只兜底显示，绝不允许「输出失败」升级成「检查没有结论」。
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if not callable(reconfigure):
@@ -177,7 +186,9 @@ def main() -> int:
         print("[ERROR] AGENTS.md 中未找到「项目级 Skill」表格", file=sys.stderr)
         return 2
 
-    agents_headers = _extract_agents_section_headers(agents_text)
+    agents_headers = _extract_markdown_section_headers(agents_text)
+    # 文档路径 → 标题列表（None = 文档不存在）；同一文档只读一次
+    header_cache: dict[str, list[str] | None] = {"AGENTS.md": agents_headers}
     errors: list[str] = []
     warnings: list[str] = []
     referenced_dirs: set[str] = set()
@@ -221,11 +232,14 @@ def main() -> int:
             elif "约束事实源" not in skill_text and "事实源" not in skill_text:
                 warnings.append(f"[WARN] {rel_path_clean}/SKILL.md 引用了 AGENTS.md 但未标注「约束事实源」")
 
-        # 检查 4: SKILL.md 引用的 AGENTS.md 章节必须存在
+        # 检查 4: SKILL.md 引用的文档章节必须存在（含 AGENTS.md 外迁明细）
         refs = _extract_skill_referenced_sections(skill_text)
-        for ref in refs:
-            if not _check_section_ref_exists(ref, agents_headers):
-                errors.append(f"[FAIL] {rel_path_clean}/SKILL.md 引用的 AGENTS.md 章节「{ref}」不存在")
+        for doc_name, ref in refs:
+            doc_headers = _section_headers_for(doc_name, header_cache)
+            if doc_headers is None:
+                errors.append(f"[FAIL] {rel_path_clean}/SKILL.md 引用的文档不存在: {doc_name}")
+            elif not _check_section_ref_exists(ref, doc_headers):
+                errors.append(f"[FAIL] {rel_path_clean}/SKILL.md 引用的 {doc_name} 章节「{ref}」不存在")
 
     # 检查 5: 未被 AGENTS.md 表登记的项目级 Skill 目录（告警）
     # 只检查含 SKILL.md 且 frontmatter 声明了 name 的目录

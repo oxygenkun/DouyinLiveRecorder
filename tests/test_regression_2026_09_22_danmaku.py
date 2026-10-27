@@ -248,7 +248,6 @@ _SCAN_EXCLUDED_DIRS = frozenset(
         "typings",
         ".workbuddy",
         ".mimosa",
-        ".qoder",
         ".agents",
         ".pnpm-store",
         ".npm-cache",

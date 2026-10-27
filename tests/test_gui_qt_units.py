@@ -381,7 +381,7 @@ def test_send_stop_signal_and_wait_hard_kill_path(
         stderr = b""
 
     # 只替换被测模块里的 subprocess 名字（浅拷贝 shim），不改写 stdlib 模块本体：
-    # test_test_hygiene 的 R1 锁会把全进程生效的改写判红（loguru/coverage 也会吃到假 run）。
+    # 全进程生效的改写会让 loguru/coverage 也吃到假 run。
     subprocess_shim = types.SimpleNamespace(**vars(recorder_module.subprocess))
     subprocess_shim.run = lambda *a, **k: _Result()
     monkeypatch.setattr(recorder_module, "subprocess", subprocess_shim)

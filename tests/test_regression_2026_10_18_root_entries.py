@@ -11,8 +11,7 @@
 # 阈值常量，gui 侧只替换 kernel32 的三个系统入口与 subprocess.run，判定链全部真实执行。
 #
 # Windows 专属分支**没有**用 skipif：CI 全跑在 ubuntu，若 skip 则这两格回归锁会静默消失。gui.py 未把
-# 平台判定抽成模块级常量、且不归本包改，故按仓内既有做法 monkeypatch `sys.platform`（test_test_hygiene
-# 的 R1 判据表刻意不含 sys），再把 `_get_gui_kernel32` 换成替身，于是 win32 分支在 Linux 上真实执行。
+# 平台判定抽成模块级常量、且不归本包改，故按仓内既有做法 monkeypatch `sys.platform`，再把 `_get_gui_kernel32` 换成替身，于是 win32 分支在 Linux 上真实执行。
 
 import ast
 import importlib

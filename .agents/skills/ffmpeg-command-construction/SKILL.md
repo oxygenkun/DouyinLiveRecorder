@@ -5,7 +5,7 @@ description: 修改 ffmpeg 录制命令、保存类型、输入输出参数或�
 
 # ffmpeg 命令构造
 
-约束事实源：`AGENTS.md`「ffmpeg 命令构造与容器格式」。先找构造入口和调用方，不在平台分支复制命令。
+约束事实源：`AGENTS.md`；ffmpeg 命令与容器的长期约束见 `docs/agent-reference/known-pitfalls.md`「ffmpeg 命令构造与容器格式」。先找构造入口和调用方，不在平台分支复制命令。
 
 ## 修改落点
 
@@ -29,4 +29,4 @@ description: 修改 ffmpeg 录制命令、保存类型、输入输出参数或�
 - 平台顺序：tests/test_platform_dispatch.py。
 - 调度与退避反馈：tests/test_record_failure_feedback.py。
 
-按改动选择用例；新增安全不变量按根文件做变异验证。真机验证、完整检查与清理统一遵守 AGENTS.md，不重复工具清单。
+按改动选择用例；仅在需要 commit 时运行 pytest 与覆盖率检查。真机验证与清理遵守 AGENTS.md。

@@ -20,8 +20,6 @@
 
 # ---------- 本地工具 / 审查生成物（与 .gitignore 及 pyproject 各工具排除列表同源）----------
 .mimosa/
-.qoder/
-.qoder-credits/
 .agents/
 .pnpm-store/
 .npm-cache/

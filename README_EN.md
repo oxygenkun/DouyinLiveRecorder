@@ -2,6 +2,9 @@
 
 English&nbsp;&nbsp;|&nbsp;&nbsp;[简体中文](README.md)
 
+
+> Development checks: run pytest and coverage checks only when a commit is needed. Routine edits do not start tests automatically. See [AGENTS.md](AGENTS.md) for current policy; retired tools in historical release notes are not current requirements.
+
 ## 💡 Introduction
 
 [![Python Version](https://img.shields.io/badge/python-v3.14%2B-blue?logo=python)](https://www.python.org/downloads/)

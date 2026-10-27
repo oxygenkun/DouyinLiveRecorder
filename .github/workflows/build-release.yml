@@ -29,13 +29,6 @@
 #                              预置的未受信 aws/tap 导致的 brew 报错。
 #   · PYTHONUTF8            —— 由 build_exe.py 内部 _ensure_utf8_streams() 自行设置，
 #                              避免 Windows runner cp1252 控制台输出中文日志崩溃。
-#   · DLR_RUNTIME_SHA256    —— 非 secret：full 版内置的 ffmpeg / node 的官方 SHA256 钉定表，
-#                              由 prepare job 的 "Verify runtime binary SHA256 pins" 步骤
-#                              校验后从 build_exe.py 透传（事实源仍是 build_exe.py，不放这里）。
-#                              表值有两种形态：64 位十六进制官方哈希，或 build_exe 的
-#                              PINNED-OFFICIAL-GPG-SIGNATURE 标记（该槽上游不公布哈希，改由
-#                              官方 GPG 签名 + 带外钉死的主钥指纹把关，判据见 build_exe.py）。
-#                              两种都不满足（仍是占位串 / 有标记但签名表未登记）时 prepare 即失败，发布链不产出产物（SEV-10）。
 #   如需代码签名（Windows Authenticode / macOS codesign & notarize），
 #   再新增 secrets.WINDOWS_CERT_PFX_BASE64 / APPLE_ID / APPLE_APP_PASSWORD 等，
 #   并在对应平台的构建步骤后追加签名步骤。当前发布**未签名**。
@@ -73,9 +66,6 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       is_release: ${{ steps.version.outputs.is_release }}
-      # 运行时二进制 SHA256 钉定表（JSON，按 <os>-<arch> 分列），透传给 build job 的
-      # DLR_RUNTIME_SHA256；缺任一项时上一步已让 prepare 失败（SEV-10 fail-closed）
-      runtime_pins: ${{ steps.runtime-pins.outputs.pins }}
       # 与 ci.yml 保持一致的运行环境常量（单一事实源，改一处即全局生效）
       python_build: ${{ steps.consts.outputs.python_build }}
       node_version: ${{ steps.consts.outputs.node_version }}
@@ -147,24 +137,6 @@ jobs:
       # 与 CI static job 同口径，双侧互验防止单侧漂移
       - name: Check workflow version constants consistency
         run: python scripts/check_workflow_constants.py
-
-      # SEV-10：发布路径 fail-closed 的前半段。build_exe.py --dual 会从 gyan.dev /
-      # evermeet.ca / github.com(BtbN) / nodejs.org 拉取约 300MB 的 ffmpeg+node 并打进
-      # 对外分发的 full zip（这些二进制以子进程方式执行）。本步在**任何平台开始构建之前**
-      # 校验钉定表：表为空 / 缺平台 / 缺槽位 → rc=2；存在既无官方 SHA256、又未按下述任一档满足的
-      # 槽位 → rc=1，prepare 失败即整条发布链不产出产物（这是刻意的：官方值未核实前不得发布）。
-      # 2026-09-26 起「算满足」有两档：64 位十六进制官方哈希，或官方签名档（无公布哈希的上游，
-      # 判据 = 官方分离 GPG 签名 + 带外钉死的 40 位主钥指纹，见 build_exe._is_signature_satisfied）。
-      # 官方值核实后请改 build_exe.py 的 _PINNED_RUNTIME_SHA256，不要在本文件里硬编码副本。
-      - name: Verify runtime binary SHA256 pins (fail-closed)
-        id: runtime-pins
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/check_runtime_pins.py --strict
-          # 校验通过后把整表以 JSON 透传给 build job（env 注入，与仓库内容同一份值）
-          pins=$(python scripts/check_runtime_pins.py --emit-env)
-          echo "pins=${pins}" >> "$GITHUB_OUTPUT"
 
       - name: Write job summary
         shell: bash
@@ -376,19 +348,15 @@ jobs:
 
       # --require-pinned：显式表达「发布路径缺钉定即终止」（build_exe.py 在 CI 下本来也
       # 会因 GITHUB_ACTIONS=true 默认开启，这里写出来是为了让发布命令自解释）。
-      # DLR_RUNTIME_SHA256 由 prepare 的校验步骤透传，与 build_exe.py 的钉定表同一份值。
+      # 钉定与签名直接使用 build_exe.py 内置表，由构建入口校验。
       # 家族判定（同上方 Install 步骤）：arm64 job 若不落进本 xvfb 分支，GUI 冒烟在无头 aarch64 上必红；
       # 若又落进下方通用分支，它拿到的是 tee build_exe.log 而没有 xvfb-run——两条都不接受。
       - name: Build executables + smoke test (Linux, xvfb)
         if: startsWith(matrix.platform, 'linux')
-        env:
-          DLR_RUNTIME_SHA256: ${{ needs.prepare.outputs.runtime_pins }}
         run: xvfb-run -a python build_exe.py --smoke --dual --require-pinned
 
       - name: Build executables + smoke test
         if: "!startsWith(matrix.platform, 'linux')"
-        env:
-          DLR_RUNTIME_SHA256: ${{ needs.prepare.outputs.runtime_pins }}
         shell: bash
         run: |
           set -euo pipefail

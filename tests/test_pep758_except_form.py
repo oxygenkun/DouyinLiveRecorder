@@ -25,8 +25,6 @@ _EXCLUDED_PARTS = {
     "dist",
     "__pycache__",
     ".workbuddy",
-    ".qoder",
-    ".qoder-credits",
     "node_modules",
     "typings",
     "downloads",
@@ -39,7 +37,8 @@ _EXCLUDED_PARTS = {
 # 60 来自行正则粗扫，与分类器不同源，变异验证当场发现「摘掉一处无括号」仍判绿（61→60 ≥ 60 恒真）——
 # 棘轮与判据必须由同一个分类器产出。读数过期时重跑下面的命令，而不是凭印象改：
 #   PYTHONUTF8=1 python -c "import importlib.util as u;s=u.spec_from_file_location('p','tests/test_pep758_except_form.py');m=u.module_from_spec(s);s.loader.exec_module(m);print(len(m._classify(m._scan_roots())[0]))"
-_BARE_MULTIPLE_BASELINE = 61
+# 2026-10-27 删除停用的工具及专用测试后，按同一 AST 分类器重算基线。
+_BARE_MULTIPLE_BASELINE = 58
 
 
 def _scan_roots() -> list[Path]:

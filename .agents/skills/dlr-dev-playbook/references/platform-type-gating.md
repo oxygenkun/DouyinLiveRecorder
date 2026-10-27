@@ -1,8 +1,8 @@
 # 跨平台故障检查
 
-本项目不运行常驻类型检查器；约束见 `AGENTS.md`「Python 版本」「类型检查、注释与静态检查」。
+本项目不运行常驻类型检查器；约束见 `AGENTS.md`「code style and dev environment」与 `docs/agent-reference/known-pitfalls.md`「类型检查、注释与静态检查」。
 
 - Windows API（ctypes.WinDLL、STARTUPINFO、winreg 等）须在平台判定后使用；先查同模块已有模式，不为历史类型工具随意改宽注解。
 - 模块 import 本身可能执行平台专属代码，不能只给调用者加守卫；核对 import 链及模块级表达式。
 - 测试停止信号、进程退出等平台分流时，分别模拟 Windows 与 POSIX 出口；stdlib 替身按测试配方走模块命名空间 shim。
-- 在可用平台运行针对性行为测试；缺少目标平台时明确限制，不把本机通过表述为其他平台或 CI 已通过。
+- 需要 commit 时在可用平台运行针对性行为测试；缺少目标平台时明确限制，不把本机通过表述为其他平台或 CI 已通过。

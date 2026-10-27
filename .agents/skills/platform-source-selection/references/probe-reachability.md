@@ -1,6 +1,6 @@
 # 探针修改配方
 
-约束见 `AGENTS.md`「流地址探针与可达性校验」「HTTP 客户端复用与连接管理」。沿现有 select_source_url → _validate_stream_url / _confirm_get_ok 路径修改，复用受限客户端与读取 helper。
+约束见 `AGENTS.md` 与 `docs/agent-reference/known-pitfalls.md`「流地址探针与可达性校验」「HTTP 客户端复用与连接管理」。沿现有 select_source_url → _validate_stream_url / _confirm_get_ok 路径修改，复用受限客户端与读取 helper。
 
 重点测试矩阵：
 

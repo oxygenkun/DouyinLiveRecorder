@@ -321,7 +321,7 @@ _SHOPEE_UID_BASE = "https://live.shopee.sg/api/v1/live/play?item_id=123"
 def _time_shim(**overrides: Any) -> types.SimpleNamespace:
     # 浅拷贝 stdlib time 的公开属性，只覆盖显式给出的那几个。绝不能 monkeypatch.setattr(main.time,
     # "sleep", ...)——main.time 就是 stdlib 模块本体，改它会波及同进程的 loguru enqueue 线程 /
-    # harness 安全删除守护线程 / coverage；tests/test_test_hygiene.py 的 R1 也把这种写法直接判红。
+    # harness 安全删除守护线程 / coverage。
     fresh = types.SimpleNamespace(**vars(time))
     for name, value in overrides.items():
         setattr(fresh, name, value)
