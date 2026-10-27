@@ -117,8 +117,7 @@ ARG TZ=Asia/Shanghai
 # main.py / src/web_api.py 经 pyproject.toml 在运行时读取）。本地 / CI 取值：
 #   docker build --build-arg APP_VERSION="$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
 # MIN-14（2026-09-21）：ARG 必须声明在**使用它的 LABEL 之前**——Dockerfile 按行做变量替换，
-# 顺序颠倒会让 version 标签固化为空串、--build-arg 完全不生效；tool/check_version.py 现已
-# 断言「声明行号 < 使用行号」（原先只正则匹配字面 version="${APP_VERSION}"，检不出顺序错误）。
+# 顺序颠倒会让 version 标签固化为空串、--build-arg 完全不生效。
 ARG APP_VERSION
 
 # 维护者与项目 URL 与 pyproject.toml [project.urls]/authors 同源（y123ao6）；上游原作者 ihmily

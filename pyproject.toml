@@ -49,8 +49,7 @@ dependencies = [
     "tqdm>=4.69.0",
     "httpx[http2]>=0.28.1",
     # httpx 的**可选**能力包（extra），本仓运行时真的会执行其代码，故必须显式声明——
-    # requirements.txt 与本节是「单源双写」，两侧包名集合必须逐项一致（回归锁：
-    # tests/test_regression_2026_09_22_gates.py 断言集合相等，防单侧遗漏）。
+    # requirements.txt 与本节是「单源双写」，两侧声明必须同步。
     # [历史注 2026-10-23] 原 Docker/CI 经 requirements.txt 安装；现改用 uv.lock。
     #   兼容清单里把 httpx 写成裸名或换索引重装即静默丢失（2026-09-23 本机实测
     #   `import h2` → ModuleNotFoundError）。触发点已回源到 httpx 源码：h2 来自
@@ -158,6 +157,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 filterwarnings = [
+    "error",
     # 第三方弃用提示：starlette 本体在 `starlette/testclient.py` 导入期发出（类别
     # StarletteDeprecationWarning，是 UserWarning 子类），与本项目代码无关。承重、不得删：
     # 2026-09-30 实测带 `-W default::UserWarning` 跑 tests/test_web_api.py 时 warnings summary

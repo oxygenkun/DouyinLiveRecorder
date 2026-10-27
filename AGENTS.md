@@ -12,7 +12,7 @@
 
 ## 项目级 Skill
 
-下表与 `.agents/skills/` 的一级技能目录一一对应；触发场景与各 skill 的 description 同步。新增、删除或改名时同批更新，运行 `python tool/check_skill_agents_consistency.py`。
+下表与 `.agents/skills/` 的一级技能目录一一对应；触发场景与各 skill 的 description 同步。新增、删除或改名时同批更新对应表格和文档引用。
 
 | Skill | 路径 | 触发词 / 场景 | 覆盖领域 |
 | --- | --- | --- | --- |
@@ -21,7 +21,7 @@
 | 平台选源流程 | `.agents/skills/platform-source-selection/` | 修改平台解析、选源、探针、画质映射或新增平台 | 选源与解析配方 |
 | 运行时钉定验证 | `.agents/skills/runtime-pin-verification/` | 修改运行时下载源、钉定、签名或发布获取链路 | 来源核验与联动修改 |
 
-`.agents/skills/` 必须入库：gitignore 用 `.agents/*` + `!.agents/skills/` 反选，不能忽略整个 `.agents/` 后再反选；Docker 仍排除整个 `.agents/`。技能 shell 脚本由该目录 `.gitattributes` 钉 LF。目录缺失时一致性检查必须失败，不降级 skip。
+`.agents/skills/` 必须入库：gitignore 用 `.agents/*` + `!.agents/skills/` 反选，不能忽略整个 `.agents/` 后再反选；Docker 仍排除整个 `.agents/`。技能 shell 脚本由该目录 `.gitattributes` 钉 LF。
 
 ## 依赖管理
 
@@ -33,7 +33,7 @@
 
 ## 测试
 
-- 测试配置在 `pyproject.toml`；pytest 要求 warnings summary 为空。只在全局配置中有来源说明地忽略第三方告警，不过滤项目自身告警；协程 RuntimeWarning 修根因。
+- 测试配置在 `pyproject.toml`；pytest 将未豁免告警作为错误，要求 warnings summary 为空。只在全局配置中有来源说明地忽略第三方告警，不过滤项目自身告警；协程 RuntimeWarning 修根因。
 - pytest 与 `tool/check_coverage.py` 仅在需要 commit 时执行；日常编辑和交付不自动运行测试或覆盖率检查。测试可以随改动编写，待提交前运行；未执行项如实报告。
 - 新测试优先放在对应模块的 `tests/test_<module>.py`；跨模块行为用清楚的专题名。测试必须驱动生产实现，不在测试中重写锁、缓存或限流逻辑。
 - 安全测试验证行为或稳定不变量，不用钉旧变量名/旧文案的否定正则冒充安全保障。
@@ -95,7 +95,7 @@ uv run --locked --extra dev python -m pytest --cov=src
 uv run --locked --extra dev python tool/check_coverage.py
 ```
 
-- 静态检查按需直接运行 Ruff、翻译同步、版本或技能一致性检查；pre-commit 与 CI 保留各自的提交检查入口。Windows 检查使用 `PYTHONUTF8=1`。
+- 静态检查按需直接运行 Ruff 与翻译同步检查；pre-commit 与 CI 保留各自的提交检查入口。Windows 检查使用 `PYTHONUTF8=1`。
 
 ## 完成定义（Definition of Done）
 

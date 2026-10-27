@@ -1841,3 +1841,44 @@ def test_github_pin_asset_name_matches_the_download_url_basename() -> None:
             assert entry["asset"] == expected, f"{key}/{slot} 的资产名与下载 URL 脱钩：{entry['asset']} != {expected}"
             checked += 1
     assert checked, "没有任何 github 档条目被核对——该档若被整体删掉，本用例会变成空转"
+
+
+@pytest.mark.parametrize("exit_code", [None, 0, 1])
+def test_smoke_requires_process_to_remain_alive(monkeypatch: pytest.MonkeyPatch, exit_code: int | None) -> None:
+    class Process:
+        returncode = exit_code
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def communicate(self, timeout: int) -> tuple[str, None]:
+            return "ready", None
+
+    proc = Process()
+    killed = []
+    monkeypatch.setattr(build_exe, "_kill_tree", killed.append)
+    if exit_code is None:
+        build_exe._finish(proc, "cli")
+        assert killed == [proc]
+    else:
+        with pytest.raises(RuntimeError, match="进程提前退出"):
+            build_exe._finish(proc, "cli")
+        assert not killed
+
+
+def test_smoke_rejects_output_collection_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Process:
+        returncode = None
+
+        def poll(self) -> None:
+            return None
+
+        def communicate(self, timeout: int) -> tuple[str, None]:
+            raise subprocess.TimeoutExpired("smoke", timeout)
+
+    proc = Process()
+    killed = []
+    monkeypatch.setattr(build_exe, "_kill_tree", killed.append)
+    with pytest.raises(RuntimeError, match="进程收尾超时"):
+        build_exe._finish(proc, "cli")
+    assert killed == [proc]

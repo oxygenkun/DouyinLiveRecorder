@@ -1815,35 +1815,25 @@ def _kill_tree(proc: subprocess.Popen[str]) -> None:  # pylint: disable=not-call
         pass
 
 
-# 收尾：终止进程并检查输出中是否有崩溃堆栈（可按 ignore_patterns 豁免良性输出）
-def _finish(
-    proc: subprocess.Popen[str],
-    name: str,
-    expect_alive: bool,
-    ignore_patterns: "tuple[str, ...]" = (),
-) -> None:
-    # ignore_patterns：headless CI 等环境下某些库会打印无害堆栈而应用实际仍正常运行，
-    # 这类已知良性输出应从致命判定中排除；真正的崩溃（进程退出或真实堆栈）仍会被捕获。
-    # [历史注 2026-10-20] 原举例是 pystray 在无系统托盘时记录的 "Failed to dock icon"；
-    #   pystray 已随遗留 tkinter 托盘退役移出依赖树，该豁免项自此转为纯防御保留。
+# 收尾：两种服务都必须存活到探测完成；任何提前退出均失败。
+def _finish(proc: subprocess.Popen[str], name: str) -> None:
     still_running = proc.poll() is None
     if still_running:
         _kill_tree(proc)
     try:
         out = proc.communicate(timeout=10)[0] or ""
-    except subprocess.TimeoutExpired:
-        out = ""
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"[smoke:{name}] 进程收尾超时") from exc
     tail = "\n".join(out.splitlines()[-20:])
     print(f"[smoke:{name}] 进程输出（末尾 20 行）：\n{tail}")
-    benign = any(p in out for p in ignore_patterns)
     # 仅当进程已自行退出时，才把 FATAL_MARKERS 视为真实崩溃信号：进程仍存活（still_running）时输出
     # 里的 Traceback 多为应用捕获并记录的异常（asyncio 对未处理任务异常的默认处理会打印完整
     # Traceback 但 loop 继续运行；API 偶发网络错误重试时也会记录堆栈）。真正的崩溃（导入失败 /
     # 未捕获异常）会致进程退出，此时下方 returncode 校验与本判定共同覆盖该情形。
-    if not still_running and any(m in out for m in FATAL_MARKERS) and not benign:
+    if not still_running and any(m in out for m in FATAL_MARKERS):
         raise RuntimeError(f"[smoke:{name}] 检测到导入错误 / 崩溃堆栈，冒烟测试失败")
-    if expect_alive and not still_running and proc.returncode not in (0, None):
-        raise RuntimeError(f"[smoke:{name}] 进程异常退出，退出码 {proc.returncode}")
+    if not still_running:
+        raise RuntimeError(f"[smoke:{name}] 进程提前退出，退出码 {proc.returncode}")
     print(f"[smoke:{name}] 通过 ✅")
 
 
@@ -1855,7 +1845,7 @@ def smoke_cli(timeout: int = 25) -> None:
     start = time.time()
     while time.time() - start < timeout and proc.poll() is None:
         time.sleep(0.5)
-    _finish(proc, "cli", expect_alive=True)
+    _finish(proc, "cli")
 
 
 # 冒烟：启动 Web 后 HTTP 探活首页（IPv4+localhost），能返回即视为面板可用
@@ -1890,7 +1880,7 @@ def smoke_web(timeout: int = 90, port: int = 8000) -> None:
                 break
             time.sleep(1)
     finally:
-        _finish(proc, "web", expect_alive=True)
+        _finish(proc, "web")
     if not ok:
         raise RuntimeError(f"[smoke:web] {timeout}s 内 HTTP 探活失败（端口 {port} 被占用或启动过慢也会导致此错误）")
     print("[smoke:web] HTTP 探活成功 ✅")

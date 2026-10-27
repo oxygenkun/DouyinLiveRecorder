@@ -1,8 +1,8 @@
 # =============================================================================
 # DouyinLiveRecorder 基础依赖兼容清单（pip 用户；标准安装使用 uv sync --locked）
 # -----------------------------------------------------------------------------
-# 与 pyproject.toml [project.dependencies] 严格同步（「单源双写」），两侧包名集合的一致性由
-#   tests/test_regression_2026_09_22_gates.py 锁死（单侧遗漏直接判红）。Docker / CI 使用
+# 与 pyproject.toml [project.dependencies] 同步，修改依赖时核对包名、规格、extras 与条件标记。
+# Docker / CI 使用
 #   pyproject.toml + uv.lock；本文件仅兼容本地 `pip install -r` 与依赖下限审计。
 # 构建期 / 开发期依赖不入本清单：PyInstaller 见 [project.optional-dependencies].build（>=6.10.0），
 #   pytest / Ruff / pre-commit 见 .dev（`uv sync --locked --extra build` / `--extra dev`）。

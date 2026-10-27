@@ -280,11 +280,9 @@ DouyinLiveRecorder/
 ├── uv.lock                              # uv dependency lock file (committed to the repo; image/CI use pip + requirements.txt, do not consume it)
 ├── pyproject.toml                      # Python 项目配置（版本号/工具配置/覆盖率检查单一事实源）
 ├── tool/                             # 辅助脚本
-│   ├── check_version.py                # 版本号一致性校验（CI static job 调用）
 │   ├── check_coverage.py               # Per-module coverage gate (invoked by the CI test job, thresholds in MODULE_THRESHOLDS)
 │   ├── compile_po.py                   # gettext catalog compiler (.po → .mo; --check zero-side-effect sync check, invoked by the CI static job)
 │   ├── extract_i18n_strings.py         # i18n pending-translation string extractor (AST scan + four-catalog comparison, maintenance-time tool)
-│   └── sync_version.py                 # 版本号同步脚本（pyproject → 各文档）
 ├── Dockerfile                          # Docker 构建文件（多阶段）
 ├── docker-compose.yaml                 # Docker Compose（recorder/web 两服务）
 ├── .dockerignore                       # Docker 构建上下文排除文件
@@ -1284,7 +1282,7 @@ Workflow file: `.github/workflows/build-release.yml` (job name `Build (${{ matri
 
 **Steps**:
 
-1. `prepare` job: extracts the version from pyproject.toml via tomllib and validates tag consistency (a mistagged release fails immediately); runs `check_version.py` to confirm all consumers read the version dynamically.
+1. `prepare` job: extracts the version from pyproject.toml via tomllib and validates tag consistency (a mistagged release fails immediately).
 2. `release-create` job: on the release path **pre-creates** the Release record (a singleton job eliminating the race where multi-platform build jobs concurrently create the same Release; no files attached); on the manual release path it also creates the lightweight tag (a Release must be attached to a tag).
 5. Artifact publishing: on the release path (tag / manual with create_release) the build job uploads zips **directly to the Release** via `softprops/action-gh-release@v3` (explicit `tag_name` pointing at the same Release as release-create; GitHub supports concurrent uploads of distinct assets to the same Release); the build-only path uses `upload-artifact@v7` (`compression-level: 0` to skip re-compression, retained 30 days for manual retrieval).
 6. `release` job (release path): `gh release download` pulls the published assets back to verify completeness (4 platforms × (lite+full) = 8 zips; any shortfall fails instead of publishing an incomplete Release), generates `SHA256SUMS.txt`, and finally via `softprops/action-gh-release@v3` attaches the checksums and writes the release notes (`generate_release_notes: true`).
@@ -1579,6 +1577,12 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **Modified** · `docs/agent-reference/project-structure.md`, `docs/agent-reference/session-learnings.md` — The directory tree synced with the new modules and test files; lessons appended (the ADS fixture, the reserved-name measurement, the case-count attribution, the offscreen probe exit shape, measuring redundancy before editing, anchors over line numbers, and duplicate keys under `strict=True`)
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
+
+### 2026-10-28 — Remove low-value and incomplete mechanical checks
+
+- Delete version, workflow-constant and Skill consistency checkers, the idle version-sync tool, their dedicated tests and CI / pre-commit calls. Remove exception-style counts, static response-read and log-masking ledgers, configuration self-checks, dependency-name-only checks and checks tied to third-party private implementations. Keep shared Skills, documentation indexes and actual business and security behavior tests.
+- Keep per-module coverage thresholds, generated-code exemptions and missing-data failures; remove unused debt machinery and mtime freshness inference. pytest treats non-exempt warnings as errors, so CI no longer reruns tests to scrape warnings. Keep frontend execution and non-empty checks without fixed test-count floors.
+- CLI / Web smoke checks reject all early exits and cleanup timeouts; skipped required CI jobs no longer count as success. Keep Ruff, YAML / TOML, file-size and translation checks in pre-commit; remove whitespace and final-newline hooks. Historical entries describe past requirements only.
 
 ### 2026-10-28 — Remove project package builds
 

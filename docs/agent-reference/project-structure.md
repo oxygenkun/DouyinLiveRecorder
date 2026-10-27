@@ -101,12 +101,9 @@
 ├── tool/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
 │   ├── build_exe.py         # PyInstaller 打包脚本
 │   ├── check_coverage.py       # 提交前的逐模块覆盖率检查（阈值见 MODULE_THRESHOLDS）
-│   ├── check_version.py        # 版本「动态化、未写死」状态校验
-│   ├── sync_version.py         # 从 pyproject.toml 同步版本号到遗留文件
 │   ├── compile_po.py           # 纯 Python po→mo 编译（CI --check 字节级检查）
 │   ├── extract_i18n_strings.py # i18n 待翻译串提取（AST 扫描，与四语目录比对）
 │   ├── smoke_test.py           # Web/接口冒烟测试工具（JSON 配置驱动，纯标准库）
-│   ├── check_skill_agents_consistency.py # AGENTS.md「项目级 Skill」表与 .agents/skills/ 目录同源校验（已入检查清单）
 │   ├── smoke_web.json          # 冒烟测试接口配置
 │   └── douyin_live_recorder_standalone.py # 单文件整合版录制脚本（抖音/虎牙/B站/斗鱼，零第三方依赖）
 │

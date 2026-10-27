@@ -240,8 +240,6 @@ DouyinLiveRecorder/
 │   ├── smoke_web.json          # smoke test sample cases (probe Web panel)
 │   ├── compile_po.py           # .po → .mo compile and sync check (--check)
 │   ├── check_coverage.py       # per-module coverage gate (used by CI)
-│   ├── check_version.py        # version "single source of truth" dynamization check
-│   └── sync_version.py         # version sync helper
 ├── downloads/                  # recording output dir (generated at runtime)
 ├── logs/                       # log dir (generated at runtime, includes danmaku_monitor.jsonl)
 ├── i18n/                       # i18n translation dirs (multilingual, multi-format)

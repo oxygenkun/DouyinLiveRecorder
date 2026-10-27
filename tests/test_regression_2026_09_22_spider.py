@@ -438,7 +438,8 @@ class TestDouyuBetardLogI18n:
         import ast
         import io
 
-        src = io.open(sp.__file__, encoding="utf-8").read()
+        with io.open(sp.__file__, encoding="utf-8") as source:
+            src = source.read()
         tree = ast.parse(src)
         found = False
         for node in ast.walk(tree):

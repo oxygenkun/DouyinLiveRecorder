@@ -1,4 +1,4 @@
-# 提交时运行 Ruff、翻译同步、版本和技能一致性检查。
+# 提交时运行 Ruff、配置语法、文件大小和翻译同步检查。
 # 安装：uv run --locked --extra dev pre-commit install
 # 手动执行：uv run --locked --extra dev pre-commit run --all-files
 
@@ -6,15 +6,9 @@ default_language_version:
   python: python3
 
 repos:
-  # ── 通用卫生检查（行尾空白 / 末尾换行 / YAML 语法等）──
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-        # 排除生成物 / 运行期目录，与 pyproject [tool.ruff].extend-exclude 同源
-        exclude: ^(node/|ffmpeg/|downloads/|logs/|\.venv/|__pycache__/|.*\.egg-info/)
-      - id: end-of-file-fixer
-        exclude: ^(node/|ffmpeg/|downloads/|logs/|\.venv/|__pycache__/|.*\.egg-info/)
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -39,20 +33,6 @@ repos:
       - id: compile-po-check
         name: compile_po.py --check (.po/.mo 同步校验)
         entry: python tool/compile_po.py --check
-        language: system
-        always_run: true
-        require_serial: true
-        pass_filenames: false
-      - id: check-version
-        name: check_version.py (版本号单一事实源动态化)
-        entry: python tool/check_version.py
-        language: system
-        always_run: true
-        require_serial: true
-        pass_filenames: false
-      - id: check-skill-agents
-        name: check_skill_agents_consistency.py (Skill 目录与 AGENTS.md 表格一致性)
-        entry: python tool/check_skill_agents_consistency.py
         language: system
         always_run: true
         require_serial: true

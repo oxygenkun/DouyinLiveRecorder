@@ -120,7 +120,7 @@ jobs:
             TAG_VERSION="${TAG#v}"
             echo "推送的 tag: ${TAG}（去 v 前缀: ${TAG_VERSION}）"
             if [ "$TAG_VERSION" != "$VERSION" ]; then
-              echo "::error::tag 与 pyproject.toml 版本不一致：tag=${TAG_VERSION} pyproject=${VERSION}。请先用 tool/sync_version.py 同步版本再重新打 tag。"
+              echo "::error::tag 与 pyproject.toml 版本不一致：tag=${TAG_VERSION} pyproject=${VERSION}。请核对 pyproject.toml 的版本与发布 tag。"
               exit 1
             fi
             echo "is_release=true" >> "$GITHUB_OUTPUT"
@@ -128,15 +128,6 @@ jobs:
             echo "手动触发（非 tag）：默认仅构建并上传 artifact；勾选 create_release 输入可额外创建 Release"
             echo "is_release=false" >> "$GITHUB_OUTPUT"
           fi
-
-      # 复用 CI 同一脚本，确保各消费方仍是「动态读取」而非写死版本号
-      - name: Check version consistency across consumers
-        run: python tool/check_version.py
-
-      # 校验 build-release.yml 与 ci.yml 的版本常量一致性（python_build / node_version）：
-      # 与 CI static job 同口径，双侧互验防止单侧漂移
-      - name: Check workflow version constants consistency
-        run: python tool/check_workflow_constants.py
 
       - name: Write job summary
         shell: bash

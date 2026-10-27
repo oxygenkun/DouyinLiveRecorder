@@ -229,8 +229,6 @@ DouyinLiveRecorder/
 │   ├── smoke_web.json          # 冒烟测试示例用例（探活 Web 面板）
 │   ├── compile_po.py           # .po → .mo 编译与同步校验（--check）
 │   ├── check_coverage.py       # 逐模块覆盖率检查（CI 使用）
-│   ├── check_version.py        # 版本号「单一事实源」动态化校验
-│   └── sync_version.py         # 版本号同步辅助
 ├── downloads/                  # 录制文件保存目录（运行时生成）
 ├── logs/                       # 日志文件目录（运行时生成，含 danmaku_monitor.jsonl）
 ├── i18n/                       # 国际化翻译目录（多语言多格式）

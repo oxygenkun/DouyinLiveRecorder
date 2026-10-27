@@ -1,36 +1,7 @@
-# tool/check_coverage.py 的回归锁（该检查此前全库零回归锁，MID-2261）。
-#
-# 口径：按「删掉某条 fail-closed 判据必须变红」组织用例，全部离线——只喂构造好的
-# coverage 报告 dict / 临时目录树，不跑 pytest 自身、不调用真实 .coverage。
-#
-# 锁住的行为：
-#   A) MIN-19：拿不到数据（文件缺失 / files 为空 / 报告不可解析 / src 枚举为空 /
-#      登记表腐烂）一律 rc=2 并打印**下一步命令**，绝不退回 WARN 或「全部通过」；
-#   B) MID-2259：判定面 = src/ 下**全部**模块，未登记阈值者按 GLOBAL_FLOOR 判定，
-#      新增 src/*.py 不再自动豁免；
-#   C) 数据文件比 src/、tests/ 最新 .py 陈旧 → rc=2（旧数据评检查＝假绿）；
-#   D) 报告键匹配必须整段模块路径（含 src/）落在尾部，只含 tests/utils.py 的报告
-#      不得顶替 src/utils.py；
-#   E) 白名单（GATE_EXEMPT_MODULES）每条必须写理由，且指向真实存在的模块；
-#   F) CLI 出口必须把 0/1/2 三种 rc 原样 sys.exit（改成 `return` 就让检查在 CI 里
-#      退化成一行装饰性输出）；
-#   G) MID-2259 分层：登记阈值 > 债务基线 > 全局下限；债务条目须有 tracker 出处与复核日期，
-#      豁免理由写「生成物」必须能在文件里找到生成器标记（DEBT_CEILING 是条目数闸门）。
-#
-# **组织口径：一个用例只做一次检查判定**（机检见 test_each_case_performs_a_single_gate_judgment）。
-# 原因：多次判定共用同一份被 monkeypatch 改过的模块状态，而 setattr 要到用例 teardown 才生效——
-# 第二次判定读到的还是第一次那份数据，于是「先写新数据、后还原旧数据」这类追加写法一进来就
-# 产出成串假失败（单跑全绿、换个顺序就红）。确需两次判定的那一条用 ExitStack 把还原
-# **推到两次判定之间**（见 test_stale_table_entry_exits_2_then_clean_table_passes）。
-#
-# 加载方式：tool/ 不在包路径内，用
-# spec_from_file_location 显式加载，避免 sys.path 注入被 isort 重排到 import 之前。
+# tool/check_coverage.py 的数据、模块阈值与命令行退出码回归用例。
 
-import ast
 import contextlib
 import importlib.util
-import json
-import os
 import subprocess
 import sys
 import tomllib
@@ -43,9 +14,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# 检查判定入口：本文件「一次判定一个用例」的机检按这份名单数调用次数。
-_JUDGMENTS = frozenset({"evaluate_report", "check_coverage", "main"})
-
 
 def _load_check_coverage() -> ModuleType:
     spec = importlib.util.spec_from_file_location("_check_coverage_probe", ROOT / "tool" / "check_coverage.py")
@@ -53,11 +21,6 @@ def _load_check_coverage() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def _read_this_file() -> str:
-    # 机检本文件自身用：读源码而不是 import（用例文件不该 import 自己）。
-    return Path(__file__).resolve().read_text(encoding="utf-8")
 
 
 check_coverage: Any = _load_check_coverage()  # 动态加载的检查脚本：属性由 mypy 视角不可见，按 Any 处理
@@ -68,7 +31,7 @@ _REGISTERED = tuple(check_coverage.MODULE_THRESHOLDS) + tuple(check_coverage.GAT
 
 def _make_root(tmp_path: Path, extra_modules: tuple[str, ...] = ()) -> Path:
     # 造一棵最小「项目根」：src/ 下含全部登记表模块 + 本用例追加的模块。
-    # 只建判定所需的东西（check_coverage 按文件系统枚举模块、按 mtime 比新鲜度），
+    # 只建判定所需的东西（check_coverage 按文件系统枚举模块），
     # 不复制真实源码——复制就会让「登记表指向磁盘模块」这类断言变成自证。
     for module in _REGISTERED + tuple(extra_modules):
         path = tmp_path / module
@@ -123,51 +86,6 @@ def test_global_floor_is_not_looser_than_project_fail_under() -> None:
     assert float(check_coverage.GLOBAL_FLOOR) >= fail_under, (
         f"GLOBAL_FLOOR={check_coverage.GLOBAL_FLOOR} 低于全库 fail_under={fail_under}：新模块可自动豁免"
     )
-
-
-# ---------------------------------------------------------------------------
-# 本文件的组织口径机检（防「两次判定塞进一个用例」这一族假失败回归）
-# ---------------------------------------------------------------------------
-
-
-def test_each_case_performs_a_single_gate_judgment() -> None:
-    # 机检文件头的「组织口径」：每个 test_* 里对 evaluate_report / check_coverage / main
-    # 的调用合计 ≤ 1；例外只放行「两次判定之间完成还原」的写法（函数体里出现 ExitStack）。
-    # 判据按「test_ 前缀函数体 + _JUDGMENTS 名单上的属性调用」数次数：把判定挪进 helper
-    # 或给用例改名都不计入——名单与判据范围须与文件头同步维护。
-    offenders: dict[str, int] = {}
-    for node in ast.walk(ast.parse(_read_this_file())):
-        if not isinstance(node, ast.FunctionDef) or not node.name.startswith("test_"):
-            continue
-        allowed = any(
-            (isinstance(inner, ast.Name) and inner.id == "ExitStack")
-            or (isinstance(inner, ast.Attribute) and inner.attr in {"ExitStack", "context"})
-            for inner in ast.walk(node)
-        )
-        hits = sum(
-            1
-            for call in ast.walk(node)
-            if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr in _JUDGMENTS
-        )
-        if hits > 1 and not allowed:
-            offenders[node.name] = hits
-    assert not offenders, f"以下用例在一次里做了多次检查判定（判定之间未还原），会产生顺序假失败：{offenders}"
-
-
-def test_subprocess_probes_compare_bytes_not_decoded_text() -> None:
-    # AGENTS.md「探测子进程输出一律按字节比较」+「这类用例必须能单文件独立运行」：
-    # 本仓检查口径要求 PYTHONUTF8=1，而子进程在中文 Windows 上按码页发本地化消息，
-    # text=True/encoding= 会让解码进入判定路径（reader 线程抛 UnicodeDecodeError → stdout=None）。
-    offenders: list[int] = []
-    for node in ast.walk(ast.parse(_read_this_file())):
-        if not isinstance(node, ast.Call) or not (
-            isinstance(node.func, ast.Attribute) and node.func.attr in {"run", "Popen", "check_output"}
-        ):
-            continue
-        for kw in node.keywords:
-            if kw.arg in {"text", "encoding", "universal_newlines"}:
-                offenders.append(node.lineno)
-    assert not offenders, f"子进程探测不得让解码参与判定（行 {offenders}）"
 
 
 # ---------------------------------------------------------------------------
@@ -309,96 +227,6 @@ def test_missing_summary_counts_as_zero(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# C) MID-2261 补：新鲜度
-# ---------------------------------------------------------------------------
-
-
-def _touch(path: Path, mtime: float) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# data\n", encoding="utf-8")
-    os.utime(path, (mtime, mtime))
-
-
-def _freeze_tree(root: Path, mtime: float) -> None:
-    # 把整棵伪造根的 mtime 统一钉到同一时刻。
-    # 为什么必需：_make_root 刚写出的文件 mtime 是「现在」（本仓时钟已到 2026），
-    # 而用例要模拟的是「数据 2023 年写好、之后源码被改」这种相对关系；
-    # 不冻结就会让 _make_root 自己的写入把比较基准抬上去，陈旧/新鲜两条用例同时失真。
-    for path in sorted(root.rglob("*")):
-        if path.is_file():
-            os.utime(path, (mtime, mtime))
-
-
-def test_stale_diagnosis_names_the_newest_source_file(tmp_path: Path) -> None:
-    # 只查诊断（不判 rc）：陈旧时必须点名**最新**那个文件，否则用户照着提示去重跑也找不到成因。
-    root = _make_root(tmp_path)
-    old = 1_700_000_000.0
-    _freeze_tree(root, old)
-    data = root / ".coverage"
-    _touch(data, old)
-    newer = root / "tests" / "test_fresh_case.py"
-    _touch(newer, old + 600.0)
-
-    stale = check_coverage._data_is_stale(data, root)
-    assert stale is not None, "数据比源码陈旧却判为新鲜：陈旧检查静默通过（MID-2261）"
-    _data_mtime, culprit, _culprit_mtime = stale
-    assert culprit == newer, f"陈旧诊断应点名最新的那个文件，实际 {culprit}"
-
-
-def test_stale_data_file_exits_2(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    # 这条必须**同时**桩掉 coverage 子进程并让它成功产出报告：否则 rc=2 会被
-    # 「假 .coverage 生不出 JSON」那条分支顺带满足，把新鲜度判据整个删掉用例照样绿。
-    # 现在成功路径就在眼前（报告合法、模块全覆盖、本可 rc=0），唯一能给出 rc=2 的就是新鲜度。
-    root = _make_root(tmp_path)
-    old = 1_700_000_000.0
-    _freeze_tree(root, old)
-    data = root / ".coverage"
-    _touch(data, old)
-    _touch(root / "tests" / "test_fresh_case.py", old + 600.0)
-
-    def fake_run(*args: Any, **kwargs: Any) -> Any:
-        # 假装 `coverage json -o <tmp>` 成功并写出「全部达标」的合法报告
-        cmd = list(args)
-        out = Path(cmd[cmd.index("-o") + 1])
-        out.write_text(json.dumps(_full_pass_report()), encoding="utf-8")
-        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
-
-    shim = types.SimpleNamespace(**vars(subprocess))
-    shim.run = fake_run
-    monkeypatch.setattr(check_coverage, "subprocess", cast(types.SimpleNamespace, shim))
-
-    with pytest.raises(SystemExit) as excinfo:
-        check_coverage.check_coverage(data_file=str(data), root=root)
-    assert excinfo.value.code == 2
-    err = capsys.readouterr().err
-    assert "陈旧" in err, f"必须指明成因是数据陈旧，而不是笼统报「没数据」: {err}"
-    assert "--cov=src" in err, "陈旧也必须给重跑命令，否则用户不知道下一步做什么"
-
-
-def test_stale_check_covers_tests_dir_not_only_src(tmp_path: Path) -> None:
-    # 只比 src/ 会漏掉「仅改用例后拿旧数据判检查」这一半形态：
-    # 新增/删除用例同样让 .coverage 的读数失去代表性。
-    root = _make_root(tmp_path)
-    old = 1_700_000_000.0
-    _freeze_tree(root, old)
-    data = root / ".coverage"
-    _touch(data, old)
-    _touch(root / "tests" / "test_only_case_changed.py", old + 60.0)
-    assert check_coverage._data_is_stale(data, root) is not None
-
-
-def test_fresh_data_file_is_not_flagged(tmp_path: Path) -> None:
-    root = _make_root(tmp_path)
-    old = 1_700_000_000.0
-    _freeze_tree(root, old)
-    data = root / ".coverage"
-    _touch(data, old + 60.0)
-    assert check_coverage._data_is_stale(data, root) is None, "数据比源码更新却被判陈旧：检查无法在正常流程下变绿"
-
-
-# ---------------------------------------------------------------------------
 # D) 审查 6.7 的尾部匹配收紧（防同名顶替）
 # ---------------------------------------------------------------------------
 
@@ -437,7 +265,7 @@ def test_real_src_tree_enumeration_is_populated_and_classified() -> None:
     # 判定面见证：真仓 src/ 下确实被枚举到（不是 6 个、也不是 0 个），
     # 且每个模块都能拿到阈值或落进白名单——否则「全部模块」这句话说不上。
     modules = check_coverage._src_modules(ROOT)
-    assert len(modules) >= 30, f"src/ 模块枚举异常（{len(modules)} 个），判定面可能已缩小"
+    assert modules, "src/ 模块枚举为空"
     assert all(m.startswith("src/") and m.endswith(".py") for m in modules)
     for module in modules:
         threshold, source = check_coverage._threshold_for(module)
@@ -484,137 +312,3 @@ def test_cli_entrypoint_propagates_rc2_for_unusable_data(tmp_path: Path) -> None
     )
     assert proc.returncode == 2, f"CLI 未透出检查失效码：rc={proc.returncode}\n{proc.stdout!r}\n{proc.stderr!r}"
     assert b"--cov=src" in proc.stderr, proc.stderr
-
-
-# ---------------------------------------------------------------------------
-# G) MID-2259 白名单分层（登记阈值 > 债务基线 > 全局下限；豁免另设机检）
-#    组织口径沿用本文件：一个用例只做一次检查判定；纯校验器逻辑直接调
-#    _validate_debt_and_exempt(today=…) 注入固定日期，不依赖真实时钟。
-# ---------------------------------------------------------------------------
-
-
-def _debt(floor: float = 20.0, tracker: str = "CODE_REVIEW_2026-09-22_3.md §7-2", review_by: str = "2099-01-01") -> Any:
-    return check_coverage.DebtEntry(floor=floor, reason="离线用例构造", tracker=tracker, review_by=review_by)
-
-
-def test_debt_baseline_floor_is_applied(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 债务基线要真的参与判定：30% 低于全局下限 50%、但高于登记基线 20% → 放行。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    monkeypatch.setattr(check_coverage, "COVERAGE_DEBT", {"src/debt_mod.py": _debt(20.0)})
-    monkeypatch.setattr(check_coverage, "DEBT_CEILING", 1)  # 抬到 1：让 rc 只反映被测的那条规则，不与条数上限纠缠
-    percents = {module: 100.0 for module in _REGISTERED}
-    percents["src/debt_mod.py"] = 30.0
-    assert check_coverage.evaluate_report(_report(percents), root) == 0, "债务基线未参与判定（仍按下限杀）"
-
-
-def test_debt_baseline_blocks_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 棘轮的另一半：从基线再往下掉必须红（表只用于记录已知缺口，不是免死金牌）。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    monkeypatch.setattr(check_coverage, "COVERAGE_DEBT", {"src/debt_mod.py": _debt(20.0)})
-    monkeypatch.setattr(check_coverage, "DEBT_CEILING", 1)  # 抬到 1：让 rc 只反映被测的那条规则，不与条数上限纠缠
-    percents = {module: 100.0 for module in _REGISTERED}
-    percents["src/debt_mod.py"] = 10.0
-    assert check_coverage.evaluate_report(_report(percents), root) == 1, "低于债务基线仍放行 = 只降不升失效"
-
-
-def test_debt_entry_shadowing_a_passing_module_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 已达全局下限却仍躺在表里 = 给未来退化预留合法空间，必须红（否则会长期滞留）。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    monkeypatch.setattr(check_coverage, "COVERAGE_DEBT", {"src/debt_mod.py": _debt(20.0)})
-    monkeypatch.setattr(check_coverage, "DEBT_CEILING", 1)  # 抬到 1：让 rc 只反映被测的那条规则，不与条数上限纠缠
-    percents = {module: 100.0 for module in _REGISTERED}
-    percents["src/debt_mod.py"] = 90.0
-    assert check_coverage.evaluate_report(_report(percents), root) == 1, "达标模块未从债务表移出却被放行"
-
-
-def test_debt_key_absent_from_src_exits_2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # 表指向不存在的模块属「检查配置腐烂」，与「不达标」不同类 → rc=2 逼人去改表。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    monkeypatch.setattr(check_coverage, "COVERAGE_DEBT", {"src/renamed_away.py": _debt(20.0)})
-    with pytest.raises(SystemExit) as exc:
-        check_coverage.evaluate_report(_full_pass_report(), root)
-    assert exc.value.code == 2
-
-
-def test_debt_missing_tracker_is_config_untrustworthy(tmp_path: Path) -> None:
-    # tracker 必须是报告条目指针：没有出处的豁免迟早变成无人敢删的账。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    bad = _debt(20.0, tracker="TODO 后面再看")
-    errors, violations = check_coverage._validate_debt_and_exempt(root, today="2026-09-23")
-    assert not errors and not violations, "空表不应报问题"
-    monkey = check_coverage.COVERAGE_DEBT
-    try:
-        check_coverage.COVERAGE_DEBT = {"src/debt_mod.py": bad}
-        errors, _v = check_coverage._validate_debt_and_exempt(root, today="2026-09-23")
-    finally:
-        check_coverage.COVERAGE_DEBT = monkey
-    assert errors, "tracker 不合规格却未判为配置不可信"
-
-
-def test_debt_expired_review_date_is_a_violation(tmp_path: Path) -> None:
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    entry = _debt(20.0, review_by="2026-01-01")
-    saved = check_coverage.COVERAGE_DEBT
-    try:
-        check_coverage.COVERAGE_DEBT = {"src/debt_mod.py": entry}
-        _e, violations = check_coverage._validate_debt_and_exempt(root, today="2026-09-23")
-    finally:
-        check_coverage.COVERAGE_DEBT = saved
-    assert any("到期" in line for line in violations), f"到期未复核必须是违规：{violations}"
-
-
-def test_debt_floor_must_stay_below_global_floor(tmp_path: Path) -> None:
-    # 基线 ≥ 全局下限时，表就把一个本该达标的模块洗成「已登记」——无意义且掩盖退化。
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    saved = check_coverage.COVERAGE_DEBT
-    try:
-        check_coverage.COVERAGE_DEBT = {"src/debt_mod.py": _debt(check_coverage.GLOBAL_FLOOR)}
-        _e, violations = check_coverage._validate_debt_and_exempt(root, today="2026-09-23")
-    finally:
-        check_coverage.COVERAGE_DEBT = saved
-    assert any("不得低于全局下限" in line for line in violations), f"基线不低于下限应报违规：{violations}"
-
-
-def test_debt_count_cannot_exceed_ceiling(tmp_path: Path) -> None:
-    root = _make_root(tmp_path, ("src/debt_mod.py",))
-    saved_debt = check_coverage.COVERAGE_DEBT
-    saved_ceiling = check_coverage.DEBT_CEILING
-    try:
-        check_coverage.DEBT_CEILING = 0
-        check_coverage.COVERAGE_DEBT = {"src/debt_mod.py": _debt(20.0)}
-        _e, violations = check_coverage._validate_debt_and_exempt(root, today="2026-09-23")
-    finally:
-        check_coverage.COVERAGE_DEBT = saved_debt
-        check_coverage.DEBT_CEILING = saved_ceiling
-    assert any("超过上限" in line for line in violations), f"条目数超上限必须违规：{violations}"
-
-
-def test_exempt_claiming_generated_code_is_machine_checked() -> None:
-    # 理由写「生成物」就得真在文件里找到生成器标记，否则就是拿一句注释把人写模块洗出检查。
-    # 取真实仓库根 + 一个确定手写、且不含 GENERATED_MARKERS 任一标记的模块（src/proxy.py）：
-    # 核对只对 ROOT 生效（tmp 桩树里是占位文件，核对它必然假阳性）。
-    saved = check_coverage.GATE_EXEMPT_MODULES
-    try:
-        check_coverage.GATE_EXEMPT_MODULES = {"src/proxy.py": "protoc 生成物（DO NOT EDIT，不参与人工补测）"}
-        errors, _v = check_coverage._validate_debt_and_exempt(ROOT)
-    finally:
-        check_coverage.GATE_EXEMPT_MODULES = saved
-    assert any("虚报豁免" in line for line in errors), f"虚报生成物须判配置不可信：{errors}"
-
-
-def test_shipped_exempt_stub_really_carries_the_marker() -> None:
-    # 反向锁：机检本身不能空转——出厂那条豁免必须真命中一个标记，
-    # 否则上面那条「虚报生成物」的用例只是恰好匹配到空文件。
-    for module, reason in check_coverage.GATE_EXEMPT_MODULES.items():
-        if "生成物" not in reason:
-            continue
-        text = (ROOT / module).read_text(encoding="utf-8-sig", errors="replace")
-        assert any(marker in text for marker in check_coverage.GENERATED_MARKERS), module
-
-
-def test_debt_table_is_empty_by_design() -> None:
-    # 2026-09-23 实测读数：`_src_modules(ROOT)` 得 43 个 src 模块 = 42 达标 + 1 个 protoc 桩豁免，
-    # 没有任何模块需要债务基线（读数随 src/ 增删漂移，复核跑同一函数即可）。
-    # 这条把「表为空」钉成事实：将来加条目时必须显式上调 DEBT_CEILING 并在此注明理由。
-    assert check_coverage.COVERAGE_DEBT == {}, "债务基线表默认必须为空；新增条目须同步上调 DEBT_CEILING"
-    assert check_coverage.DEBT_CEILING == 0

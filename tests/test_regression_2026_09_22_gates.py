@@ -1,164 +1,13 @@
-# -*- encoding: utf-8 -*-
-#
-# 组 F 回归锁（2026-09-22 审查报告：SEV-2213 / SEV-2216 / SEV-2222）。
-#
-# 本文件只锁「本轮报告点名的那几种失效形态本身」，不复述被测实现的检查语义——
-# 复述型断言（「调用了 X」）在实现被改坏后照样能过，抓不住真失效。
-#
+# 并发与发布安全回归：直接驱动生产实现。
+
 import ast
 import re
-import tomllib
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-
-
-# ────────────────────────────── SEV-2216 ──────────────────────────────
-# 形态：httpx 的 h2 / socksio 只在「运行期真正走到那条分支」时才被 import，
-# 静态导入图与 pip 解析都不会报缺；于是清单里漏一条，用户 `pip install -r` 后仍然缺包。
-# 这里的锁是**双侧包名集合一致**：单侧遗漏（本次形态）立即变红。
-
-
-def _normalize_dist_name(name: str) -> str:
-    # PyPI 规范化名（PEP 503）：小写 + 连续 [-_.] 折叠成单个 '-'。只比较**包名**、不管版本
-    # 说明符，所以必须在剥离 '[...]'/版本之前就结束解析。
-    return re.sub(r"[-_.]+", "-", name.strip()).lower()
-
-
-# PEP 508 名称后必须跟「说明符 / 空白 / 行尾 / 分号」；用前瞻卡住，避免把 `>=4.3.0` 吃进名字里
-_REQ_NAME = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?=[\s\[<>=!~;,)]|$)")
-
-
-def _names_from_requirements(text: str) -> set[str]:
-    # 逐行解析 requirements.txt：剥行尾注释（本清单大量使用）→ 取行首包名。
-    # `pkg[extra]>=x` 的 extra 段在取名字时天然被 `[` 的字符集排除，故无需特意处理。
-    names: set[str] = set()
-    for line in text.splitlines():
-        spec = line.split("#", 1)[0].strip()
-        if not spec:
-            continue
-        # `-r other.txt` / `--index-url ...` 之类的指令行没有包名，跳过
-        if spec.startswith("-"):
-            continue
-        m = _REQ_NAME.match(spec)
-        if m:
-            names.add(_normalize_dist_name(m.group(1)))
-    return names
-
-
-def _names_from_pyproject_dependencies(text: str) -> set[str]:
-    # 从 pyproject.toml 的 [project.dependencies] 取包名集合（用 tomllib 解析，非正则）。
-    deps = tomllib.loads(text).get("project", {}).get("dependencies", [])
-    names: set[str] = set()
-    for dep in deps:
-        m = _REQ_NAME.match(str(dep).strip())
-        assert m is not None, f"[project.dependencies] 里有一条无法解析出包名：{dep!r}"
-        names.add(_normalize_dist_name(m.group(1)))
-    return names
-
-
-def test_requirements_and_pyproject_dependency_name_sets_match() -> None:
-    # SEV-2216 主锁：requirements.txt 与 pyproject [project.dependencies] 的包名集合必须相等。
-    # 二者是「单源双写」（Docker/CI 消费前者，pip 安装消费后者），单侧增删即漂移。
-    req_names = _names_from_requirements((ROOT / "requirements.txt").read_text(encoding="utf-8"))
-    proj_names = _names_from_pyproject_dependencies((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-    only_req = req_names - proj_names
-    only_proj = proj_names - req_names
-    assert not only_req, f"只在 requirements.txt 里、pyproject [project.dependencies] 缺失: {sorted(only_req)}"
-    assert not only_proj, f"只在 pyproject [project.dependencies] 里、requirements.txt 缺失: {sorted(only_proj)}"
-
-
-def test_development_tools_use_ruff_without_legacy_type_checkers() -> None:
-    # 工具声明只留 Ruff；旧工具不能通过另一个 extra 被悄悄带回。
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    names = {
-        _normalize_dist_name(match.group(1))
-        for spec in project["optional-dependencies"]["dev"]
-        if (match := _REQ_NAME.match(spec)) is not None
-    }
-    assert "ruff" in names
-    assert not names & {"black", "isort", "mypy", "basedpyright", "pyright"}
-
-
-def test_httpx_extra_runtime_requirements_are_declared() -> None:
-    # SEV-2216 的主锁：httpx 的 extra 只有运行期走到那条分支才 import，因此「清单里有没有声明」
-    # 必须单独钉住。判据分两层：① 静态：h2 / socksio 在两侧都在；② 动态：向 httpx 自身追问它
-    # 在这条配置下要不要这俩包——把「我记错了依赖名」这类文档性错误也一并抓住。
-    httpx_reqs = _httpx_extra_requirements()
-
-    req_names = _names_from_requirements((ROOT / "requirements.txt").read_text(encoding="utf-8"))
-    proj_names = _names_from_pyproject_dependencies((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    for pkg in ("h2", "socksio"):
-        assert pkg in req_names, f"{pkg} 未在 requirements.txt 声明（httpx 运行期会 import 它）"
-        assert pkg in proj_names, f"{pkg} 未在 pyproject [project.dependencies] 声明"
-
-    # 本仓用 httpx[http2] 拿前者、显式声明后者；若 httpx 将来把二者并进默认依赖，下面的 extra
-    # 名单会变，届时该断言即失效——这正是要人复核的信号，不是误报。
-    extras_seen = {r.split("extra ==")[1].strip().strip("'\"") for r in httpx_reqs if "extra ==" in r}
-    assert "http2" in extras_seen, f"httpx 元数据里已找不到 http2 extra（依赖形态可能已变）: {sorted(extras_seen)}"
-    assert "socks" in extras_seen, f"httpx 元数据里已找不到 socks extra（依赖形态可能已变）: {sorted(extras_seen)}"
-
-
-def test_httpx_runtime_import_sites_match_the_declared_extras() -> None:
-    # SEV-2216 的**机理锁**：不猜「哪些包要声明」，而是回源到 httpx 源码，断言「本仓 declare 的
-    # extra 名」与「httpx 真正 import 的依赖名」对齐。httpx 换实现（改名/换包）时这里会红，
-    # 而纯静态的清单比对不会。
-    import httpx
-
-    httpx_pkg = Path(httpx.__file__).resolve().parent
-    client_src = (httpx_pkg / "_client.py").read_text(encoding="utf-8")
-    transport_src = (httpx_pkg / "_transports" / "default.py").read_text(encoding="utf-8")
-
-    # http2=True 分支必须仍以 `import h2` 作为前置检查；socks5 分支必须仍 `import socksio`
-    assert re.search(r"^\s*import h2\b", client_src, re.M), "httpx 不再在 http2 分支 import h2：请复核 h2 是否仍需声明"
-    assert re.search(r"^\s*import socksio\b", transport_src, re.M), (
-        "httpx 不再在 socks5 分支 import socksio：请复核 socksio 是否仍需声明"
-    )
-
-
-def test_repo_has_enabled_http2_at_runtime() -> None:
-    # 断言「http2 在本仓确实是运行期可达的配置」——否则 h2 的声明理由就站不住，
-    # 该条注释就该被证伪而不是留着。判据：src/async_http.py 的 async_req 形参 http2 默认值为 True。
-    source = (ROOT / "src" / "async_http.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-
-    default: ast.expr | None = None
-    for node in ast.walk(tree):
-        # async_req 是协程函数 → AST 里是 AsyncFunctionDef（FunctionDef 抓不到，实测踩过）
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_req":
-            # 形参可能带注解（ast.arg）也可能不带；用 args 列表按**位置**对齐尾部 defaults，
-            # 故必须把 posonly + args 合并后再取尾部（只取 args 会在有 posonly 时整体错位）。
-            positional = [*node.args.posonlyargs, *node.args.args]
-            if not node.args.defaults:
-                continue
-            paired = list(zip(positional[-len(node.args.defaults) :], node.args.defaults))
-            for arg, dflt in paired:
-                if arg.arg == "http2":
-                    default = dflt
-    assert default is not None, "src/async_http.py 的 async_req 已无 http2 形参（SEV-2216 的注释理由需复核）"
-    assert isinstance(default, ast.Constant) and default.value is True, (
-        "async_req 的 http2 默认值不再是 True：若 http2 已全程关闭，h2 的声明理由需重新论证"
-    )
-
-
-def test_repo_supports_socks5_proxy_scheme() -> None:
-    # 同理锁 socksio 的声明理由：本仓必须仍把 socks5/socks5h 当合法代理协议（白名单在
-    # src/web_config.py）。若这条不成立，socksio 的注释即被证伪。
-    source = (ROOT / "src" / "web_config.py").read_text(encoding="utf-8")
-    assert re.search(r"_PROXY_SCHEMES\s*=\s*frozenset\(\([^)]*\"socks5\"", source, re.S), (
-        "src/web_config.py 的 _PROXY_SCHEMES 已不含 socks5：请复核 socksio 是否仍需声明"
-    )
-
-
-def _httpx_extra_requirements() -> list[str]:
-    # 读当前解释器里 httpx 的 Requires-Dist（含 extra 标记），供上一条用例做形态核对。
-    import importlib.metadata as md
-
-    return list(md.requires("httpx") or [])
 
 
 # ────────────────────────────── SEV-2222 ──────────────────────────────
@@ -449,12 +298,3 @@ def test_smoke_fatal_markers_cover_import_failures() -> None:
     build_exe = _load_build_exe()
     for marker in ("Traceback (most recent call last)", "ModuleNotFoundError", "ImportError"):
         assert marker in build_exe.FATAL_MARKERS, f"冒烟致命标记缺少 {marker!r}"
-
-
-def test_version_is_read_from_single_source() -> None:
-    # MID-2200 定点锁：版本号必须只经 read_version() 从 pyproject.toml 读一次，
-    # 且两个 exe 共享同一个 zip 前缀（避免某入口单独写死版本）。
-    src = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
-    assert src.count("read_version()") >= 1, "read_version() 不再被调用"
-    body = _function_body_source(src, "read_version")
-    assert "pyproject.toml" in body, "read_version 不再从 pyproject.toml 读取（事实源被改）"

@@ -234,23 +234,26 @@ def test_srt_writer_drains_pending_items_before_exit(tmp_path: Path) -> None:
     srt = collector._srt
     assert srt is not None
     srt.start(now=0.0)
-    written: list[tuple[str, str]] = []
-    collector._srt_queue.put(("u1", "m1", 0.1))
-    collector._srt_queue.put(("u2", "m2", 0.2))
-    collector._srt_stop.set()
-
-    def _slow_write(user_name: str, message: str, now: float | None = None) -> None:
-        # 写第一条的过程中置停止事件（真实形态：stop() 与写线程并发）
+    try:
+        written: list[tuple[str, str]] = []
+        collector._srt_queue.put(("u1", "m1", 0.1))
+        collector._srt_queue.put(("u2", "m2", 0.2))
         collector._srt_stop.set()
-        written.append((user_name, message))
 
-    cast(Any, srt).write = _slow_write
-    writer = threading.Thread(target=collector._srt_writer_loop, daemon=True)
-    writer.start()
-    writer.join(timeout=3.0)
+        def _slow_write(user_name: str, message: str, now: float | None = None) -> None:
+            # 写第一条的过程中置停止事件（真实形态：stop() 与写线程并发）
+            collector._srt_stop.set()
+            written.append((user_name, message))
 
-    assert not writer.is_alive()
-    assert written == [("u1", "m1"), ("u2", "m2")], "队列未排空就退出，丢掉了已入队的弹幕"
+        cast(Any, srt).write = _slow_write
+        writer = threading.Thread(target=collector._srt_writer_loop, daemon=True)
+        writer.start()
+        writer.join(timeout=3.0)
+
+        assert not writer.is_alive()
+        assert written == [("u1", "m1"), ("u2", "m2")], "队列未排空就退出，丢掉了已入队的弹幕"
+    finally:
+        srt.close()
 
 
 def test_shutdown_cancels_start_task_and_runs_finally_chain(tmp_path: Path) -> None:

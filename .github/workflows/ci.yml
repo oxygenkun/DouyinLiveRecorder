@@ -145,11 +145,11 @@ jobs:
       # uv.lock、.coveragerc-concurrency、Dockerfile、
       # docker-compose.yaml、.github/workflows/**、.github/actions/** 归入 python 组。
 
-  # ── 1. 静态检查（格式 / 导入序 / 版本一致性 / 钉定表结构 / 翻译同步）─
+  # ── 1. 静态检查（格式 / 导入序 / 翻译同步）─
   # 各项检查都是「秒级、零运行时依赖」，合并进同一 job 可省去多次 runner 冷启动
   # （约 30~60s），同时用独立 step 名保留清晰的失败归因。
   static:
-    name: Static Checks (Ruff / version / pins / i18n)
+    name: Static Checks (Ruff / i18n)
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -189,28 +189,10 @@ jobs:
           PYTHONUTF8: "1"
         run: python -m ruff check .
 
-      # 校验「版本号单一事实源」：pyproject.toml 为准，
-      # main.py / src/web_api.py 动态读取、Dockerfile 经 APP_VERSION 注入
-      # （纯标准库实现，无需安装项目依赖）
-      - name: Check version consistency
-        run: python tool/check_version.py
-
-      # 校验 ci.yml 与 build-release.yml 的版本常量一致性（python_build / node_version）：
-      # 两份 workflow 各自在 consts 步骤声明同一组常量，改一处须同步另一处
-      # （AGENTS.md「CI / workflow 约定」）。纯标准库实现，无需安装项目依赖。
-      - name: Check workflow version constants consistency
-        run: python tool/check_workflow_constants.py
-
       # 校验 gettext 翻译同步：改 .po 忘记重编译 .mo 时拦截
       # （.mo 随仓库分发，gettext 运行时只读 .mo；纯标准库实现）
       - name: Check i18n po/mo sync
         run: python tool/compile_po.py --check
-
-      # 校验 Skill 目录与 AGENTS.md「项目级 Skill」表格一致性：
-      # 表格条目必须指向存在的目录与 SKILL.md，frontmatter name 必须与目录名一致，
-      # SKILL.md 引用的 AGENTS.md 章节必须实际存在。纯标准库实现，无需装项目依赖。
-      - name: Check skill-AGENTS.md consistency
-        run: python tool/check_skill_agents_consistency.py
 
   # ── 1.5 依赖漏洞审计（pip-audit，补-05）────────────────────────────────
   # 本仓运行时清单刻意「只有下限、无上限」（唯一例外 protobuf<8），且 uv.lock 不参与
@@ -381,22 +363,6 @@ jobs:
       - name: Run pytest with coverage
         run: pytest --cov=src --cov-report=term-missing --cov-report=xml
 
-      # 「有告警即失败」pytest 侧（与上方 isort/black 兜底步骤同一形态）：
-      # pyproject filterwarnings 已忽略已知第三方告警，理论上 warnings summary 恒为空。
-      # 但若有人新增未过滤的告警、或第三方库升级引入新告警，summary 段会出现但 pytest rc 仍为 0
-      # （与 isort「Unable to parse file」走 UserWarning 通道、rc 恒 0 同理）。
-      # 注：pytest 的 warnings summary 走 stdout（非 stderr），故此处捕获 stdout。
-      - name: Gate pytest warnings summary
-        shell: bash
-        run: |
-          set -euo pipefail
-          out=$(python -m pytest -q 2>/dev/null || true)
-          if printf '%s' "$out" | grep -q "= warnings summary ="; then
-            printf '::error::pytest warnings summary 非空（有告警被吞掉）：\n%s\n' "$out"
-            exit 1
-          fi
-          echo "pytest warnings summary 为空"
-
       # MID-2264 的第二道防线：断言前端 .mjs 用例的 pytest 包装**真的执行过**（不是被整体 skip）。
       # 四个包装模块（tests/test_frontend_quality_ui.py 驱动 test_quality_ui.mjs；
       # tests/test_frontend_regression_gates.py 驱动 2026-09-22 组 G 回归锁 .mjs；
@@ -561,23 +527,6 @@ jobs:
             tests/test_async_http_lock.py \
             --cov=src --cov-report=term-missing:skip-covered
 
-      # 并发测试同样跑 pytest，按同一口径纳入「有告警即失败」——
-      # 并发代码的协程/线程告警（如 "coroutine was never awaited"）尤其不应被静默吞掉。
-      - name: Gate pytest warnings summary (concurrency)
-        shell: bash
-        run: |
-          set -euo pipefail
-          out=$(python -m pytest -q \
-            tests/test_concurrency_rate_limit.py \
-            tests/test_concurrency.py \
-            tests/test_async_http_lock.py \
-            2>/dev/null || true)
-          if printf '%s' "$out" | grep -q "= warnings summary ="; then
-            printf '::error::并发测试 warnings summary 非空（有告警被吞掉）：\n%s\n' "$out"
-            exit 1
-          fi
-          echo "并发测试 warnings summary 为空"
-
   # ── 5. 运行时依赖探测验证（ffmpeg / node）────────────────────────────────
   # 验证 src/ffmpeg_install.py 与 src/node_install.py 的探测逻辑在真实环境成立。
   # 注意：此处的 node 是「JS 签名脚本运行时」，不是前端构建工具链。
@@ -687,7 +636,7 @@ jobs:
   # [历史注] 原注「上游 job 会被路径过滤跳过，分支保护若直接勾选它们会『永久 pending』」
   # 随过滤器移除作废（2026-10-17）。
   # 对外仍只暴露本 job 作为唯一 required check：
-  #   skipped / success → 通过；failure / cancelled → 失败。
+  #   所有必需 job 均须成功，跳过不作为成功。
   ci-summary:
     name: CI Summary (required check)
     if: always()
@@ -702,20 +651,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # 使用原生对象过滤器 needs.*.result（GitHub 官方推荐写法），
-      # 不引入 jq / 内联脚本，避免 shell 引号陷阱。
-      # skipped 视为通过：2026-10-17 起已无 job 会被路径过滤跳过（过滤器已移除），
-      # 该判定保留仅为防将来恢复条件 job 时本 job 把合法跳过反噬成失败。
-      - name: Fail if any upstream job failed or was cancelled
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      # 所有依赖 job 均为必需步骤。
+      - name: Require every upstream job to succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
         shell: bash
         run: |
-          echo "::error::存在未通过的上游 job（failure / cancelled），请查看本次运行的 job 列表定位"
+          echo "::error::存在未成功执行的上游 job（failure / cancelled / skipped），请查看本次运行的 job 列表定位"
           echo "各 job 结果：${{ join(needs.*.result, ', ') }}"
           exit 1
 
       - name: All checks passed
         shell: bash
         run: |
-          echo "✅ 全部 job 通过（或合法跳过）"
+          echo "✅ 全部必需 job 通过"
           echo "各 job 结果：${{ join(needs.*.result, ', ') }}"

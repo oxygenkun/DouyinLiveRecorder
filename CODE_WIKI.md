@@ -280,11 +280,9 @@ DouyinLiveRecorder/
 ├── uv.lock                              # uv 依赖锁文件（随仓库分发；镜像/CI 走 pip + requirements.txt，不消费）
 ├── pyproject.toml                      # Python 项目配置（版本号/工具配置/覆盖率检查单一事实源）
 ├── tool/                             # 辅助脚本
-│   ├── check_version.py                # 版本号一致性校验（CI static job 调用）
 │   ├── check_coverage.py               # 逐模块覆盖率检查（CI test job 调用，阈值 MODULE_THRESHOLDS）
 │   ├── compile_po.py                   # gettext 翻译编译（.po → .mo；--check 零副作用校验同步，CI static job 调用）
 │   ├── extract_i18n_strings.py         # i18n 待翻译串提取器（AST 扫描 print/logger 字面量 + 四语目录比对，维护期使用）
-│   └── sync_version.py                 # 版本号同步脚本（pyproject → 各文档）
 ├── Dockerfile                          # Docker 构建文件（多阶段）
 ├── docker-compose.yaml                 # Docker Compose（recorder/web 两服务）
 ├── .dockerignore                       # Docker 构建上下文排除文件
@@ -1301,7 +1299,7 @@ def _app_root() -> str:
 
 **流程**：
 
-1. `prepare` job：用 tomllib 从 pyproject.toml 提取版本号并校验 tag 一致（打错 tag 直接失败），跑 `check_version.py` 确认各消费方动态读取。
+1. `prepare` job：用 tomllib 从 pyproject.toml 提取版本号并校验 tag 一致（打错 tag 直接失败）。
 2. `release-create` job：发版路径下**预创建** Release 记录（单例 job，消除多平台 build 并发创建同一 Release 的竞态；不传 files）；手动发版路径在此补建轻量 tag（Release 必须挂在 tag 上）。
 3. build job（矩阵）：各平台以系统包管理器装 ffmpeg 供冒烟——Windows `choco`、Linux `apt`、macOS `brew`（`brew trust aws/tap` 为独立幂等步骤，`HOMEBREW_*` 变量在命令内 export）；**全部网络安装命令经 `.github/actions/retry` 复合动作包装**（线性退避 ×3，系统包管理器退避 15s、pip 10s）；依赖统一通过 `uv sync --locked --extra build` 安装。
 5. 产物发布：发版路径（tag / 手动勾选 create_release）由 build job 经 `softprops/action-gh-release@v3` 把 zip **直传 Release**（显式 `tag_name` 与 release-create 指向同一 Release，GitHub 支持同 Release 并发上传不同 asset）；仅构建路径走 `upload-artifact@v7`（`compression-level: 0` 跳过二次压缩，留存 30 天供人工取回）。
@@ -1597,6 +1595,12 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **修改内容** · `docs/agent-reference/project-structure.md`、`docs/agent-reference/session-learnings.md` — 目录树同步新增模块与测试文件；经验条目追加（ADS 夹具、保留设备名实测、用例数增量归因、offscreen 探针的退出形态、先测后改的冗余度量、锚点优于行号、`strict=True` 下的重复键）
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
+
+### 2026-10-28 — 清理低价值与不完整的机械检查
+
+- 删除版本、workflow 常量与 Skill 一致性检查及空转版本同步工具，移除专属测试和 CI / pre-commit 调用；删除异常写法数量锁、响应读取与日志脱敏静态登记扫描、配置自检，以及只比较包名和依赖第三方私有实现的检查。共享 Skill、文档索引、真实业务与安全行为测试继续保留。
+- 覆盖率检查保留逐模块阈值、生成物豁免和数据缺失判定，删除空债务机制与 mtime 新鲜度推断。pytest 直接将未豁免告警作为错误，CI 不再为告警重复跑测；前端保留实际执行与非空校验，去掉固定用例数下限。
+- CLI / Web 冒烟拒绝任何提前退出及收尾超时，CI 必需 job 跳过也不再被汇总为通过。pre-commit 保留 Ruff、YAML / TOML、文件大小与翻译同步，移除行尾空白和末尾换行钩子。历史条目只记录当时状态，不作为现行检查要求。
 
 ### 2026-10-28 — 移除项目包构建
 
