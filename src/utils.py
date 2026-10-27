@@ -595,7 +595,7 @@ def dict_to_cookie_str(cookies_dict: Mapping[str, object]) -> str:
 # 在 read() 里就抛 DuplicateOptionError，于是 [Cookie]/[Authorization] 的 cookie/token 刷新在这种
 # 配置形态下**永远写不回**，用户只看到一条「Error occurred while reading the configuration file」。
 # preserve_case 取默认 False：这两处历史上用的就是默认 optionxform（键名一律转小写），
-# `read_ini_value(..., "GUI", "Gui_Font")` 这类大小写混排入参靠的正是「转小写后比较」。
+# `read_ini_value(..., "Web", "Web_Port")` 这类大小写混排入参靠的正是「转小写后比较」。
 # **延迟导入是硬约束**：src/config_read → src/web_config → src/utils 是既有依赖链（web_config 顶层
 # `from src.utils import atomic_write_text`），提到顶层会形成导入环（utils 只执行到一半即 ImportError）。
 def _tolerant_ini_parser() -> configparser.ConfigParser:
@@ -651,7 +651,7 @@ def _replace(src: str, dst: str) -> None:
 def _fsync_dir(dir_path: str) -> None:
     # 对父目录 fsync：让「rename 改了目录项」这条元数据本身也落盘（POSIX 语义）。以只读方式
     # 打开目录仅 POSIX 支持，Windows 无此语义 → 按平台字面量早返回（同 i18n._windows_ui_language
-    # / web_tray 的门控写法，不用 # type: ignore）。
+    # 的门控写法，不用 # type: ignore）。
     if sys.platform == "win32":
         return
     try:

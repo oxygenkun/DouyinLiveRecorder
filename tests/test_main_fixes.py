@@ -502,3 +502,67 @@ class TestSelectSourceUrlEmpty:
             result = main_mod.select_source_url(info)
         assert result is None
         assert any("HLS 采集未启用" in str(c.args[0]) for c in warn.call_args_list)
+
+
+def test_postprocess_shutdown_finishes_queued_work(main_mod: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from src import video_postprocess
+
+    workers: list[threading.Thread] = []
+
+    def make_thread(*args: Any, **kwargs: Any) -> threading.Thread:
+        worker = threading.Thread(*args, **kwargs)
+        workers.append(worker)
+        return worker
+
+    shim = types.SimpleNamespace(**vars(threading))
+    shim.Thread = make_thread
+    monkeypatch.setattr(main_mod, "threading", shim)
+    monkeypatch.delattr(video_postprocess, "shutdown_postprocess_executor", raising=False)
+    completed: list[str] = []
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        monkeypatch.setattr(main_mod, "_postprocess_executor", pool)
+        future = pool.submit(completed.append, "recording finalized")
+        try:
+            main_mod._shutdown_postprocess_executor()
+            assert future.done()
+            assert future.result() is None
+            assert completed == ["recording finalized"]
+            with pytest.raises(RuntimeError):
+                pool.submit(lambda: None)
+        finally:
+            for worker in workers:
+                worker.join(timeout=2)
+                assert not worker.is_alive()
+
+
+def test_postprocess_drain_returns_when_budget_expires(main_mod: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    release = threading.Event()
+    entered = threading.Event()
+    workers: list[threading.Thread] = []
+    messages: list[str] = []
+
+    def make_thread(*args: Any, **kwargs: Any) -> threading.Thread:
+        worker = threading.Thread(*args, **kwargs)
+        workers.append(worker)
+        return worker
+
+    def blocked_drain() -> None:
+        entered.set()
+        release.wait(timeout=5)
+
+    shim = types.SimpleNamespace(**vars(threading))
+    shim.Thread = make_thread
+    monkeypatch.setattr(main_mod, "threading", shim)
+    monkeypatch.setattr(main_mod, "logger", types.SimpleNamespace(warning=messages.append))
+    try:
+        assert main_mod._run_bounded_drain(blocked_drain, budget=0) is False
+        assert entered.wait(timeout=2)
+        assert messages
+        assert workers[0].daemon
+    finally:
+        release.set()
+        for worker in workers:
+            worker.join(timeout=2)
+            assert not worker.is_alive()

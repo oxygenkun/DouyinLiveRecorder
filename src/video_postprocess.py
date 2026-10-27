@@ -20,8 +20,7 @@ from src.graceful_shutdown import ShutdownRequested, shutdown_manager
 #
 # 线程归属（MIN-2236①）：本模块的函数不跑在调用它的主线程里——generate_subtitles 由 main.py 的
 # _subtitle_thread_target / _subtitle_thread_target_direct 起 daemon 线程，converts_* 与
-# segment_video 由 _submit_postprocess 投进后处理线程池。而全仓 threading.excepthook 只在 gui.py
-# 装过（且只覆盖 GUI 父进程），录制子进程里线程内的未捕获异常默认没有 hook：traceback 只落
+# segment_video 由 _submit_postprocess 投进后处理线程池。线程内的未捕获异常默认只落
 # stderr，随即被 display_info 的 "\033[2J" 清屏刷掉，房间状态照旧显示「正在录制」——即静默死亡。
 # 故本模块的循环体/写盘路径必须就地捕获，不能指望全局兜底；也不在本模块另装 hook（跨进程归属
 # 决策留给主会话，再补一个只会形成第二份 hook）。
@@ -438,7 +437,7 @@ def generate_subtitles(record_name: str, ass_filename: str, sub_format: str = "s
         else:
             try:
                 # MIN-2236①：本写盘段原为裸 open()、函数内零 try/except。该线程跑在录制子进程里，
-                # 而 threading.excepthook 全仓只有 gui.py 装过（见文件头）——磁盘满(ENOSPC) / 目录被
+                # 没有全局异常钩子兜底——磁盘满(ENOSPC) / 目录被
                 # rename_anchor_directory 改名(ENOENT) / 路径过长(ENAMETOOLONG) / 权限(EACCES) 任一
                 # 发生，线程就静默死掉，字幕从此不再增长且无线索。
                 # 只捕 OSError 而不是 except Exception：上述四类都是 OSError 子类，其余异常（如

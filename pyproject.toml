@@ -24,7 +24,6 @@ keywords = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
-    "Environment :: GUI",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -64,14 +63,6 @@ dependencies = [
     "socksio>=1.0.0",
     "exejs>=1.0.1",
     "PyExecJS>=1.5.1",
-    # [2026-10-03 阶段5] customtkinter 已随 UI 现代化阶段4（tkinter.ttk 自研控件层）摘除
-    # GUI 主窗口迁 PySide6：QSS token 可 1:1 还原设计稿的圆角/投影/弹簧动效（ttk 无法原生实现），
-    #   下界 6.12 是本机实测支持 Python 3.14.8 的最小版。2026-10-20 起 Web 入口托盘
-    #   （src/web_tray.py）改走 QSystemTrayIcon；需要桌面窗口或 Web 托盘时安装 gui extra。
-    #   [历史注] pystray / Pillow 已同批摘除：遗留 tkinter 托盘（gui.py::SystemTray）退役，
-    #   两入口托盘统一为 Qt + QPainter 现画图标，PIL 全仓再无调用点——旧注释「保留的原因改为
-    #   tkinter 版 gui.py 的托盘仍在用」的前提已失效，故两包一并移出 [project.dependencies] 与 .gui。
-    # PySide6 仅由 gui extra 安装；Web 无桌面托盘时照常运行（2026-10-23）。
     # starlette 下限 >=1.3.1：兼顾 CVE-2026-48710（受影响 <=1.0.0）与 PYSEC-2026-2280/2281
     # （修复于 1.1.0）、PYSEC-2026-248/249（修复于 1.3.0/1.3.1）——旧下限 0.49.1、乃至补-05 抬的
     # 1.0.1 都仍放行受影响段。现装 1.8.0；审计口径见 ci.yml deps-audit「下限复核」。
@@ -102,9 +93,6 @@ dev = [
     "ruff==0.17.1",
     "pre-commit>=3.6.0",
 ]
-gui = [
-    "PySide6>=6.12.0",
-]
 # 可执行文件打包（tool/build_exe.py / CI 使用，非运行时依赖）
 build = [
     "pyinstaller>=6.10.0",
@@ -112,7 +100,6 @@ build = [
 
 [project.scripts]
 douyin-recorder = "src.main:main"
-douyin-recorder-gui = "src.gui:main"
 douyin-recorder-web = "src.web:main"
 
 [project.urls]
@@ -130,11 +117,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 # 子包必须显式列出：显式 packages 不递归发现，漏列会让 `pip install .` 产出的发行包缺失
 # src/platforms（各平台弹幕采集器）与 src/proto（抖音弹幕 protobuf），运行时以
-# ModuleNotFoundError 炸在导入链上（egg-info/SOURCES.txt 可核对）。src.gui_qt / src.gui_qt.pages
-# 同理：gui.py:main() 委托到 src.gui_qt.app.main()，main_window.py 又相对导入
-# .pages.{config,danmaku,dashboard,quality,runlog}——漏列任一子包，装出的 douyin-recorder-gui
-# 入口在第一段导入就 ModuleNotFoundError。
-packages = ["src", "src.gui_qt", "src.gui_qt.pages", "src.platforms", "src.proto"]
+# ModuleNotFoundError，因此显式列出全部运行时子包。
+packages = ["src", "src.platforms", "src.proto"]
 
 
 [tool.setuptools.package-data]

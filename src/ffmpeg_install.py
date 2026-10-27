@@ -98,8 +98,7 @@ def _is_valid_zip(path: str | Path) -> bool:
     return utils.is_valid_zip(path)
 
 
-# 子进程控制台窗口抑制：`ffmpeg -version` 这类探测在 Windows 的无控制台形态（pythonw.exe 跑 gui.py、
-#   冻结 console=False 的 exe）下每次都会闪出一个黑色控制台窗口。判据与实现一律复用
+# 子进程控制台窗口抑制：`ffmpeg -version` 这类探测在 Windows 的无控制台形态（pythonw.exe 或窗口化宿主）下每次都会闪出一个黑色控制台窗口。判据与实现一律复用
 #   src/video_postprocess.get_startup_info（STARTUPINFO + STARTF_USESHOWWINDOW，录制链的 ffmpeg 调用
 #   早已用它），**不得**在本模块再写一份 STARTUPINFO 构造（同一件事只允许一个定义点；孪生的第二份在
 #   src/ffmpeg_master_download.py）。

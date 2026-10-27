@@ -5,7 +5,7 @@
 # 并行清理全部 ffmpeg 进程；从异常 traceback 提取最内层出错行号。
 #
 # 本模块自持 _ffmpeg_processes / _processes_lock，不引用 main 的任何全局变量，
-# 可被 main / web_api / gui 等任意入口安全复用。
+# 可被 main / web_api 等任意入口安全复用。
 
 import os
 import signal

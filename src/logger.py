@@ -22,25 +22,12 @@ from src.config_bool import parse_config_bool
 __all__ = [
     "logger",
     "rebind_console_sink",
-    "child_process_env",
     "remove_file_sinks",
     "add_file_sinks",
     "ROOM_FIELD",
     "set_room_context",
     "get_room_context",
 ]
-
-# GUI 父进程环境标记：gui.py 必须在导入任何 src 模块**之前**设置。GUI 进程只做面板展示与配置
-# 管理、不执行录制，绝不能持有录制日志文件（logs/streamget.log / logs/PlayURL.log）的句柄：
-# 双方双开同一文件时，任一方到达轮转阈值（rotation="300 KB"）都要先 os.rename 改名，而对方
-# 句柄未关即抛 PermissionError WinError 32 —— 轮转永不成功、该进程的文件日志自此全量静默丢失，
-# 且每条日志向 stderr 吐一段 Logging error（2026-08-29 实测：streamget.log 卡在 300031 字节）。
-# 故 GUI 进程改为独占写 logs/gui.log（单进程单句柄、轮转安全）。
-# 改名标记时必须同步两处：gui.py 的设置处与下方 child_process_env。
-GUI_PARENT_ENV = "DLR_GUI_PARENT"
-
-# 当前进程是否为 GUI 父进程：本模块在导入期求值，故 GUI 入口必须先设标记再导入 src
-_gui_parent = os.environ.get(GUI_PARENT_ENV) == "1"
 
 
 def _app_root() -> str:
@@ -68,7 +55,7 @@ logger.remove()
 #     转码线程池等仍需关键字辅助排查。
 #   - patcher 在**调用线程**内、handler.emit（入队）之前执行，取到的必然是本线程的值，
 #     不会被队列的消费线程串味。
-# 默认值必须经 logger.configure(extra=...) 提供，**不可删**：未绑定房间的日志（主循环、GUI 进程、
+# 默认值必须经 logger.configure(extra=...) 提供，**不可删**：未绑定房间的日志（主循环、
 # 弹幕采集线程、转码线程池）在格式里引用 {extra[room]} 时会 KeyError，loguru 不抛异常而是对
 # **每一条**日志向 stderr 吐一段 "Logging error in Loguru Handler" 并丢弃该行——等于自造噪声 + 静默丢日志。
 ROOM_FIELD = "room"
@@ -81,7 +68,7 @@ def set_room_context(room: str) -> None:
 
 
 def get_room_context() -> str:
-    # 读取当前线程 / 任务绑定的房间值：供需要把日志归属到房间的旁路读取（如 Web/GUI
+    # 读取当前线程 / 任务绑定的房间值：供需要把日志归属到房间的旁路读取（如 Web
     # 侧把并发链路的问题归因到具体房间），也供用例直接断言线程隔离语义。
     return _room_var.get()
 
@@ -137,22 +124,7 @@ def rebind_console_sink() -> None:
     )
 
 
-# 构造录制子进程的启动环境：剔除 GUI 父进程标记（否则子进程同样被判为 GUI、不写录制日志
-# 文件，录制日志将全量丢失），并固定子进程输出编码为 UTF-8。
-# gui.py 拉起录制核心（main.py / 冻结 CLI exe）时必须经此函数，禁止直接透传 os.environ；
-# base 传 None 时以当前进程环境为底。
-def child_process_env(base: dict[str, str] | None = None) -> dict[str, str]:
-    env = dict(os.environ if base is None else base)
-    env.pop(GUI_PARENT_ENV, None)
-    env["PYTHONIOENCODING"] = "utf-8"
-    return env
-
-
-# 控制台 sink 始终保留（与是否启用日志文件无关）。pythonw.exe 与 console=False 的冻结 exe 不分配
-# 控制台，此时 sys.stdin/stdout/stderr **全为 None**；loguru 拒绝把 None 当 sink，裸写
-# logger.add(sink=sys.stderr, ...) 会在模块导入期直接抛 TypeError: Cannot log to objects of type
-# 'NoneType'，于是 gui.py（经 src.web_config → src.__init__ → node_install → logger 传导）在 import
-# 期静默死亡——窗口化运行既无窗口也无报错。故此处先判空，无控制台时跳过、由下方文件 sink 兜底。
+# 无控制台运行时 stderr 可能为空，跳过控制台 sink，由文件日志兜底。
 if sys.stderr is not None:
     # colorize 走 _console_colorize()：导入期同样可能发生在 stderr 已被重定向之后（例如被
     # `> file` 启动、或上层入口先重定向再 import src.logger），硬编码 True 会把 ANSI 转义序列写进
@@ -214,7 +186,7 @@ def _add_playurl_sink() -> int:
 
 
 # 移除并关闭录制日志文件 sink：loguru remove() 会先 flush enqueue 队列再关闭文件句柄，
-# 保证归档改名前内容完整落盘。幂等：sink 未注册（GUI 父进程 / 配置关闭 / 已移除）时为 no-op。
+# 保证归档改名前内容完整落盘。幂等：sink 未注册（配置关闭 / 已移除）时为 no-op。
 def remove_file_sinks() -> None:
     global _streamget_sink_id, _playurl_sink_id
     if _streamget_sink_id is not None:
@@ -251,10 +223,10 @@ def _register_recording_sinks() -> None:
 
 
 # 重新注册录制日志文件 sink（归档改名后恢复日志写入，loguru add() 即创建全新同名文件）。
-# 与导入期注册同参数；GUI 父进程或「是否启用日志文件」关闭时不注册。
+# 与导入期注册同参数；「是否启用日志文件」关闭时不注册。
 def add_file_sinks() -> None:
     global _streamget_sink_id, _playurl_sink_id
-    if _gui_parent or not _log_to_file:
+    if not _log_to_file:
         return
     # MI-14：加异常兜底——本函数由日志归档流程在改名后调用，此处抛错会连带中断归档调用方，
     # 且失败原因只会出现在 stderr。OSError 的逐 sink 处理见 _register_recording_sinks。
@@ -288,25 +260,4 @@ except Exception:
 # OSError——而本模块经 src.utils 等被极早导入，等于**程序在导入阶段崩溃且没有任何日志可查**。
 # 与上方「任何读取异常都不应影响日志模块初始化」同口径：失败时降级为仅控制台。
 if _log_to_file:
-    if _gui_parent:
-        # GUI 父进程：仅写本进程独占的 gui.log（同款轮转/保留策略），绝不创建录制日志文件
-        # streamget.log / PlayURL.log（双开句柄导致轮转失败的完整因果见 GUI_PARENT_ENV）。gui.log
-        # 的行格式刻意不带 {extra[room]}：GUI 进程不执行录制，该列恒为空，加上去只会多一个永久空白栏。
-        try:
-            _ = logger.add(
-                f"{script_path}/logs/gui.log",
-                level="DEBUG",
-                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
-                serialize=False,
-                enqueue=True,
-                retention=3,
-                rotation="300 KB",
-                encoding="utf-8",
-            )
-        except OSError:
-            # 落盘不可用：降级为仅控制台，绝不因日志文件问题阻断启动
-            _log_to_file = False
-    else:
-        # 两个录制文件 sink 分档注册（INFO 与其余级别的口径见上方两个 _add_*_sink）
-        # M-13：逐 sink 独立注册（原因见 _register_recording_sinks 注释）
-        _register_recording_sinks()
+    _register_recording_sinks()

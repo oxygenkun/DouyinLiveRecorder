@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# 按名传入 i18n.tr()/ui_i18n.T() 的 msgid 必须命中四语目录（提取器盲区④的可机检化）。
+# 按名传入 i18n.tr() 的 msgid 必须命中四语目录（提取器盲区④的可机检化）。
 #
 # 为什么单独成文件：tool/extract_i18n_strings.py 与 tests/test_i18n_migration.py 的不变量③
-# 都只看 tr()/T() 的**字面量首参**；`i18n.tr(msgid)`（msgid 来自元组表）、`tr(THEME_LABELS[k])`、
+# 都只看 tr() 的**字面量首参**；`i18n.tr(msgid)`（msgid 来自元组表）、`tr(THEME_LABELS[k])`、
 # `T(title)`（title 是循环变量）这类按名传入对两者完全隐形。2026-10-17 的实测事故即此类：
 # Qt 侧栏导航 msgid 以「两空格」的 📊  控制台 存放在元组里，四目录只有 Tk 遗留的「三空格」形态，
 # 切到 en_US/en_GB/zh_TW 后静默回落简中原文，而提取器仍报「0 缺失」（假绿）。
@@ -13,7 +13,7 @@
 #   ⑤-C 四份目录键集合逐项相等（单侧漏登记/多登记会让某语言静默回落原文）。
 #
 # 变异验证锚点（删掉任一判据必须让某条用例变红）：把 ⑤-A 的 key_sets 收窄到只查 zh_CN.po →
-# ::test_by_name_msgids_covered_by_catalogs 红；从白名单删掉 ui_i18n.py:34 →
+# ::test_by_name_msgids_covered_by_catalogs 红；从白名单删掉 msg_push.py:103 →
 # ::test_unresolved_by_name_calls_match_allowlist 红；把 ⑤-C 退化成「只比 po 与 en_US」→
 # ::test_catalog_key_sets_are_identical 红。
 
@@ -27,18 +27,16 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 
 # 按名调用点里「按设计无法静态解析」的白名单（集合相等判定，多一处少一处都红）：
-# src/ui_i18n.py:34 是 Translatable.render() 的 `tr(self.msgid)`——候选即全仓 T(...) 的字面量
-# 首参，那批串由 tests/test_i18n_migration.py 的不变量③逐条核对，本锁不重复收。
 # 新增不可解析点必须先进本白名单并写明「由哪条锁覆盖」，否则该 msgid 无人核对。
 # msg_push.py:103 是 render_push_content() 里的 `i18n.tr(template)`：template 是**形参**，
 # 而透传它的调用点 main.py 是跨文件调用（本文件的作用域索引按设计不跨文件）。候选由
 # tests/test_regression_2026_09_22_main.py::TestI18nStringsExtractable 逐字面量核对
 # （提取器已按 PUSH_RENDER_CALLER_IDS 把 render_push_content 的首参当 tr 首参扫）；另由
 # tests/test_msg_push.py::TestPushTemplateRendering 逐语言断言渲染结果。
-ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/ui_i18n.py:34", "src/msg_push.py:103"}
+ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/msg_push.py:103"}
 
 # 参数位实参链式解析的收敛轮数：`模块常量 → 调用方实参 → 形参 → 再传入下一层 → tr(形参)`
-# 在 gui.py / src/gui_qt/shared.py 的实际深度是 2 层（_pattern_from_template → _sentinel_text），
+# 为间接模板保留多层解析，
 # 留一轮余量；轮数本身不是判据，白名单才是。
 _INDEX_PASSES = 3
 
@@ -119,7 +117,7 @@ def _binding_index(
 ) -> dict[str, set[str]]:
     # 名字 -> 候选 msgid 集合。
     #   scope="upper"：只收模块级 UPPER_CASE 常量（跨文件合并，用于导入进来的标签表，
-    #     如 src/gui_qt/theme.py 的 THEME_LABELS 被 main_window.py 按下标取用）；
+    #     用于跨模块导入的文案表）；
     #   scope="local"：收本文件全部字面量绑定 + 循环变量按位取值 + 函数参数位实参，
     #     但**不跨文件**——不同文件里同名小写变量会把非文案串灌进候选，造成假红。
     index: dict[str, set[str]] = {}
@@ -234,7 +232,7 @@ def collect_by_name_calls() -> tuple[dict[str, set[str]], list[str]]:
                 continue
             func = node.func
             fname = func.attr if isinstance(func, ast.Attribute) else (func.id if isinstance(func, ast.Name) else None)
-            if fname not in ("tr", "T"):
+            if fname != "tr":
                 continue
             arg = node.args[0]
             if isinstance(arg, (ast.Constant, ast.JoinedStr)):
@@ -289,10 +287,10 @@ def test_catalog_key_sets_are_identical() -> None:
 
 
 def test_by_name_msgids_covered_by_catalogs() -> None:
-    # ⑤-A 按名传入 tr()/T() 的 msgid 候选必须四目录齐全
+    # ⑤-A 按名传入 tr() 的 msgid 候选必须四目录齐全
     found, _ = _by_name_calls()
     # 锚点自检：解析结果为空 = 判据本身失效，此时「0 缺失」是假绿
-    assert found, "按名调用点解析结果为空，判据失效（至少应解析出侧栏导航的 msgid）"
+    assert found, "按名调用点解析结果为空，判据失效"
     key_sets = _cached_catalog_key_sets()
     missing = []
     for label, cands in sorted(found.items()):
@@ -300,9 +298,7 @@ def test_by_name_msgids_covered_by_catalogs() -> None:
             absent = [name for name, keys in key_sets.items() if msgid not in keys]
             if absent:
                 missing.append(f"{label} {msgid!r} 缺于 {absent}")
-    assert not missing, "按名传入 tr()/T() 的 msgid 未登记进全部目录：\n" + "\n".join(missing)
-    nav = {c for cands in found.values() for c in cands if "控制台" in c}
-    assert nav, "必须解析出导航 msgid（含「控制台」），否则盲区④仍不可见"
+    assert not missing, "按名传入 tr() 的 msgid 未登记进全部目录：\n" + "\n".join(missing)
 
 
 def test_unresolved_by_name_calls_match_allowlist() -> None:
@@ -312,7 +308,7 @@ def test_unresolved_by_name_calls_match_allowlist() -> None:
     extra = sorted(actual - ALLOWED_UNRESOLVED_BY_NAME_CALLS)
     stale = sorted(ALLOWED_UNRESOLVED_BY_NAME_CALLS - actual)
     assert not extra, (
-        "新增按名 tr()/T() 调用点无法静态解析出 msgid 候选：" + ", ".join(extra) + " —— 改成可解析形态，"
+        "新增按名 tr() 调用点无法静态解析出 msgid 候选：" + ", ".join(extra) + " —— 改成可解析形态，"
         "或确证「另有锁覆盖」后把它写进 ALLOWED_UNRESOLVED_BY_NAME_CALLS 并注明那条锁"
     )
     assert not stale, "白名单里有已不存在的调用点（多为行号漂移）：" + ", ".join(stale) + " —— 收回本项，勿留空壳"

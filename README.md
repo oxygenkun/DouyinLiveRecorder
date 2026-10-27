@@ -28,16 +28,18 @@
 | 🎯 **多平台支持** | 支持抖音、TikTok、YouTube、快手、虎牙、斗鱼、B站等 **51 个平台**（持续添加中） |
 | 🔄 **循环值守** | 自动检测直播状态，开播自动录制，断播自动停止 |
 | 🎬 **多种格式** | 支持 TS、MKV、FLV、MP4、MP3、M4A 等格式输出 |
-| 🖥️ **三模式运行** | 命令行模式、GUI 图形界面模式、Web 管理面板模式 |
+| 🖥️ **两种运行方式** | 命令行模式、Web 管理面板模式 |
 | 📊 **画质监控** | 实时检测各直播间实际画质，画质降级时自动告警 |
 | 💬 **弹幕录制** | 抖音 / 斗鱼 / 虎牙 / B站 / TwitchTV 弹幕采集，按分片输出 SRT 字幕，与视频同起同停 |
-| 👀 **弹幕监控** | 独立的弹幕实时查看模式（不落盘），GUI 与 Web 面板均可查看 |
+| 👀 **弹幕监控** | 独立的弹幕实时查看模式（不落盘），Web 面板可查看 |
 | 🏷️ **主播名自动更新** | 主播改名后自动同步 `URL_config.ini` 并重命名录制目录与文件 |
 | 📱 **消息推送** | 支持钉钉、微信、邮箱、TG、Bark、NTFY、PushPlus 等推送 |
 | 🐳 **Docker 支持** | 支持 Docker 容器化部署，开箱即用 |
-| 🌐 **国际化** | 内置简体中文 / English (US) / English (UK) / 繁體中文 四语，GUI 与 Web 面板**免重启热切换** |
+| 🌐 **国际化** | 内置简体中文 / English (US) / English (UK) / 繁體中文 四语，Web 面板**免重启热切换** |
 | ⚙️ **灵活配置** | 支持按直播间自定义画质、格式、分段录制等，配置改动热加载 |
 | 🔐 **Web 安全** | Token 认证、登录爆破限流、路径穿越防护、敏感配置脱敏、未认证写保护 |
+
+> 原生 Python GUI 和 Qt 托盘已移除，当前提供 Web 面板和 CLI；Tauri 包装留待后续实现。已有配置中的 `[GUI]` 和 `web_minimize_to_tray` 不再使用，可手动删除。
 
 ## 🚀 快速开始
 
@@ -72,16 +74,12 @@ cd DouyinLiveRecorder
 # 安装依赖（推荐使用 uv）
 uv sync --locked
 
-# 或者使用 pip（仅基础依赖；桌面端用 pip install ".[gui]"）
 pip install -r requirements.txt
 
 # 运行程序（uv 自动使用项目虚拟环境）
 uv run --locked python -m src.main        # 命令行模式
 uv run --locked python -m src.web         # Web 管理面板模式
 
-# GUI / Windows Web 托盘需要显式安装可选依赖
-uv sync --locked --extra gui
-uv run --locked --extra gui python -m src.gui
 ```
 
 ### 方式三：Docker 运行
@@ -166,7 +164,6 @@ DouyinLiveRecorder/
 │   └── URL_config.ini         # 直播间地址列表
 ├── src/                        # 核心源码包
 │   ├── main.py                     # 命令行入口
-│   ├── gui.py                      # GUI 图形界面入口
 │   ├── web.py                      # Web 管理面板入口
 │   ├── msg_push.py                 # 消息推送模块
 │   ├── i18n.py                     # 国际化实现
@@ -197,7 +194,6 @@ DouyinLiveRecorder/
 │   ├── sync_http.py           # 同步 HTTP 客户端
 │   ├── web_api.py             # Web 管理面板 Starlette 应用
 │   ├── web_config.py          # Web 面板配置读写
-│   ├── web_tray.py            # Web 模式系统托盘（最小化到托盘）
 │   ├── base.py               # 弹幕采集基类（DanmakuBase / DanmakuMessage）
 │   ├── collector.py           # 弹幕采集器（线程桥接主流程）
 │   ├── danmaku_monitor.py     # 弹幕监控枢纽（DanmakuMonitorHub）
@@ -215,11 +211,6 @@ DouyinLiveRecorder/
 │   │   ├── douyin.proto      # protoc 源定义
 │   │   ├── douyin_pb2.py      # protoc 生成（DO NOT EDIT）
 │   │   └── douyin_pb2.pyi     # 类型存根
-│   ├── gui_qt/              # GUI 窗口层（PySide6/Qt，`gui.py:main()` 委托到该包）
-│   │   ├── app.py           # Qt 应用装配与事件循环
-│   │   ├── main_window.py   # 主窗口 / 侧边栏导航
-│   │   ├── theme.py         # 设计令牌（25 键 × 3 主题）与 QSS 生成
-│   │   └── pages/           # dashboard / config / danmaku / quality / runlog 五页
 │   └── javascript/            # JavaScript 签名脚本
 │       ├── crypto-js.min.js
 │       ├── x-bogus.js
@@ -233,7 +224,7 @@ DouyinLiveRecorder/
 ├── typings/                    # 第三方库类型存根（静态检查用）
 │   └── execjs/                 # PyExecJS 存根
 ├── tool/                    # 工程辅助脚本
-│   ├── build_exe.py                # PyInstaller 打包脚本（CLI/GUI/Web 三入口）
+│   ├── build_exe.py                # PyInstaller 打包脚本（CLI/Web 两入口）
 │   ├── smoke_test.py           # 通用 Web/接口冒烟测试（零依赖，配置驱动）
 │   ├── smoke_web.json          # 冒烟测试示例用例（探活 Web 面板）
 │   ├── compile_po.py           # .po → .mo 编译与同步校验（--check）
@@ -465,9 +456,6 @@ web_password =
 web_token_expiry = 86400
 # 是否显示控制台窗口（false 时后台运行，日志写入 logs/web_console.log）
 web_show_console = true
-# 控制台最小化到系统托盘（而非任务栏），仅 Windows 生效；
-# 关闭按钮会被禁用，退出请使用托盘图标的「退出程序」
-web_minimize_to_tray = true
 # 受信任的反向代理来源（逗号分隔）。留空时不解析 X-Forwarded-For；
 # 置于 Nginx/Caddy 之后时填入代理 IP，登录限流才能取到真实客户端 IP
 web_trusted_proxy =
@@ -477,27 +465,6 @@ web_allowed_hosts =
 ```
 
 > `web_host` 在仓库默认配置中为 `127.0.0.1`（仅本机可访问）。Docker 或需局域网/公网访问时改为 `0.0.0.0`，并务必同时开启 `web_auth_enable` 与 `web_password`。
-
-### GUI 界面配置 (config/config.ini)
-
-```ini
-[GUI]
-# 界面主题：light | dark | high_contrast（留空跟随系统外观明暗；GUI 侧边栏「界面主题」菜单选择后自动写回）
-gui_theme = light
-# 界面缩放：自动 | 85 | 100 | 115 | 130 | 150（「自动」按屏幕可用区现算；菜单选择后自动写回）
-gui_scale = 自动
-# 动效强度：跟随系统 | off | subtle | full（系统「关闭动画」优先于用户选择）
-gui_motion = 跟随系统
-# 界面字体：留空 = 系统默认（Microsoft YaHei UI）；填字体族名即用之
-gui_font =
-# 自定义字体文件路径：由侧边栏「导入字体…」写入；字体副本存放在 config/fonts/ 下
-gui_font_file =
-```
-
-> 字体相关说明：下拉里的预设族按**本机是否已安装**过滤，避免出现「选了没反应」的项；
-> 「导入字体…」支持 `.ttf` / `.otf` / `.ttc`（SFNT 容器），`.woff2` / `.woff` 属网页传输格式、
-> Tk 在 Windows 下经 GDI 取字体认不了，需先转成 ttf/otf；日志终端与 URL 编辑器固定用等宽字体，
-> 不随此项变化（保持字符对齐）。
 
 ### 直播间配置 (config/URL_config.ini)
 
@@ -554,23 +521,6 @@ https://www.douyin.com/user/MS4wLjABAAAA3kr2yA4aRD-sjf9cx8xkOH8Di3RjktpKcAvqIetp
 python -m src.main
 ```
 
-### GUI 图形界面模式
-
-```bash
-python -m src.gui
-```
-
-GUI 功能（侧边导航 5 页）：
-- 📊 控制台 - 录制状态总览、启停控制
-- 🎯 画质监控 - 实时检测各直播间实际画质是否与设置一致
-- 💬 弹幕监控 - 实时查看各房间弹幕流，支持按房间/类型过滤
-- 📝 URL 配置 - 直播间地址管理
-- 📋 运行日志 - 子进程日志查看
-
-侧边栏另提供**外观**（浅色/深色/跟随系统）与**语言 Language**（简体中文 / English (US) / English (UK) / 繁體中文）选择器，切换语言即时生效并写回 `config.ini`，无需重启。
-
-系统托盘图标支持最小化到托盘后台运行。
-
 ### Web 管理面板模式
 
 ```bash
@@ -607,7 +557,6 @@ Web 模式与命令行模式共用同一录制引擎与配置文件，直播间�
 
 后台运行模式：将 `web_show_console` 设为 `false`，Windows 下会隐藏控制台窗口，日志写入 `logs/web_console.log`，程序完全后台运行。
 
-Windows 下控制台默认「最小化到系统托盘」（`web_minimize_to_tray = true`）：点击最小化后窗口不在任务栏显示，而是收起到系统托盘，双击托盘图标即可恢复；标题栏关闭按钮已禁用，需从托盘图标菜单的「退出程序」退出。
 
 > ⚠️ **安全提示**：默认仅监听 `127.0.0.1` 且未启用认证；若为 Docker / 局域网 / 公网访问改绑 `0.0.0.0`，必须同时开启 `web_auth_enable` 并设置强密码。
 
@@ -689,7 +638,7 @@ Windows 下控制台默认「最小化到系统托盘」（`web_minimize_to_tray
 | `zh_TW` | 繁體中文 | `i18n/zh_TW.yaml` |
 
 - 配置键 `language`：留空跟随系统语言；取值支持 `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` 等写法，自动归一化到规范语言码；键值不可识别或对应语言文件缺失时回退 `en_US`
-- **热切换**：GUI 侧边栏语言选择器、Web 面板顶栏语言选择器、直接编辑 `config.ini` 三种途径均可切换；命令行主循环每轮检测配置变化并即时重载翻译，**无需重启进程**（录制中的 ffmpeg 子进程不受影响）
+- **热切换**：Web 面板顶栏语言选择器、直接编辑 `config.ini` 两种途径均可切换；命令行主循环每轮检测配置变化并即时重载翻译，**无需重启进程**（录制中的 ffmpeg 子进程不受影响）
 - 翻译不再依赖 `LANG` / `LANGUAGE` 环境变量（Windows 普遍未设置）
 - `zh_TW.yaml` 需要 `PyYAML`；缺失时仅损失该语言，其余格式不受影响
 
@@ -755,7 +704,7 @@ docker run -d -v ./config:/app/config -v ./downloads:/app/downloads \
 
 ### 切换运行模式
 
-`docker-compose.yaml` 已内置三个服务（recorder / web / gui），通过 profile 切换，无需修改文件：
+`docker-compose.yaml` 已内置两个服务（recorder / web），通过 profile 切换，无需修改文件：
 
 ```bash
 # 命令行录制模式（默认，不占用端口）
@@ -766,7 +715,7 @@ docker compose --profile web up -d
 
 ```
 
-> Docker 仅支持 CLI / Web，不提供 GUI 镜像或 X11 profile。桌面 GUI 请在宿主机使用 `uv sync --locked --extra gui`。
+> Docker 仅支持 CLI / Web。
 
 > ⚠️ Web 模式注意：`web.py` 默认监听 `127.0.0.1`，容器内必须在 `config/config.ini`
 > 的 `[Web]` 节设置 `web_host = 0.0.0.0` 才能从宿主机访问；同时建议开启
@@ -818,10 +767,10 @@ ports:
 
 ```bash
 # 使用 uv（推荐）
-uv sync --locked --extra dev --extra gui
+uv sync --locked --extra dev
 
 # 或使用 pip（兼容入口）
-pip install ".[dev,gui]"
+pip install ".[dev]"
 ```
 
 ### 代码规范

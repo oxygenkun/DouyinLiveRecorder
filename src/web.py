@@ -4,25 +4,17 @@
 # 启动方式: python -m src.web；浏览器访问: http://localhost:8000
 #
 # 与 main.py 共用同一录制引擎（`import main` 触发其模块级初始化）：录制主循环跑在守护线程
-# "recorder-engine"；默认主线程运行 uvicorn，启用 Qt 系统托盘时两者对调——主线程要让给 Qt
-# 事件循环（QApplication 建在子线程会段错误，实测见 src/web_tray.py 文件头），uvicorn 改跑
-# 守护线程。
+# "recorder-engine"；主线程运行 uvicorn 并处理退出信号。
 import asyncio
 import ctypes
 import os
-import signal
 import sys
 import threading
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from src import i18n
 from src.logger import logger
-
-if TYPE_CHECKING:
-    import uvicorn
-
-    from src.web_tray import WebConsoleTray
 
 
 # 中文 Windows 控制台（尤其 PyInstaller 冻结后）stdout 默认 GBK：打印中文/emoji 会乱码，
@@ -52,7 +44,7 @@ def _get_kernel32() -> ctypes.CDLL | None:
     # mypy --platform linux 会因 typeshed 无 WinDLL 报 attr-defined；非 Windows 运行期同样返回 None。
     if sys.platform != "win32":
         return None
-    # 用 ctypes.WinDLL 而非遗留的 ctypes.windll（AGENTS「Python 版本」条，对齐本文件与 gui.py 惯例）；
+    # 用 ctypes.WinDLL 而非遗留的 ctypes.windll（显式声明 Win32 函数签名）；
     # 显式声明 argtypes/restype：GetConsoleWindow 返回 HWND（c_void_p，避免 64 位指针被截断），
     # SetConsole*CP 返回 BOOL（c_int）。
     try:
@@ -121,11 +113,6 @@ _fix_encoding()
 # web_console 还要装 print 与 uvicorn 访问输出，故取大一个数量级。
 _WEB_CONSOLE_MAX_BYTES = 2 * 1024 * 1024
 _WEB_CONSOLE_KEEP_BYTES = 512 * 1024
-
-# Qt 托盘模式下 uvicorn 跑在守护线程：事件循环退出后给它这段收尾窗口。超时即放弃等待、
-# 清理段照常执行（守护线程不挡进程退出）；不给窗口的话，ffmpeg / 连接池清理会落在
-# HTTP 请求处理中间。
-_SERVER_JOIN_TIMEOUT = 10.0
 
 
 # 超限则把 web_console.log 就地截断为末尾若干 KB，返回丢弃字节数（0 = 无需处理）。
@@ -236,31 +223,6 @@ def _is_loopback_host(host: str) -> bool:
     return is_loopback_bind_host(host)
 
 
-# uvicorn 服务线程体（仅 Qt 托盘占用主线程时使用）。
-def _serve_forever(server: "uvicorn.Server") -> None:
-    # 与主线程 asyncio.run(server.serve()) 同语义：serve() 内 capture_signals() 检测到非主线程
-    # 会跳过信号注册（uvicorn 0.54 起有该守卫），不会抛 ValueError。
-    # 异常不吞：未捕获异常经 threading.excepthook 打到 stderr（已重定向进 web_console.log），
-    # 比吞掉好定位；线程结束由托盘看门狗感知并放开 Qt 事件循环。
-    asyncio.run(server.serve())
-
-
-# Ctrl+C 收尾（仅 Qt 托盘模式需要）：把信号从 uvicorn 手里接过来。
-def _install_sigint_shutdown(server: "uvicorn.Server", tray: "WebConsoleTray") -> None:
-    # 主线程跑 Qt 事件循环时 uvicorn 不再接管 Ctrl+C（见 _serve_forever）：置 should_exit 让
-    # serve() 优雅返回，循环退出交给 run_event_loop 的看门狗（服务线程结束即 quit）；
-    # 第二次 Ctrl+C 才强制放开循环，不再等待服务线程。
-    state = {"count": 0}
-
-    def _handler(_signum: int, _frame: object) -> None:
-        state["count"] += 1
-        server.should_exit = True
-        if state["count"] > 1:
-            tray.request_quit()
-
-    signal.signal(signal.SIGINT, _handler)
-
-
 # Web 管理面板入口：启动录制引擎守护线程与 uvicorn HTTP 服务。
 def main() -> None:
     # `import main` 触发其模块级初始化（FFmpeg 检查、配置读取、备份线程等）；main() 已包装成
@@ -342,7 +304,7 @@ def main() -> None:
         _enter_background_mode(logs_dir, host, port)
 
     # Web 模式默认不自动开录：录制引擎线程保持运行（配置热加载 / 调度器就绪），但不拉起房间线程，
-    # 由面板「开始录制」经 POST /api/recording/toggle 手动触发；CLI/GUI 直跑不受影响（默认 True）。
+    # 由面板「开始录制」经 POST /api/recording/toggle 手动触发；CLI 直跑不受影响（默认 True）。
     # 无人值守部署（容器）可显式设置环境变量 DOUYIN_WEB_AUTO_START_RECORDING=1 恢复「启动即录」：
     # 该变量只决定引擎线程拉起前的**初值**，不落配置文件；面板的「停止/开始录制」仍是运行期开关
     # （POST /api/recording/toggle），随时可再停再开。不设或设 0/false/no 时与上游行为完全一致。
@@ -373,8 +335,7 @@ def main() -> None:
         bind_port=port,
     )
 
-    # uvicorn Server 实例（而非 uvicorn.run）：托盘「退出程序」可置 server.should_exit 触发优雅关闭，
-    # 而非强制结束进程（避免 ffmpeg 残留）。
+    # uvicorn 在主线程运行，接管退出信号并优雅关闭服务。
     #
     # MID-35：显式 proxy_headers=False。uvicorn 默认 True 且 forwarded_allow_ips 默认含 127.0.0.1，
     # 其 ProxyHeaders 中间件会在**本仓鉴权中间件之前**用请求头 X-Forwarded-For 的**最左值**（请求方
@@ -385,17 +346,6 @@ def main() -> None:
     # 真实反代部署请把反代地址写进 config.ini [Web] web_trusted_proxy。
     server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="info", proxy_headers=False))
 
-    # 系统托盘：Windows 下把控制台窗口改为「最小化到托盘」而非任务栏。start() 返回值是契约
-    # （见 src/web_tray.py::start）：True = Qt 事件循环已占用主线程、uvicorn 必须挪到守护线程；
-    # False = 已静默降级，主线程照旧跑 uvicorn。
-    tray = None
-    qt_owns_main_thread = False
-    if web_cfg.get("web_minimize_to_tray", True):
-        from src.web_tray import WebConsoleTray
-
-        tray = WebConsoleTray(host=host, port=port, server=server)
-        qt_owns_main_thread = tray.start()
-
     print(i18n.tr("[web] Web 管理面板启动中: http://{host}:{port}", host=host, port=port))
     # MID-2253（2026-09-22）：tr() 的**值参**不得是中文常量——模板会被翻译、值不翻，en_US 下会
     # 渲染成「Authentication: 开启」。故值先各自 tr 成本地化字面量（词条已进 i18n/ 四目录；
@@ -404,25 +354,9 @@ def main() -> None:
     print(i18n.tr("[web] 认证: {web_auth_enable}", web_auth_enable=_auth_text))
     # 不安全绑定检查不在本处：见上方安全闸门块（早于引擎线程 / uvicorn 创建与背景化）。
 
-    # 阻塞运行；托盘「退出程序」或 Ctrl+C 会将 should_exit 置真，serve() 优雅返回。
-    # server.serve() 是协程，必须由 asyncio.run 驱动，否则只生成一个被丢弃的协程对象、服务不启动。
-    # Qt 托盘占用主线程时改由守护线程跑（QApplication 建在子线程会段错误，见 src/web_tray.py 文件头）。
-    server_thread: threading.Thread | None = None
-    if qt_owns_main_thread:
-        server_thread = threading.Thread(target=_serve_forever, args=(server,), name="uvicorn-server", daemon=True)
-        server_thread.start()
-
     try:
-        if qt_owns_main_thread and tray is not None:
-            _install_sigint_shutdown(server, tray)
-            tray.run_event_loop(stop_when=lambda: server_thread is not None and not server_thread.is_alive())
-        else:
-            asyncio.run(server.serve())
+        asyncio.run(server.serve())
     finally:
-        # 事件循环已退出（托盘「退出程序」/ Ctrl+C / Qt 自行退出）：先给服务线程一个收尾窗口，
-        # 否则下面的 ffmpeg / 连接池清理会落在 HTTP 请求处理中间。
-        if server_thread is not None:
-            server_thread.join(_SERVER_JOIN_TIMEOUT)
         # 优雅关闭：serve() 正常返回或抛异常（如端口被占用）都执行清理，
         # 主动终止 ffmpeg 子进程并释放 HTTP 连接池，杜绝退出后残留孤儿进程。
         # M-01（2026-10-18 审查）：录后转码线程池的显式收尾必须排在 ffmpeg / 连接池清理**之前**，
@@ -449,10 +383,6 @@ def main() -> None:
             close_all_clients_sync()
         except Exception as e:
             print(i18n.tr("[web] 清理 HTTP 连接池失败: {type_name}: {e}", type_name=type(e).__name__, e=e))
-
-        # serve() 已返回并收尾完毕，收起托盘图标，进程随后正常退出。
-        if tray is not None:
-            tray.stop()
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 #
 # - 在独立线程里跑 asyncio event loop，驱动平台 DanmakuBase 客户端；
 # - 收到 DanmakuMessage 后记时间戳，推给 SrtWriter 写盘（write_srt=False 时跳过）；
-# - 全部类型消息与连接状态上报弹幕监控枢纽（DanmakuMonitorHub），供 GUI/Web 监控；
+# - 全部类型消息与连接状态上报弹幕监控枢纽（DanmakuMonitorHub），供 Web 监控；
 # - 对外只暴露同步的 start() / stop()，与 ffmpeg 子进程同起同停。
 #
 # 为何独立线程：main.py 录制主循环是同步线程，弹幕 WS 需常驻连接不能阻塞录制。
@@ -566,7 +566,7 @@ class DanmakuCollector:
         # SEV-2217 的最后一道闸：上游 src/ws_client.py 已约定「交给回调的文案必须已脱敏」，
         # 但 on_close 是全平台弹幕客户端的公共出口（B栈的 start()/spider 侧、Twitch 的 SDK 异常分支
         # 都直接调它），只要一处把裸 str(e) 传进来，代理凭据就会同时落进 logs/（轮转保留多份 = 长期
-        # 落盘）和监控枢纽 → Web/GUI 面板。这里再兜一道，mask_credentials 对已脱敏文案幂等。
+        # 落盘）和监控枢纽 → Web 面板。这里再兜一道，mask_credentials 对已脱敏文案幂等。
         reason = utils.mask_credentials(reason)
         hub = self._monitor_hub()
         if hub is not None:

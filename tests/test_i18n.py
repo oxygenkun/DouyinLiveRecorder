@@ -208,28 +208,6 @@ class TestLanguageSwitching:
             assert i18n.set_language(code) == code
             assert i18n.get_language() == code
 
-    # MID-53 回归锁：语言选择器的显示名必须逐码唯一，否则「显示名 → 语言码」反查表
-    # 会被后写覆盖（en_US / en_GB 都折成 English 时永远只能选到 en_GB）。
-    def test_unique_display_names_are_injective(self) -> None:
-        names = i18n.unique_display_names()
-        assert set(names) == set(i18n.SUPPORTED_LANGUAGES)
-        assert len(set(names.values())) == len(names)
-        # 两个英语变体必须可区分（旧形态：裁剪括注后同为 "English"）
-        assert names["en_US"] != names["en_GB"]
-        # 与 GUI 反向表同构：按显示名反查必须能取回原码
-        assert {name: code for code, name in names.items()}["English (US)"] == "en_US"
-
-    def test_unique_display_names_dedupe_collision(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # 合成重名（未来新增语言时把两个显示名写成同一个串）也必须产出唯一值
-        monkeypatch.setattr(
-            i18n,
-            "SUPPORTED_LANGUAGES",
-            {"zh_CN": "中文", "en_US": "English", "en_GB": "English"},
-        )
-        names = i18n.unique_display_names()
-        assert len(set(names.values())) == 3
-        assert names["en_GB"] != names["en_US"]
-
     def test_normalize_language_variants(self) -> None:
         assert i18n.normalize_language("zh_cn") == "zh_CN"
         assert i18n.normalize_language("zh_CN.UTF-8") == "zh_CN"

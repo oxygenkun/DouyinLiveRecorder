@@ -3,8 +3,8 @@
 #
 # DouyinLiveRecorder 可执行文件打包脚本（本地 / GitHub Actions 通用）
 #
-# 一次构建产出三个入口（CLI / GUI / Web），共享同一发布目录的依赖与资源；
-#     三个 exe 与 main.py / gui.py / web.py 的对应关系见下方「产物布局」。
+# 一次构建产出两个入口（CLI / Web），共享同一发布目录的依赖与资源；
+#     两个 exe 与 main.py / web.py 的对应关系见下方「产物布局」。
 #
 # 用法：
 #     python tool/build_exe.py             # 打包并生成 zip 产物
@@ -17,7 +17,7 @@
 #
 # 产物布局（onedir + contents_directory='_internal'）：
 #     dist/DouyinLiveRecorder/
-#     ├── DouyinLiveRecorder{,-GUI,-Web}(.exe)   三个入口，见上表
+#     ├── DouyinLiveRecorder{,-Web}(.exe)   两个入口，见上表
 #     ├── config/ · ffmpeg/ · node/              运行时资源，一律与 exe 同级（不进 _internal/）
 #     └── _internal/                             依赖包 + src/ 及打包资源（i18n/ web/ src/javascript）
 #     划分依据：经 __file__ 定位的资源随 contents_directory 收进 _internal/；经 sys.argv[0]/
@@ -26,7 +26,7 @@
 #     多入口共享依赖必须用 .spec 文件（命令行不支持多 Analysis），故本脚本动态生成 spec 后调用 PyInstaller。
 #
 # 产物：
-#     dist/DouyinLiveRecorder/                          发布目录（3 个 exe + 运行时目录 + _internal/ 依赖）
+#     dist/DouyinLiveRecorder/                          发布目录（2 个 exe + 运行时目录 + _internal/ 依赖）
 #     dist/DouyinLiveRecorder-v{ver}-{os}-{arch}{suffix}.zip  压缩包（普通构建 suffix 为空，--dual 为 -lite/-full）
 #
 import argparse
@@ -104,35 +104,6 @@ BLOAT_EXCLUDES: tuple[str, ...] = (
     "pluggy",
 )
 
-# Qt 死重清理（2026-10-17 GUI 迁移 PySide6 后实测）：hook-PySide6.py 按「插件类型整目录」收集 Qt
-# 插件（只按类型过滤、不逐个判断），插件的链接依赖再被递归带进包。判据与 BLOAT_EXCLUDES 同源
-# （能指出它在产物里 + 运行期不可达），但 excludes 只对模块生效、管不到 hook 收集的 DLL，故只能
-# 在 COLLECT 之后按文件名删。实测判据：对 _internal/PySide6/ 下全部 dll/pyd 做链接依赖扫描，下列
-# 文件零反向引用（除彼此与那两个插件本体）；正向扫描确认删掉后不出现无法解析的导入。
-QT_BLOAT_FILES: tuple[str, ...] = (
-    # Mesa 软件 OpenGL（19.68MB，产物内最大单文件）：hook 的 collect_extra_binaries 无条件收它
-    # （_collect_all_or_none(['opengl32sw.dll'])），不看应用是否真用 OpenGL。本仓 GUI 是纯
-    # QtWidgets，走 Qt6Gui 的 raster 后端，不创建任何 GL 上下文。
-    "opengl32sw.dll",
-    # Qt VirtualKeyboard 是 Qml/Quick 系列 DLL 进包的唯一入口链：插件 qtvirtualkeyboardplugin.dll
-    # （platforminputcontexts 整目录收集）→ Qt6VirtualKeyboard → Qt6Quick → Qt6Qml / Qt6QmlModels /
-    # Qt6QmlMeta / Qt6QmlWorkerScript / Qt6OpenGL。本仓无虚拟键盘用法，整条链一并剪掉（约 15.1MB）。
-    "Qt6VirtualKeyboard.dll",
-    "Qt6Quick.dll",
-    "Qt6Qml.dll",
-    "Qt6QmlModels.dll",
-    "Qt6QmlMeta.dll",
-    "Qt6QmlWorkerScript.dll",
-    # 只被 Qt6Quick 链接（QtWidgets 不链它），1.90MB。
-    "Qt6OpenGL.dll",
-    # 只被 imageformats/qpdf.dll 链接，本仓不渲染 PDF，4.41MB。
-    "Qt6Pdf.dll",
-    # 两个插件本体：删了它们才不会在运行时 dlopen 上面那批 DLL（插件是运行时按目录尝试加载的，
-    # 只删 DLL 不删插件，Qt 仍会去加载插件并因缺依赖报错）。
-    "plugins/imageformats/qpdf.dll",
-    "plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
-)
-
 
 # i18n 资源清单（替代整目录拷贝）：运行时只消费 .mo / .json / .yaml（见 i18n.py 的加载优先级），
 # *.po 是翻译源、冻结产物里属死重量（0.12MB）。按文件逐个列出而非写 ('i18n','i18n')，因为目录形态
@@ -152,7 +123,7 @@ def i18n_datas_entries() -> list[tuple[str, str]]:
 
 
 # 动态生成的 PyInstaller spec 模板：
-# - 三个 Analysis / EXE，共用一个 COLLECT（依赖去重，体积约为独立打包的 1/3）
+# - 两个 Analysis / EXE，共用一个 COLLECT（共享依赖去重）
 # - 数据文件只挂在 CLI 的 Analysis 上即可（COLLECT 合并时统一落盘）
 SPEC_TEMPLATE = """\
 # -*- mode: python ; coding: utf-8 -*-
@@ -172,11 +143,6 @@ datas = [
 # excludes 里的 'customtkinter' / 'pystray' / 'PIL' / 'fastapi' 均为防御口径（依赖已摘除，但构建
 # venv 仍有残留），防止残留引用把包重新拖回 _internal。
 #
-# [2026-10-17] GUI 入口改走 PySide6（src/gui_qt/），收集由 PyInstaller 自带的 hook-PySide6.py 完成
-# （Qt6 平台插件 / ANGLE / ICU 等）：本 spec 不加任何 collect 调用——hook 已按「实际导入的 Qt 模块」
-# 逐个收，而 collect_all('PySide6') 会把整个 647MB 的轮子（含 194MB 的 Qt6WebEngineCore）拖进产物。
-# 故 'PySide6' 只出现在 CLI 的 excludes 上；GUI 与 Web（2026-10-20 托盘迁 QSystemTrayIcon 后）必须收它。
-
 hidden_common = [
     'src.i18n',                          # main.py 内部延迟导入
     'src.async_http',              # main.py 经 __import__ 动态导入
@@ -187,32 +153,26 @@ hidden_common = [
 hidden_web = hidden_common + collect_submodules('uvicorn')
 
 # 注意：PyInstaller 6.x 已移除 cipher / zipped_data / zipfiles，spec 语法为 v6 风格。
-# excludes 一律以 excludes_bloat 打头：三个入口共用同一个 _internal（COLLECT 合并去重），只在
-# 某一个 Analysis 上排除没有意义——只要 GUI 收了它，CLI 的产物里照样带着。
+# excludes 一律以 excludes_bloat 打头：两个入口共用同一个 _internal（COLLECT 合并去重），只在
+# 某一个 Analysis 上排除没有意义——只要 Web 收了它，CLI 的产物里照样带着。
 a_cli = Analysis(['src/main.py'], pathex=[SPECPATH], datas=datas, hiddenimports=hidden_common,
                  excludes=excludes_bloat + ['tkinter', 'customtkinter', 'pystray', 'PIL',
                            'fastapi', 'uvicorn', 'starlette', 'brotlicffi', 'PySide6'],
                  noarchive=False)
-a_gui = Analysis(['src/gui.py'], pathex=[SPECPATH], datas=[], hiddenimports=hidden_common,
-                 excludes=excludes_bloat + ['fastapi', 'uvicorn', 'starlette', 'brotlicffi'], noarchive=False)
 a_web = Analysis(['src/web.py'], pathex=[SPECPATH], datas=[], hiddenimports=hidden_web,
-                 excludes=excludes_bloat + ['tkinter', 'customtkinter', 'pystray', 'brotlicffi'],
+                 excludes=excludes_bloat + ['tkinter', 'customtkinter', 'pystray', 'PIL', 'PySide6', 'brotlicffi'],
                  noarchive=False)
 
 pyz_cli = PYZ(a_cli.pure)
-pyz_gui = PYZ(a_gui.pure)
 pyz_web = PYZ(a_web.pure)
 
 exe_cli = EXE(pyz_cli, a_cli.scripts, [], exclude_binaries=True,
               name='{app}', console=True, contents_directory='_internal')
-exe_gui = EXE(pyz_gui, a_gui.scripts, [], exclude_binaries=True,
-              name='{app}-GUI', console=False, contents_directory='_internal')
 exe_web = EXE(pyz_web, a_web.scripts, [], exclude_binaries=True,
               name='{app}-Web', console=True, contents_directory='_internal')
 
 coll = COLLECT(
     exe_cli, a_cli.binaries, a_cli.datas,
-    exe_gui, a_gui.binaries, a_gui.datas,
     exe_web, a_web.binaries, a_web.datas,
     strip=False, upx=False, name='{app}',
 )
@@ -228,7 +188,7 @@ def read_version() -> str:
 
 # 打包前预编译所有入口脚本与 src/ 源码，提前以文件名+行号暴露语法错误
 def preflight_syntax_check() -> None:
-    # 曾出现 gui.py 首行编码注释被破坏（丢失行首 '#'）导致三平台 CI 全部在 PyInstaller
+    # 曾出现源码首行编码注释被破坏（丢失行首 '#'）导致三平台 CI 全部在 PyInstaller
     # Analysis 阶段报 IndentationError，且报错混在长日志里不易定位；提前编译可在几秒内以明确的
     # 文件名+行号失败。
     import py_compile
@@ -251,7 +211,7 @@ def preflight_syntax_check() -> None:
     print(f"[build] 预检通过：{len(targets)} 个源码文件语法正常")
 
 
-# 生成 spec 模板并调用 PyInstaller 完成 CLI/GUI/Web 三入口 onedir 打包
+# 生成 spec 模板并调用 PyInstaller 完成 CLI/Web 两入口 onedir 打包
 def run_pyinstaller() -> None:
     preflight_syntax_check()
     _ = SPEC_PATH.write_text(
@@ -262,30 +222,6 @@ def run_pyinstaller() -> None:
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", str(SPEC_PATH)]
     print(f"[build] PyInstaller 命令：\n  {' '.join(cmd)}")
     _ = subprocess.run(cmd, check=True, cwd=PROJECT_ROOT)
-    prune_qt_bloat()
-
-
-# COLLECT 之后按文件名剪除 Qt 死重（清单与每项判据见 QT_BLOAT_FILES）
-def prune_qt_bloat() -> None:
-    # 放在 run_pyinstaller 末尾而不是 main 里：--dual 只跑一次 PyInstaller 就出两个 zip，
-    # 挂在这里才能保证两条路径都剪到；且剪除对象是 COLLECT 的产物，紧邻生成点最不易漏。
-    qt_dir = RELEASE_DIR / CONTENTS_DIR / "PySide6"
-    if not qt_dir.is_dir():
-        print("[build] 产物内无 PySide6 目录，跳过 Qt 死重剪除")
-        return
-    freed = 0
-    removed = 0
-    for rel in QT_BLOAT_FILES:
-        target = qt_dir / rel
-        if not target.is_file():
-            # 清单里的名字随 Qt/PyInstaller 版本可能变化：跳过而不是报错——少剪一项只是体积没降，
-            # 多报错一次会让整轮构建在别人机器上红掉。
-            continue
-        freed += target.stat().st_size
-        target.unlink()
-        removed += 1
-    if removed:
-        print(f"[build] 已剪除 Qt 死重 {freed / 1048576:.2f}MB（{removed}/{len(QT_BLOAT_FILES)} 项命中）")
 
 
 # 将仓库内 ffmpeg/node/config 复制到发布根目录（exe 同级），运行时可直接读写
@@ -1682,7 +1618,7 @@ RUNTIME_ARTIFACT_DIR_NAMES: tuple[str, ...] = ("logs", "backup_config", "downloa
 
 def _clean_runtime_artifacts_from_release() -> list[str]:
     # 压缩前删除发布目录里的运行期产物，返回被删条目的相对路径（供日志打印）。
-    # 为什么必须删：冒烟以 cwd=RELEASE_DIR 连跑 CLI 25s / Web 90s / GUI 8s，src/logger.py 会在包根落下
+    # 为什么必须删：冒烟以 cwd=RELEASE_DIR 连跑 CLI 25s / Web 90s，src/logger.py 会在包根落下
     # streamget.log / PlayURL.log / web_console.log（含 runner 绝对路径、用户名与告警堆栈），「缺键补写」
     # 还会改写包内 config.ini；随包分发即信息外泄。主修法是「先压缩、后冒烟」（见 main()），本函数是
     # 第二道：清掉上一次构建或本地手工跑过残留在 dist/ 里的同类产物（PyInstaller 的 --clean 只清自己的
@@ -1959,28 +1895,11 @@ def smoke_web(timeout: int = 90, port: int = 8000) -> None:
     print("[smoke:web] HTTP 探活成功 ✅")
 
 
-# 冒烟：启动 GUI 数秒确认窗口存活，无显示环境自动跳过
-def smoke_gui(timeout: int = 8) -> None:
-    if sys.platform not in ("win32", "darwin") and not os.environ.get("DISPLAY"):
-        print("[smoke:gui] 无显示环境（DISPLAY 未设置），跳过 GUI 冒烟测试")
-        return
-    exe = RELEASE_DIR / f"{APP_NAME}-GUI{EXE_SUFFIX}"
-    print(f"[smoke:gui] 启动 {exe}（运行 {timeout}s 后终止）...")
-    proc = _launch(exe)
-    start = time.time()
-    while time.time() - start < timeout and proc.poll() is None:
-        time.sleep(0.5)
-    # GUI 为 windowed 模式，stdout 通常为空；崩溃时进程会提前非零退出。豁免 headless（无系统托盘）环境下
-    # 托盘库打印的良性 "Failed to dock icon" 堆栈（机理见 _finish；该形态原出自 pystray，现为纯防御口径）。
-    _finish(proc, "gui", expect_alive=True, ignore_patterns=("Failed to dock icon",))
-
-
-# 依次运行 CLI/Web/GUI 冒烟测试，全部通过才算成功
+# 依次运行 CLI/Web 冒烟测试，全部通过才算成功
 def smoke_test() -> None:
     _prepare_url_config()
     smoke_cli()
     smoke_web()
-    smoke_gui()
     print("[smoke] 全部冒烟测试通过 ✅")
 
 
@@ -2066,7 +1985,7 @@ def main() -> None:
         # --dual：PyInstaller 只跑一次，先产 lite 再产 full，避免重复打包。
         run_pyinstaller()
         # 顺序（MID-2254）：lite zip → 下载运行时 → full zip → 冒烟。冒烟必须排在**两个** zip 之后：它以
-        # cwd=RELEASE_DIR 连跑 CLI/Web/GUI 共约 120s，期间 src/logger.py 往包根写日志、应用还会「缺键补写」
+        # cwd=RELEASE_DIR 连跑 CLI/Web 共约 120s，期间 src/logger.py 往包根写日志、应用还会「缺键补写」
         # 改写包内 config.ini；旧顺序（lite → 冒烟 → full）让对外分发的 full 包带上 runner 绝对路径/用户名/
         # 告警堆栈。「先出包再冒烟」不削弱冒烟：跑的还是 dist/<APP_NAME>/ 那三个 exe 本体（与 zip 内容逐文件
         # 同源），只是不再把运行期写入的产物压进包里；make_zip 内的清理 + 实物断言只是第二道，顺序是第一道。

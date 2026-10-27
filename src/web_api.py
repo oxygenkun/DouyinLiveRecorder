@@ -1014,7 +1014,7 @@ def create_app(
                     return {"ok": True, "enabled": req.enable}
         raise HTTPException(404, i18n_module.tr("未找到直播间"))
 
-    # 按房间切换画质：与 GUI 画质监控页「切换画质」菜单共用 update_room_quality 落盘
+    # 按房间切换画质：通过 update_room_quality 落盘
     # （「画质,URL,主播: 名称」行格式），下一轮检测循环生效；两端的切换互相同步。
     @_route(app, ["PUT"], "/api/rooms/quality")
     def change_room_quality(req: RoomQualityUpdate) -> dict[str, object]:
@@ -1024,7 +1024,7 @@ def create_app(
             validate_room_target(req.url, quality)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
-        # 白名单校验：与 GUI 下拉一致仅放行内置档位，杜绝写入永远不生效的档位名
+        # 白名单校验：仅放行内置档位，杜绝写入永远不生效的档位名
         # （SEV-02 后 validate_room_target 内已含同款判定，此处保留以给出本端点的 422 文案）
         if quality and quality not in BUILTIN_QUALITIES:
             raise HTTPException(422, i18n_module.tr("未知画质档位: {quality}", quality=quality))
@@ -1039,7 +1039,7 @@ def create_app(
             changed = update_room_quality(cast(str, app.state.url_config_file), url, quality)
         return {"ok": True, "changed": changed}
 
-    # 画质选项：WEB 直播间设置的画质下拉与 GUI 画质监控的切换菜单共用同一份列表，
+    # 画质选项：Web 直播间设置的画质下拉读取这份列表，
     # 落地 config.ini [录制设置]/自定义画质选项(逗号分隔)，保证两端选项一致。
     @_route(app, ["GET"], "/api/rooms/qualities")
     def list_quality_options() -> dict[str, object]:

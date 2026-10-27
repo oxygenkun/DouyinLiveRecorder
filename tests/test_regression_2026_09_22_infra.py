@@ -150,7 +150,6 @@ class TestSidecarArchiveWindow:
         logs = tmp_path / "logs"
         logs.mkdir()
         monkeypatch.delenv(la._DISABLE_ENV, raising=False)
-        monkeypatch.delenv(la.GUI_PARENT_ENV, raising=False)
         monkeypatch.setattr(la, "script_path", str(tmp_path))
         monkeypatch.setattr(la, "remove_file_sinks", lambda: None)
         monkeypatch.setattr(la, "add_file_sinks", lambda: None)
@@ -196,7 +195,6 @@ class TestSidecarArchiveWindow:
         logs = tmp_path / "logs"
         logs.mkdir()
         monkeypatch.delenv(la._DISABLE_ENV, raising=False)
-        monkeypatch.delenv(la.GUI_PARENT_ENV, raising=False)
         monkeypatch.setattr(la, "script_path", str(tmp_path))
         monkeypatch.setattr(la, "remove_file_sinks", lambda: None)
         monkeypatch.setattr(la, "add_file_sinks", lambda: None)
@@ -451,7 +449,6 @@ class TestWebConsoleRebindFallback:
         logs = tmp_path / "logs"
         logs.mkdir()
         monkeypatch.delenv(la._DISABLE_ENV, raising=False)
-        monkeypatch.delenv(la.GUI_PARENT_ENV, raising=False)
         monkeypatch.setattr(la, "script_path", str(tmp_path))
         monkeypatch.setattr(la, "remove_file_sinks", lambda: None)
         monkeypatch.setattr(la, "add_file_sinks", lambda: None)

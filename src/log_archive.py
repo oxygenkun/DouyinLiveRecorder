@@ -10,7 +10,6 @@ from typing import TextIO
 from src import i18n
 from src.danmaku_monitor import close_monitor_file, resume_monitor_writes, suspend_monitor_writes
 from src.logger import (
-    GUI_PARENT_ENV,
     add_file_sinks,
     logger,
     rebind_console_sink,
@@ -280,11 +279,8 @@ def _rename_one(path: str, ts: str, archived: list[str]) -> None:
 def archive_runtime_logs(*, reopen_streams: bool = True) -> list[str]:
     try:
         with _archive_lock:
-            # 测试进程禁用（见 _DISABLE_ENV 注释）；GUI 父进程不持有录制日志句柄，
-            # 也绝不能改名录制子进程正在写的日志文件
+            # 测试进程禁用，避免归档开发者的真实日志（见 _DISABLE_ENV 注释）。
             if os.environ.get(_DISABLE_ENV, "").strip().lower() in ("1", "true", "yes"):
-                return []
-            if os.environ.get(GUI_PARENT_ENV) == "1":
                 return []
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             logs_dir = os.path.join(script_path, "logs")
@@ -308,7 +304,7 @@ def archive_runtime_logs(*, reopen_streams: bool = True) -> list[str]:
                 _rename_one(os.path.join(logs_dir, "danmaku_monitor.jsonl"), ts, archived)
             finally:
                 # 改名成功或失败都要退出窗口：抑制只是为了争取一个「无人持有句柄」的改名窗口，
-                # 留在抑制态会让 GUI 监控页与 Web 弹幕面板永久停更。
+                # 留在抑制态会让 Web 弹幕面板永久停更。
                 resume_monitor_writes()
 
             if reopen_streams:

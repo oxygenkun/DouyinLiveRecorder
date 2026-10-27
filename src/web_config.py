@@ -25,7 +25,7 @@ from src.utils import atomic_write_text
 TEXT_ENCODING = "utf-8-sig"
 
 # 内置画质档位全集（对齐 main.py 画质白名单与 src/stream_select.get_quality_code）。
-# 元组顺序即 WEB 下拉与 GUI 切换菜单的展示顺序（自高画质到低画质）。
+# 元组顺序即 Web 画质下拉的展示顺序（自高画质到低画质）。
 BUILTIN_QUALITIES: tuple[str, ...] = (
     "原画",
     "蓝光",
@@ -71,7 +71,6 @@ WEB_DEFAULTS: dict[str, str | int | bool] = {
     "web_password": "",
     "web_token_expiry": 86400,
     "web_show_console": True,
-    "web_minimize_to_tray": True,
     # 可信代理列表（逗号分隔）：仅当直连对端在列表中才信任 X-Forwarded-For
     "web_trusted_proxy": "",
     # MID-36：除回环/监听地址外，还允许哪些 Host/Origin 访问面板（逗号分隔）。未列出的
@@ -660,7 +659,7 @@ def _validate_outbound_target_value(key: str, value: str) -> None:
             raise ValueError(f"{kind}{reason}，禁止写入")
 
 
-# ─── 画质选项（WEB 下拉 / GUI 切换菜单共用，落地 config.ini） ────────────────
+# ─── 画质选项（Web 画质下拉，落地 config.ini） ────────────────
 
 
 # 拆分逗号分隔的多值配置（支持全角逗号），逐项 strip 并丢弃空项
@@ -787,8 +786,7 @@ def update_room_quality(url_config_file: str | Path, url: str, quality: str | No
         return False
     # newline=""：读/写均不做换行符翻译，保留文件原有的 \n / \r\n 行尾风格。
     # L-25：读必须与写同在 _config_write_lock 内——读取在锁外时两个线程的 read-modify-write
-    # 仍可交错（后写者基于旧快照覆盖前写者）。本锁是**进程内**锁：GUI 与 Web 分属两个进程时
-    # 仍靠 config_io 侧的 main.file_update_lock 兜底。
+    # 仍可交错（后写者基于旧快照覆盖前写者）。本锁保证同一进程内的写操作串行执行。
     with _config_write_lock:
         with path.open("r", encoding=TEXT_ENCODING, newline="") as f:
             lines = f.readlines()
@@ -827,23 +825,6 @@ def update_room_quality(url_config_file: str | Path, url: str, quality: str | No
 # mkstemp / os.replace，文档性注释里的同名字样不算）。
 def _atomic_write_text(path: Path, text: str) -> bool:
     return atomic_write_text(str(path), text, encoding=TEXT_ENCODING)
-
-
-# 按主播名反查直播间地址（GUI 画质监控行以主播名为键，写回配置需要 URL）。
-# 精确命中优先；未命中返回空串，由调用方决定降级行为（如禁用该行切换菜单）。
-def find_room_url_by_anchor_name(url_config_file: str | Path, anchor_name: str) -> str:
-    target = (anchor_name or "").strip()
-    if not target:
-        return ""
-    rooms = parse_url_config(url_config_file)
-    for room in rooms:
-        if str(room["name"]).strip() == target:
-            return str(room["url"])
-    # 兜底：主播名含全角/半角差异或多个主播名段时，退化为行内子串匹配
-    for room in rooms:
-        if target in str(room["name"]):
-            return str(room["url"])
-    return ""
 
 
 def read_web_config(config_file: str | Path) -> dict[str, str | int | bool]:
@@ -1146,7 +1127,7 @@ def _key_line_pattern(key: str) -> re.Pattern[str]:
 
 
 # config.ini 写入串行锁（2026-09-12 审查 H-6）：Web 侧「改配置/改语言/密码升级写」、
-# GUI 的 language 写回与引擎的 SSL 平台列表写回均为无锁 read-modify-write，并发交错
+# 引擎的 SSL 平台列表写回均为无锁 read-modify-write，并发交错
 # 会互相覆盖丢写；RLock 可重入保证组合操作（update_or_append_config_line）持锁调用单步函数不自锁。
 _config_write_lock = threading.RLock()
 
@@ -1251,8 +1232,7 @@ def append_config_line(config_file: str | Path, section: str, key: str, value: s
 
 
 # 行级「替换优先、缺键补建」的组合写入（2026-09-12 审查 H-6）：两步全程持同一把
-# 可重入锁，杜绝「替换失败→追加」间隙被并发写交错（如 language 键被 Web 与 GUI
-# 同时补建导致重复行）。返回是否发生任一写入。
+# 可重入锁，杜绝「替换失败→追加」间隙被并发写交错（如 language 键被并发补建导致重复行）。返回是否发生任一写入。
 def update_or_append_config_line(config_file: str | Path, section: str, key: str, value: str) -> bool:
     with _config_write_lock:
         if update_config_line(config_file, section, key, value):

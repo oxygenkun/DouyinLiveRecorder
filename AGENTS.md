@@ -8,7 +8,7 @@
 
 ## 项目结构
 
-[目录参考](docs/agent-reference/project-structure.md)。运行时代码统一在 `src/`，维护与构建工具统一在 `tool/`；CLI / GUI / Web 入口分别为 `src.main:main`、`src.gui:main`、`src.web:main`，源码使用 `python -m src.main` / `src.gui` / `src.web` 启动。
+[目录参考](docs/agent-reference/project-structure.md)。运行时代码统一在 `src/`，维护与构建工具统一在 `tool/`；CLI / Web 入口分别为 `src.main:main`、`src.web:main`，源码使用 `python -m src.main` / `src.web` 启动。
 
 ## 项目级 Skill
 
@@ -25,11 +25,11 @@
 
 ## 依赖管理
 
-- `pyproject.toml` 声明、`uv.lock` 锁定；CI / Docker 用 `--locked`。基础安装 `uv sync --locked`，桌面 GUI / Windows Web 托盘加 `--extra gui`，开发加 `--extra dev`，打包再加 `--extra build`；不以 `--dev` 替代现有 dev extra。
-- `requirements.txt` 是基础依赖的 pip 兼容清单，与 project.dependencies 同步。比对时去行内注释、归一包名与规格集合；GUI / dev / build 依赖不放回基础清单。
+- `pyproject.toml` 声明、`uv.lock` 锁定；CI / Docker 用 `--locked`。基础安装 `uv sync --locked`，开发加 `--extra dev`，打包再加 `--extra build`；不以 `--dev` 替代现有 dev extra。
+- `requirements.txt` 是基础依赖的 pip 兼容清单，与 project.dependencies 同步。比对时去行内注释、归一包名与规格集合；dev / build 依赖不放回基础清单。
 - 安全下限以依赖声明和审计为准；新增或抬升依赖下限跑 `deps-audit`，不随意加漏洞忽略项。pip-audit 属审计工具，不进运行时依赖。
 - protobuf 上限放宽前先用兼容的 protoc 重新生成，禁止手改 `douyin_pb2.py`；引用的动态消息字段与现有 `.pyi` 同步。
-- 收集期 ModuleNotFoundError 先核对 venv 与锁文件，不改业务代码掩盖缺包；运行 pytest 需要基础依赖及 dev extra，Qt 测试还需 gui extra 与系统库。
+- 收集期 ModuleNotFoundError 先核对 venv 与锁文件，不改业务代码掩盖缺包；运行 pytest 需要基础依赖及 dev extra。
 
 ## 测试
 
@@ -49,8 +49,8 @@
 - 双模 collector 模块级无网络、sleep、清理或 exit；执行体放 main 守卫。数值参数先取原文再 `.isdigit()` 校验，不能只排除 `-` 前缀；清理只认本平台前缀并先判类型。收集须秒级返回，不强求手动脚本都有离线用例。
 - 并发测试 `join(timeout=...)` 后在同一函数断言线程 `not is_alive()`；平台分流替身覆盖 Windows 与 POSIX，不靠 skip 跳过可模拟分支。
 - 本地化系统工具的子进程输出按字节比较；涉及码页的用例须能单文件运行。已知 UTF-8 文本协议按自身契约处理，不一概禁用文本模式。
-- `pytest.importorskip` 探测真正使用的子模块并传 `exc_type=ImportError`；CI 补齐系统库并对必要 Qt 模块设收集闸门，不能靠整模块 skip 伪装通过。
-- 保留 conftest 的凭据缓存、弹幕 hub、恒等翻译隔离；不用静默跳过 fixture 掩盖缺依赖或污染。Qt 测试须还原全局翻译登记表。
+- `pytest.importorskip` 探测真正使用的子模块并传 `exc_type=ImportError`；不能靠整模块 skip 伪装通过。
+- 保留 conftest 的凭据缓存、弹幕 hub、恒等翻译隔离；不用静默跳过 fixture 掩盖缺依赖或污染。
 
 ### 测试收尾清理临时脚本
 
@@ -59,16 +59,16 @@
 ## 构建命令
 
 ```bash
-uv sync --locked --extra build --extra gui
-uv run --locked --extra build --extra gui python tool/build_exe.py --smoke
-uv run --locked --extra build --extra gui python tool/build_exe.py --dual
+uv sync --locked --extra build
+uv run --locked --extra build python tool/build_exe.py --smoke
+uv run --locked --extra build python tool/build_exe.py --dual
 ```
 
 其他参数先看 `tool/build_exe.py --help`。镜像通过 APP_VERSION 注入 pyproject 版本，`docker compose up -d` 本地构建；不提交运行时配置。
 
 ### 打包与冒烟测试语义（tool/build_exe.py）
 
-- CLI / GUI / Web 三入口共享 `_internal/`；config、ffmpeg、node 与 exe 同级。JS 签名资源按模块路径打入 `_internal/`。
+- CLI / Web 两入口共享 `_internal/`；config、ffmpeg、node 与 exe 同级。JS 签名资源按模块路径打入 `_internal/`。
 - 冒烟结果按 `FATAL_MARKERS` 与进程状态判定；headless 特定良性报错只允许精确豁免，不宽泛吞异常。
 - zip 名整体拼接，不能用 with_suffix 截断带点版本；拒绝路径分隔符，双产物须名称互异且均存在。`--dual` / `--no-zip` 互斥；陈旧发行 zip 的清理由构建入口自身负责。
 
@@ -80,19 +80,19 @@ uv run --locked --extra build --extra gui python tool/build_exe.py --dual
 - 多架构镜像用原生双 runner 构建，再按提升到 job outputs 的 digest 合成；不用 QEMU 承担全量跨架构构建。只由版本 tag 发布，凭据仅 GITHUB_TOKEN，不增加重写 latest 的调度入口。
 - 发布失败由 release-guard 回收空 Release，不删 tag、不关闭产物缺失检查。
 - 本地工具、运行期数据排除项同步 gitignore / dockerignore / Ruff / coverage；`.agents/skills/` 入库例外见技能节。覆盖率主任务与 concurrency 配置均用 exclude_also 并保持同源。
-- Docker 只支持 CLI / Web：不加 gui extra、Qt/X11 系统库、GUI 目标或 compose profile；dockerignore 排除 src/gui.py 与 src/gui_qt/，uv.lock 必须进上下文。uv 固定版本及摘要，锁定安装，运行阶段不带构建工具，FFmpeg 独立阶段构建。
+- Docker 只支持 CLI / Web：不加桌面依赖或桌面系统库、桌面入口或 compose profile，uv.lock 必须进上下文。uv 固定版本及摘要，锁定安装，运行阶段不带构建工具，FFmpeg 独立阶段构建。
 - deps-audit 阻断 Python 依赖漏洞；Trivy 镜像审计维持 advisory，升级阻断需维护者明确决定。
-- 跑 pytest 的 job 安装基础依赖与 dev extra；Qt 测试补 gui extra 和系统库。维护脚本缺可执行文件时明确降级，不阻断后续独立步骤。
+- 跑 pytest 的 job 安装基础依赖与 dev extra；维护脚本缺可执行文件时明确降级，不阻断后续独立步骤。
 
 ## 检查时机与命令
 
 - 日常按改动需要做静态检查，不要求每次 Agent 执行后运行完整检查清单。
 - 只有需要 commit 时才运行 pytest 与覆盖率检查，使用最后一次代码编辑后的结果；没有提交需求时不自动执行。
-- 提交前使用项目的基础依赖、dev extra；涉及 Qt 时补 gui extra 与系统库。先采集覆盖率，再检查阈值：
+- 提交前使用项目的基础依赖、dev extra；先采集覆盖率，再检查阈值：
 
 ```bash
-uv run --locked --extra dev --extra gui python -m pytest --cov=src
-uv run --locked --extra dev --extra gui python tool/check_coverage.py
+uv run --locked --extra dev python -m pytest --cov=src
+uv run --locked --extra dev python tool/check_coverage.py
 ```
 
 - 静态检查按需直接运行 Ruff、翻译同步、版本或技能一致性检查；pre-commit 与 CI 保留各自的提交检查入口。Windows 检查使用 `PYTHONUTF8=1`。
@@ -139,7 +139,7 @@ ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成
 - 改公共符号前用 rg 搜索调用点、测试、资源和 standalone 孪生实现；删符号后不留悬空调用。src/main.py 内部的 main 是函数，不作模块前缀使用。
 - JS 文件增删与 utils._JS_SHA256_EXPECTED 同步；migu.js 返回完整签名 URL，调用方不再拼过时参数。
 - 启动缓存清理只限程序顶层与 src 直接含 .py 的目录下 pyc/pyo；不递归全仓。基线用版本 + 路径/源码内容哈希，不能用 size/mtime；冻结或开关关闭时零 I/O，基线失败仍清理并告警。
-- 停止时日志归档复用 log_archive.archive_runtime_logs；Windows 改名前关闭句柄，GUI 子进程及测试按现有开关早退，不重开测试对真实日志的副作用。
+- 停止时日志归档复用 log_archive.archive_runtime_logs；Windows 改名前关闭句柄，测试按现有开关早退，不重开测试对真实日志的副作用。
 
 ## 已知坑（避免回归）
 
@@ -153,7 +153,7 @@ ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成
 - HTTP 客户端复用与连接管理
 - 并发、事件循环与锁
 - ffmpeg 命令构造与容器格式
-- 日志、控制台与 GUI / 后台模式
+- 日志、控制台与后台模式
 - i18n 文案、目录与占位符
 - 配置键名、布尔口径与 SSL 验证
 - 凭据与敏感配置脱敏
@@ -161,6 +161,6 @@ ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成
 - 热路径性能（数据结构 / 正则）
 - 构建产物、依赖与运行时基线
 - 装饰器与平台兜底契约
-- Web / GUI 面板与接口层
+- Web 面板与接口层
 - 测试质量与审查协作流程
 - 本机 y123 部署补丁边界

@@ -6,7 +6,7 @@
 # 约定（SEV-2217）：**交给 on_close / on_reconnect 回调的文案必须已脱敏**。这两条回调是把
 # 异常文本送出去的唯一出口，消费端（src/collector.py 的 _on_close）会把 reason 原样写进
 # loguru 文件 sink（logs/ 按 300KB 轮转保留多份 = 长期落盘）与弹幕监控枢纽（进而显示到
-# Web/GUI 面板）。websockets 的 InvalidProxy 文本自带代理原串（含 user:pass@host），故所有
+# Web 面板）。websockets 的 InvalidProxy 文本自带代理原串（含 user:pass@host），故所有
 # 出口一律先过 utils.mask_credentials；新增回调参数同样适用，不得把裸 str(e) 传出去。
 
 from __future__ import annotations

@@ -79,16 +79,10 @@ class _DriveResult:
 
 def _write_web_config(tmp_path: Path, host: str) -> Path:
     # web_show_console=false 是前提：只有关掉「显示控制台」，背景化才被排在拒绝路径之前执行；
-    # web_auth_enable=false + 非回环 web_host 才触发闸门。web_minimize_to_tray=false 保证
-    # 即便用例走进放行分支也不会去 import src.web_tray（pystray 需要托盘运行环境）。
+    # web_auth_enable=false + 非回环 web_host 才触发闸门。
     cfg = tmp_path / "config.ini"
     cfg.write_text(
-        "[Web]\n"
-        f"web_host = {host}\n"
-        "web_port = 8000\n"
-        "web_auth_enable = false\n"
-        "web_show_console = false\n"
-        "web_minimize_to_tray = false\n",
+        f"[Web]\nweb_host = {host}\nweb_port = 8000\nweb_auth_enable = false\nweb_show_console = false\n",
         encoding="utf-8",
     )
     return cfg

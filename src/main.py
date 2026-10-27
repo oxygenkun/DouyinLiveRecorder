@@ -21,7 +21,7 @@
 # Update: 2025-10-23 19:48:05
 # Copyright (c) 2023-2025 by Hmily, All Rights Reserved.
 
-# stdout/stderr 必须最先统一为 UTF-8：冻结后的 exe 作为 GUI/Web 子进程时 stdout 是管道，
+# stdout/stderr 必须最先统一为 UTF-8：冻结后的 exe 作为 Web 子进程时 stdout 是管道，
 # Python 会回退到 GBK 区域编码，而父进程按 UTF-8 读取 → 中文乱码。
 # 必须先于任何日志/控制台模块导入（如 src.logger）：loguru 的 sink 一旦按旧编码绑定，
 # 后续 reconfigure 不会重绑，整轮运行的日志编码就此定型。
@@ -210,7 +210,7 @@ exit_recording: bool = False  # 退出标志
 # tests/test_regression_2026_09_22_main.py::test_disk_limited_is_recoverable
 disk_limited: bool = False
 # Web 模式录制开关：False 时主循环不拉起新房间线程，既有房间线程终止 ffmpeg/下载后退出。
-# CLI/GUI 直跑保持 True（行为不变）；web.py 启动录制引擎前置 False，由 Web 面板
+# CLI 直跑保持 True（行为不变）；web.py 启动录制引擎前置 False，由 Web 面板
 # 「开始/停止录制」按钮经 POST /api/recording/toggle 手动切换（见 src/web_api.py）。
 recording_enabled: bool = True
 
@@ -284,7 +284,7 @@ rstr: str = r"[\/\\\:\*\？?\"\<\>\|&#.。,， ~！·% ]"  # 文件名字符过
 # 随后被误判成「CDN 快速失败」而拉黑健康线路。
 # 回归锁：tests/test_regression_2026_09_22_main.py::test_segment_template_has_single_percent_placeholder
 default_path: str = f"{script_path}/downloads"  # 默认下载目录
-# 模块导入不建目录：任何 `import main`（GUI / Web / 测试）都不应在宿主机产生磁盘副作用。
+# 模块导入不建目录：任何 `import main`（Web / 测试）都不应在宿主机产生磁盘副作用。
 # 下载目录由 main() 入口与录制路径按需创建。
 # RLock：主循环持锁读配置期间可能再次进入 read_config_value 的写入路径，可重入避免同线程死锁
 file_update_lock: threading.RLock = threading.RLock()  # 配置文件读写锁（防多线程写入冲突）
@@ -4578,7 +4578,7 @@ print(i18n.tr("版本号: {version}", version=version))
 print("GitHub: https://github.com/ihmily/DouyinLiveRecorder")
 print(i18n.tr("支持平台: {platforms}", platforms=platforms))
 print(".....................................................")
-# 模块级不执行 check_ffmpeg_existence()：import main（web.py/gui.py/测试）不应触发
+# 模块级不执行 check_ffmpeg_existence()：import main（web.py/测试）不应触发
 # FFmpeg 下载副作用；安装检查统一由各真实入口的 main() 完成。
 os.makedirs(os.path.dirname(config_file), exist_ok=True)
 t3 = threading.Thread(target=backup_file_start, args=(), daemon=True)
@@ -4976,7 +4976,7 @@ def main(non_interactive: bool = False) -> None:
                     _ = file.write(input_url)
         except EOFError:
             # 无可用 stdin 时 input() 抛 EOFError（窗口化 / stdin 被重定向）：不能让它穿透，
-            # 否则进程带栈退出（GUI 表现为「一点开始录制就没了」）。退化为轮询等待配置写入。
+            # 否则进程带栈退出。退化为轮询等待配置写入。
             logger.error(i18n.tr("无法从控制台读取直播间网址（无可用标准输入），等待配置文件写入"))
             # 同上：被中断时补退避
             if _interruptible_sleep(5):
@@ -5246,7 +5246,7 @@ def main(non_interactive: bool = False) -> None:
                     )
                     # Web 模式下 main() 跑在 uvicorn 的守护线程里（web.py: recorder-engine）：
                     # sys.exit(-1) 只杀该线程，面板继续运行且用户看不到任何提示。
-                    # 故 Web（non_interactive=True）置标志并 return；CLI/GUI 保留 sys.exit(-1)。
+                    # 故 Web（non_interactive=True）置标志并 return；CLI 保留 sys.exit(-1)。
                     # 退出前先排空后处理池（理由见 _shutdown_postprocess_executor）。
                     _shutdown_postprocess_executor()
                     if non_interactive:

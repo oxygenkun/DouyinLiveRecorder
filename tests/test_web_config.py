@@ -12,7 +12,6 @@ from src.web_config import (
     BUILTIN_QUALITIES,
     SENSITIVE_MASK,
     clamp_pbkdf2_iterations,
-    find_room_url_by_anchor_name,
     format_url_line,
     hash_web_password,
     is_hashed_web_password,
@@ -680,25 +679,6 @@ class TestUpdateRoomQuality:
         _ = update_room_quality(url_cfg, "https://live.douyin.com/1", "超清")
         leftovers = [p.name for p in tmp_path.glob("*.tmp")]
         assert leftovers == [], f"原子写残留临时文件: {leftovers}"
-
-
-class TestFindRoomUrlByAnchorName:
-    # find_room_url_by_anchor_name：按主播名反查直播间地址，供 GUI 画质切换写回使用。
-
-    def test_exact_match(self, tmp_path: Path) -> None:
-        url_cfg = tmp_path / "URL_config.ini"
-        url_cfg.write_text(
-            "https://live.douyin.com/1,主播: 香芋\nhttps://live.douyin.com/2,主播: 小Q\n",
-            encoding="utf-8-sig",
-        )
-        assert find_room_url_by_anchor_name(url_cfg, "香芋") == "https://live.douyin.com/1"
-        assert find_room_url_by_anchor_name(url_cfg, "小Q") == "https://live.douyin.com/2"
-
-    def test_no_match_returns_empty(self, tmp_path: Path) -> None:
-        url_cfg = tmp_path / "URL_config.ini"
-        url_cfg.write_text("https://live.douyin.com/1,主播: A\n", encoding="utf-8-sig")
-        assert find_room_url_by_anchor_name(url_cfg, "不存在") == ""
-        assert find_room_url_by_anchor_name(url_cfg, "") == ""
 
 
 class TestSensitiveItemCaseInsensitive:

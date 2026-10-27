@@ -985,7 +985,7 @@ def test_macos_ffmpeg_branch_fetches_both_archives_and_verifies(
 
 # ---------------------------------------------------------------------------
 # MID-2254：发布 zip 与冒烟解耦 + 「运行期产物不得进包」
-# 冒烟以 cwd=RELEASE_DIR 连跑 CLI 25s / Web 90s / GUI 8s，src/logger.py 会在包内落
+# 冒烟以 cwd=RELEASE_DIR 连跑 CLI 25s / Web 90s，src/logger.py 会在包内落
 # streamget.log / PlayURL.log / web_console.log（含 runner 绝对路径、用户名、告警堆栈），
 # 「缺键补写」还会改写包内 config.ini。旧顺序把冒烟排在 full 压缩之前，等于把这些打进对外分发的 zip。
 # 下面几条分别锁：顺序、清理、实物断言。全程桩掉 PyInstaller / 下载 / 压缩 / 起进程，不执行真实打包。
@@ -1464,7 +1464,7 @@ def test_smoke_load_config_still_reads_valid_checks(tmp_path: Path) -> None:
 # 为什么值得锁：这些排除项**在源码里看不出代价**——排除一个模块在本地 Windows 上可能毫无变化
 # （如 uvloop 只在 POSIX 安装），排除错了却会在某个平台/分支上以 ModuleNotFoundError 的形态在
 # **冻结产物运行时**炸出来，而单测跑的是源码、覆盖不到。故锁三件事：① 清单不含「生产代码真的
-# 导入了」的模块；② 三个入口都挂上清单（COLLECT 合并去重，只挂一个等于没排）；
+# 导入了」的模块；② 两个入口都挂上清单（COLLECT 合并去重，只挂一个等于没排）；
 # ③ i18n 资源不含 .po 但含运行时真正读的格式。
 # ---------------------------------------------------------------------------
 
@@ -1472,7 +1472,7 @@ def test_smoke_load_config_still_reads_valid_checks(tmp_path: Path) -> None:
 def _production_import_names() -> set[str]:
     # 收集生产代码（根入口 + src/）里出现过的所有导入模块名，用于判定「排除项是否可达」。
     # 用 AST 而不是正则：正则会把注释与字符串里的 import 也算进去（既漏判又误判）。
-    files = [ROOT / name for name in ("src/main.py", "src/gui.py", "src/web.py", "src/i18n.py", "src/msg_push.py")]
+    files = [ROOT / name for name in ("src/main.py", "src/web.py", "src/i18n.py", "src/msg_push.py")]
     files += sorted((ROOT / "src").rglob("*.py"))
     names: set[str] = set()
     for path in files:
@@ -1516,14 +1516,14 @@ def test_bloat_excludes_still_cover_the_measured_bloat() -> None:
 
 
 def test_every_analysis_applies_the_bloat_excludes() -> None:
-    # COLLECT 把三个 Analysis 的 binaries/datas 合并去重后落同一个 _internal/，
-    # 所以「只在 CLI 上排除 PIL」等于没排（GUI 收进来、CLI 产物照样带着）。
+    # COLLECT 把两个 Analysis 的 binaries/datas 合并去重后落同一个 _internal/，
+    # 所以「只在 CLI 上排除 PIL」等于没排（Web 收进来、CLI 产物照样带着）。
     rendered = build_exe.SPEC_TEMPLATE.format(
         app=build_exe.APP_NAME,
         bloat_excludes=list(build_exe.BLOAT_EXCLUDES),
         i18n_datas=build_exe.i18n_datas_entries(),
     )
-    assert rendered.count("excludes=excludes_bloat +") == 3, "三个 Analysis 必须都挂上排除清单"
+    assert rendered.count("excludes=excludes_bloat +") == 2, "两个 Analysis 必须都挂上排除清单"
 
 
 def test_i18n_datas_skip_po_sources_but_keep_runtime_formats() -> None:
@@ -1537,43 +1537,6 @@ def test_i18n_datas_skip_po_sources_but_keep_runtime_formats() -> None:
     assert {".mo", ".json", ".yaml"} <= suffixes, f"运行时格式缺失（实际 {sorted(suffixes)}）"
     # 目标路径必须仍落在 i18n/ 下：i18n.py 用 __file__ 定位 _internal/i18n，改了就找不到目录
     assert all(dest == "i18n" or dest.startswith("i18n/") for _src, dest in entries)
-
-
-def test_qt_bloat_files_stay_inside_the_pyside6_dir() -> None:
-    # 剪除清单是「按文件名删」，一旦有人写进 `../` 或绝对形态，剪除就会落到 _internal 之外
-    # （甚至仓库里）——体积检查查不出来，只表现为「构建后某些文件神秘消失」。
-    for rel in build_exe.QT_BLOAT_FILES:
-        assert not rel.startswith(("/", "\\")) and ":" not in rel, f"剪除项不得为绝对路径：{rel!r}"
-        parts = Path(rel).parts
-        assert ".." not in parts, f"剪除项不得含路径穿越：{rel!r}"
-        # 只允许「根目录 DLL」与「plugins/<类型>/<插件>」两种形态：Qt 的插件永远在这两层下，
-        # 更深的路径说明清单写错了（剪不到真正的目标会在体积报告里表现为「剪了但没降」）。
-        assert len(parts) in (1, 3) and (len(parts) == 1 or parts[0] == "plugins"), f"剪除项形态异常：{rel!r}"
-    # 反向：最大的那一项必须在列（删掉它体积会悄悄回弹约 20MB）
-    assert "opengl32sw.dll" in build_exe.QT_BLOAT_FILES
-
-
-def test_prune_qt_bloat_deletes_only_listed_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    # 剪除是**文件删除**，比 excludes 危险一档：误删一个真在用的 Qt DLL，冻结产物只在运行时炸。
-    # 故这里钉两件事——命中项必删、未命中项（含同目录其它 DLL）必留。
-    qt = tmp_path / build_exe.APP_NAME / "_internal" / "PySide6"
-    (qt / "plugins" / "imageformats").mkdir(parents=True)
-    listed = []
-    for rel in build_exe.QT_BLOAT_FILES:
-        target = qt / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("x", encoding="utf-8")
-        listed.append(target)
-    keep = qt / "Qt6Widgets.dll"
-    keep.write_text("x", encoding="utf-8")
-    keep_plugin = qt / "plugins" / "imageformats" / "qjpeg.dll"
-    keep_plugin.write_text("x", encoding="utf-8")
-    monkeypatch.setattr(build_exe, "RELEASE_DIR", tmp_path / build_exe.APP_NAME)
-
-    build_exe.prune_qt_bloat()
-
-    assert not any(p.exists() for p in listed), "剪除清单里的文件必须被删掉"
-    assert keep.exists() and keep_plugin.exists(), "未列入清单的文件/插件不得被误删"
 
 
 def test_zip_release_dir_prefixes_members_with_app_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

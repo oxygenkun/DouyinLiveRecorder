@@ -140,9 +140,9 @@
     // POST /api/login body{password} → {token}；失败抛错显示到 #login-error
     // GET  /api/rooms → [{url,quality,name,enabled,recording}]；POST body{url,quality?,name?} 新增、
     //      DELETE ?url= 删除、POST /api/rooms/toggle body{url,enable} 启停
-    // PUT  /api/rooms/quality body{url,quality} → 按房间切换画质（quality 空=恢复默认，与桌面端共用画质段）
+    // PUT  /api/rooms/quality body{url,quality} → 按房间切换画质（quality 空=恢复默认）
     // GET/PUT /api/rooms/qualities → {options:[...], builtin:[...]}；PUT body{options:[...]} 回写画质选项
-    //      （与桌面端画质切换菜单共用，落地 config.ini [录制设置]）
+    //      （落地 config.ini [录制设置]）
     // GET  /api/config → {section:{key:value}}；PUT /api/config body{section,key,value} 单键落盘
     // GET  /api/files?path= → [{name,type,path,size?,mtime?}]；下载绕过 api() 直接 blob 流
     function $(id) { return document.getElementById(id); }
@@ -289,7 +289,7 @@
     // index.html 的每个 data-i18n* 键与本文件每个 t() 字面量键——由 tests/frontend/test_quality_ui.mjs
     // 的 MIN-10 段机检（它从声明处按大括号配平截取本字典再求值，故声明行与键名不可重排或改名）。
     // 同步范围（实测）：面板点分键（config.save / common.cancel / danmaku.* 等）只进下面四套内嵌目录
-    // ——后端 i18n/ 下的 gettext 目录按**中文源串**作 msgid、只服务控制台/GUI/推送，往里塞面板键只会
+    // ——后端 i18n/ 下的 gettext 目录按**中文源串**作 msgid、只服务控制台/推送，往里塞面板键只会
     // 得到无人 import 的孤儿 msgid（compile_po.py --check 与 extract_i18n_strings.py 都不报）。其余
     // 用户可见文案仍「五处同改」（四份 i18n 目录 + 本文件），见 AGENTS.md 的 i18n 扫描盲区清单。
     var LANG_KEY = 'dlr_lang';
@@ -330,7 +330,7 @@
             'rooms.empty': '暂无直播间', 'rooms.delete': '删除', 'rooms.enter': '进入', 'rooms.download': '下载',
             'rooms.deleteConfirm': '确认删除该直播间？',
             'rooms.manageQuality': '画质选项', 'rooms.addQuality': '添加画质',
-            'rooms.qualityHint': '画质选项存于 config.ini，WEB 与桌面端画质切换菜单共用；仅内置档位可选（自定义名称不会被录制引擎识别）',
+            'rooms.qualityHint': '画质选项存于 config.ini，Web 直播间画质菜单使用；仅内置档位可选（自定义名称不会被录制引擎识别）',
             'rooms.qualityEmpty': '已全部添加', 'rooms.qualityAddBtn': '添加',
             'toast.qualityAdded': '已添加画质选项', 'toast.qualityRemoved': '已移除画质选项',
             'toast.qualitySaveFailed': '保存画质选项失败: ', 'toast.qualityLoadFailed': '加载画质选项失败: ',
@@ -399,7 +399,7 @@
             'rooms.empty': 'No rooms', 'rooms.delete': 'Delete', 'rooms.enter': 'Open', 'rooms.download': 'Download',
             'rooms.deleteConfirm': 'Delete this room?',
             'rooms.manageQuality': 'Quality options', 'rooms.addQuality': 'Add quality',
-            'rooms.qualityHint': 'Quality options are stored in config.ini and shared with the desktop quality switcher; only built-in tiers can be selected (custom names are not recognised by the recording engine)',
+            'rooms.qualityHint': 'Quality options are stored in config.ini and used by the Web room quality selector; only built-in tiers can be selected (custom names are not recognised by the recording engine)',
             'rooms.qualityEmpty': 'All added', 'rooms.qualityAddBtn': 'Add',
             'toast.qualityAdded': 'Quality option added', 'toast.qualityRemoved': 'Quality option removed',
             'toast.qualitySaveFailed': 'Failed to save quality options: ', 'toast.qualityLoadFailed': 'Failed to load quality options: ',
@@ -465,7 +465,7 @@
             'rooms.empty': 'No rooms', 'rooms.delete': 'Delete', 'rooms.enter': 'Open', 'rooms.download': 'Download',
             'rooms.deleteConfirm': 'Delete this room?',
             'rooms.manageQuality': 'Quality options', 'rooms.addQuality': 'Add quality',
-            'rooms.qualityHint': 'Quality options are stored in config.ini and shared with the desktop quality switcher; only built-in tiers can be selected (custom names are not recognised by the recording engine)',
+            'rooms.qualityHint': 'Quality options are stored in config.ini and used by the Web room quality selector; only built-in tiers can be selected (custom names are not recognised by the recording engine)',
             'rooms.qualityEmpty': 'All added', 'rooms.qualityAddBtn': 'Add',
             'toast.qualityAdded': 'Quality option added', 'toast.qualityRemoved': 'Quality option removed',
             'toast.qualitySaveFailed': 'Failed to save quality options: ', 'toast.qualityLoadFailed': 'Failed to load quality options: ',
@@ -531,7 +531,7 @@
             'rooms.empty': '暫無直播間', 'rooms.delete': '刪除', 'rooms.enter': '進入', 'rooms.download': '下載',
             'rooms.deleteConfirm': '確認刪除該直播間？',
             'rooms.manageQuality': '畫質選項', 'rooms.addQuality': '新增畫質',
-            'rooms.qualityHint': '畫質選項存於 config.ini，Web 與桌面端畫質切換選單共用；僅內建檔位可選（自訂名稱不會被錄製引擎識別）',
+            'rooms.qualityHint': '畫質選項存於 config.ini，Web 由 Web 直播間畫質選單使用；僅內建檔位可選（自訂名稱不會被錄製引擎識別）',
             'rooms.qualityEmpty': '已全部新增', 'rooms.qualityAddBtn': '新增',
             'toast.qualityAdded': '已新增畫質選項', 'toast.qualityRemoved': '已移除畫質選項',
             'toast.qualitySaveFailed': '儲存畫質選項失敗: ', 'toast.qualityLoadFailed': '載入畫質選項失敗: ',
@@ -1237,7 +1237,7 @@
         }
     }
 
-    // 14b. 画质选项（WEB 直播间设置的下拉项 + 桌面端画质切换菜单共用一份 config.ini 配置）：
+    // 14b. 画质选项（Web 直播间设置的下拉项，落地 config.ini）：
     // qualityBuiltin 与 qualityOptions 的差值即「添加画质」的候选项。增删后 PUT 回写，以后端返回的
     // 规范化列表为准（非法项由后端剔除）。
     async function loadQualityOptions() {
@@ -1392,7 +1392,7 @@
         }
     };
 
-    // 16b. changeRoomQuality —— PUT /api/rooms/quality 按房间切换画质（与桌面端画质监控共用
+    // 16b. changeRoomQuality —— PUT /api/rooms/quality 按房间切换画质（通过
     // URL_config.ini 画质段，下一轮检测循环生效）。失败回拉列表恢复下拉显示值。
     async function changeRoomQuality(url, quality) {
         try {

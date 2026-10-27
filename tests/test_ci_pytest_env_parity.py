@@ -1,34 +1,4 @@
-# ci.yml「跑 pytest 的 job 必须装齐运行时依赖」与「Qt 窗口层 job 必须装 Qt 运行库」的回归锁。
-#
-# 事故一（2026-10-18 手动触发 CI 实测）：只装 pytest 的 job 在 setup 阶段报错——
-#   `ModuleNotFoundError: No module named 'distro'`。被测文件本身只 import 标准库 + pytest，
-#   故障来自 tests/conftest.py 的三个 **autouse** fixture：
-#     · _clean_credential_caches → `from src import spider` → src/node_install.py 顶层 `import distro`；
-#     · _hermetic_danmaku_hub → `import src.danmaku_monitor`（同一条 src 导入链）；
-#     · _pin_identity_translation → `import i18n` → i18n.py 顶层 `from loguru import logger`。
-#   即「跑仓库里任何一条 pytest」的真实门槛是**整份 requirements.txt**，与被测文件自己的 import 无关。
-#
-# 判据：任何出现 pytest（执行或安装）的 job，其步骤里必须通过 uv sync --locked 安装基础依赖。
-#   新增「轻量 job」时会被当场拦下，而不是等一次手动触发 CI 才在 ERROR 里发现。
-#
-# 事故二（同日）：test job 的 apt 只装了 ffmpeg + xvfb，而 GUI 窗口层已迁 PySide6：ubuntu runner 缺
-#   libEGL.so.1 时 `from PySide6.QtGui import ...` 抛 ImportError，两个 Qt 测试模块以 collection error
-#   形态**中断整轮**（4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块检查全部拿不到数据）。
-#   故再钉两条：
-#     · apt 侧必须装 Qt 运行库（锚点 libegl1，见 _QT_RUNTIME_LIB_RE）——系统库不属于 pip 的兜底面；
-#     · test job 必须有一道 collect-only 闸门拦「整模块 skip 而 rc 仍为 0」的假绿。
-#
-# 事实源关系：判据对象只有 ci.yml 本体，本文件只**读取**它（与 tests/test_ci_retry_action.py
-#   同口径：按 YAML 结构取步骤，不按行号、不按全文正则，步骤挪动或换 job 都不该让锁失效）。
-#
-# 双向钉（对齐 tests/test_ci_frontend_registration.py 的「清单 ↔ 配置」口径）：
-#   正向——每个 pytest job 都必须装 requirements.txt（漏装即红，正是事故一形态）；
-#   反向——检测器必须**认得出**已知的 pytest job、且**认不出** setup job（后者只 echo 版本
-#         常量字符串 `pytest_version=9.1.1`；认错说明正则退化成子串匹配，正向判据随即失真）。
-#
-# 变异验证（2026-10-18 实跑，均已当轮还原）：① 测试 job 改回 `pip install pytest` →
-#   正向判据红；② 检测器放宽成裸子串 `pytest` → 反向判据红；③ 摘掉 `libegl1` → Qt 运行库判据红
-#   （点名 test / build-verify）；④ 去掉收集闸门的 `--co` → collect-only 判据红。
+# 执行 pytest 的 CI job 必须通过 uv 锁定安装基础依赖和开发工具。
 
 from __future__ import annotations
 
@@ -137,46 +107,6 @@ def test_known_pytest_jobs_are_detected() -> None:
     found = _pytest_jobs()
     missing = [name for name in _KNOWN_PYTEST_JOBS if name not in found]
     assert not missing, f"检测器漏掉了已知 pytest job {missing}（正则或结构解析失效，正向判据随之失真）"
-
-
-# Qt 运行库锚点：只钉 **libegl1** 这一枚（Qt6Gui 的 dlopen 目标，缺它 `from PySide6.QtGui
-# import ...` 立即 ImportError），不逐个枚举 xcb / GL 同族 —— 那会把判据变成「照抄 ci.yml
-# 清单」，apt 包换名即假红，而我们真正要锁的是「这份依赖被想过」这件事。
-_QT_RUNTIME_LIB_RE = re.compile(r"apt-get install\b[^\n]*libegl1\b")
-
-# 会真的把 Qt 窗口层装起来的 job：test（pytest 会收集到依赖 src/gui_qt 的 Qt 窗口层用例）
-# 与 build-verify（打出来的 GUI exe 由 PySide6 窗口层驱动，smoke_gui 起进程即 dlopen 同一组库）。
-_QT_JOBS = ("test", "build-verify")
-
-
-def test_qt_window_layer_jobs_install_qt_runtime_libs() -> None:
-    jobs = _jobs()
-    offenders: list[str] = []
-    for name in _QT_JOBS:
-        texts = _step_texts(jobs.get(name) or {})
-        if not any(_QT_RUNTIME_LIB_RE.search(text) for text in texts):
-            offenders.append(name)
-    assert not offenders, (
-        f"以下 job 会用到 Qt 窗口层却没有 apt 装 Qt 运行库：{sorted(offenders)}。"
-        "PySide6 随 requirements.txt 安装，但 Qt 的 .so 还要 dlopen 系统库（libEGL.so.1 等），"
-        "缺一枚时窗口层 import 即以 collection error 中断整轮 pytest（2026-10-18 实测："
-        "4337 collected / 2 errors → Interrupted，rc=2，覆盖率与逐模块检查全部拿不到数据）"
-    )
-
-
-def test_test_job_gates_qt_gui_collection() -> None:
-    # 反假绿的第二道防线：Qt 窗口层用例靠 pytest.importorskip 降级，而 ci-summary 分不清
-    # skipped 与 passed —— 一旦上面那条 apt 判据之后仍有人把系统库摘掉（换镜像 / 精简步骤），
-    # 两个模块会整片 skip 而 rc 仍为 0。collect-only 闸门就是专门关这个洞的，这里钉它必须存在。
-    texts = _step_texts(_jobs().get("test") or {})
-    gated = [
-        text for text in texts if "--co" in text and "test_gui_qt_units.py" in text and "test_gui_qt_window.py" in text
-    ]
-    assert gated, (
-        "test job 缺少 Qt GUI 的 collect-only 闸门（`pytest --co` 点名两个 Qt 测试模块）。"
-        "没有它，importorskip 造成的整模块 skip 会以 rc=0 通过，窗口层断言从此静默空转"
-        "（判决形态见 ci.yml 的 “Gate Qt GUI tests are collected” 步骤）"
-    )
 
 
 @pytest.mark.parametrize("job_name", _KNOWN_NON_PYTEST_JOBS)

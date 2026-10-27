@@ -76,7 +76,7 @@ _opener_secure = _http_only_opener(urllib.request.HTTPSHandler())
 # 为解析请求放行；ssl_verify 单次覆盖参数让凭据类调用点可显式强制校验，不被全局开关拖下水。
 #
 # 调用面：本模块当前没有任何生产 importer，去留待维护者决定（取证：grep -rn "sync_http\|sync_req("
-# --include=*.py src/ main.py gui.py web.py msg_push.py i18n.py tool/）。本体保留的理由：
+# --include=*.py src/ main.py web.py msg_push.py i18n.py tool/）。本体保留的理由：
 # 承载「同步/异步两条出站路径同时透传 ssl_verify 单次覆盖」不变量，以及 tests/test_sync_http.py
 # 对该不变量的回归锁；若确认不再接线，应连同该双侧陈述一起清理。
 _ssl_context_insecure: ssl.SSLContext | None = None

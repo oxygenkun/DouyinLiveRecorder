@@ -87,14 +87,14 @@ def update_file(file_path: str, old_str: str, new_str: str, start_str: str | Non
         # 内容」再原子重写一遍并返回 new_str，两个后果：
         #   ① 调用方（main.py 的 `url = update_file(...) or url`、web_api 按 MIN-2243 做的负信号
         #      裁决）把「没改到任何东西」读成「已写入」，面板回报成功而配置行其实还是旧的；
-        #   ② 无谓地刷新配置文件 mtime——它正是 GUI/主循环热加载与备份线程的触发判据。
+        #   ② 无谓地刷新配置文件 mtime——它正是 主循环热加载与备份线程的触发判据。
         # 与同文件 delete_line 的「未命中不写文件」（SEV-05）保持同一口径（M-07，2026-10-19）。
         # 注意本判据只看「段级/整行是否命中」，不看内容是否真的变了：`old_str == new_str` 配
         # `start_str="#"` 的注释形态（main.py 的未知链接注释路径）内容逐字不变但必须落盘。
         if not matched:
             return old_str
         joined = "".join(file_data)
-        # 不用 open(..., "w") 的 truncate+write：读方（主循环、GUI）可能在写入窗口里读到空/半写
+        # 不用 open(..., "w") 的 truncate+write：读方（主循环、Web）可能在写入窗口里读到空/半写
         # 文件；改为同目录临时文件 + os.replace（SEV-2211 同族问题）
         if not _atomic_write_text(file_path, joined):
             return old_str

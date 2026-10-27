@@ -376,7 +376,7 @@ def check_nodejs_installed() -> bool:
     # 功能仍会失败，此处不感知（false positive）。
     # 异常集必须含 TimeoutExpired/OSError：`node -v` 卡死（杀毒软件拦截扫描、残缺安装）抛
     # TimeoutExpired、二进制损坏抛 OSError。本函数经 check_node() 在 import src 导入期被调用
-    # （仅测试开关豁免），抛穿即 CLI/GUI/Web 三入口启动崩溃；口径对齐 check_ffmpeg_installed。
+    # （仅测试开关豁免），抛穿即 CLI/Web 三入口启动崩溃；口径对齐 check_ffmpeg_installed。
     try:
         result = subprocess.run(["node", "-v"], capture_output=True, timeout=15)
         version = result.stdout.strip()

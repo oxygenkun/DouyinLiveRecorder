@@ -432,13 +432,13 @@ def test_prepare_url_config_reentrant_with_sanitizer_output() -> None:
     )
 
 
-def test_three_exe_names_share_one_source() -> None:
-    # MID-2200 定点锁：三个 exe（CLI / GUI / Web）的名字必须同源于 APP_NAME——分别写死会在改名时
+def test_exe_names_share_one_source() -> None:
+    # MID-2200 定点锁：两个 exe（CLI / Web）的名字必须同源于 APP_NAME——分别写死会在改名时
     # 漏改一个（产物半新半旧且不易察觉）。
     build_exe = _load_build_exe()
     template = build_exe.SPEC_TEMPLATE
     suffixes = re.findall(r"name='\{app\}([^']*)'", template)
-    assert sorted(suffixes) == sorted(["", "-GUI", "-Web", ""]), (
+    assert sorted(suffixes) == sorted(["", "-Web", ""]), (
         f"exe 名称不再全部由 {{app}} 派生（实际后缀 {suffixes}）：改名时会漂移"
     )
 
@@ -453,7 +453,7 @@ def test_smoke_fatal_markers_cover_import_failures() -> None:
 
 def test_version_is_read_from_single_source() -> None:
     # MID-2200 定点锁：版本号必须只经 read_version() 从 pyproject.toml 读一次，
-    # 且三个 exe 共享同一个 zip 前缀（避免某入口单独写死版本）。
+    # 且两个 exe 共享同一个 zip 前缀（避免某入口单独写死版本）。
     src = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
     assert src.count("read_version()") >= 1, "read_version() 不再被调用"
     body = _function_body_source(src, "read_version")

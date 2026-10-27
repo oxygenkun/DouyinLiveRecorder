@@ -38,7 +38,6 @@ def logs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # 替换后全部文件操作都落在临时目录，不触碰仓库真实 logs/。
     # 同时 delenv 掉 conftest 设置的归档禁用开关与 GUI 守卫标记，归档用例才能正常执行
     monkeypatch.delenv(la._DISABLE_ENV, raising=False)
-    monkeypatch.delenv(la.GUI_PARENT_ENV, raising=False)
     logs = tmp_path / "logs"
     logs.mkdir()
     monkeypatch.setattr(la, "script_path", str(tmp_path))
@@ -130,16 +129,6 @@ class TestArchiveRuntimeLogs:
         # 测试进程禁用开关（tests/conftest.py 设置）：置位时归档整体为 no-op，
         # pytest 退出不得改名开发者工作副本里的真实日志
         monkeypatch.setenv(la._DISABLE_ENV, "1")
-        _touch(logs_dir, "streamget.log")
-        assert la.archive_runtime_logs() == []
-        assert (logs_dir / "streamget.log").exists()
-        assert not fake_sink_ops["remove"]
-
-    def test_gui_parent_guard(
-        self, logs_dir: Path, fake_sink_ops: dict[str, list[str]], monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # GUI 父进程（DLR_GUI_PARENT=1）不持有录制日志句柄，绝不能改名录制子进程正在写的日志
-        monkeypatch.setenv(la.GUI_PARENT_ENV, "1")
         _touch(logs_dir, "streamget.log")
         assert la.archive_runtime_logs() == []
         assert (logs_dir / "streamget.log").exists()
@@ -305,7 +294,7 @@ class TestMonitorHubCloseFile:
 class TestLoggerFileSinkOps:
     @pytest.fixture()
     def reload_logger(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-        # 复用 test_logger_gui_parent 的隔离模式：argv 指向 tmp 隔离 script_path，
+        # 复用 test_logger 的隔离模式：argv 指向 tmp 隔离 script_path，
         # stderr 置 None 跳过控制台 sink；重载产生的全局 sink 在退出时统一清空复位
         monkeypatch.setattr(sys, "argv", [str(tmp_path / "entry.py")])
         monkeypatch.setattr(sys, "stderr", None)
@@ -325,7 +314,6 @@ class TestLoggerFileSinkOps:
     def test_remove_then_add_roundtrip_and_idempotent(
         self, reload_logger: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(logger_mod.GUI_PARENT_ENV, raising=False)
         self._write_config(reload_logger, "是")
         importlib.reload(logger_mod)
         assert logger_mod._streamget_sink_id is not None
@@ -341,10 +329,7 @@ class TestLoggerFileSinkOps:
         assert (reload_logger / "logs" / "streamget.log").is_file()
         assert (reload_logger / "logs" / "PlayURL.log").is_file()
 
-    def test_add_file_sinks_noop_when_gui_or_disabled(
-        self, reload_logger: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv(logger_mod.GUI_PARENT_ENV, "1")
+    def test_add_file_sinks_noop_when_disabled(self, reload_logger: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         self._write_config(reload_logger, "否")
         importlib.reload(logger_mod)
         logger_mod.remove_file_sinks()

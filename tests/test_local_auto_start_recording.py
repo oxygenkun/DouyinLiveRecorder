@@ -16,6 +16,7 @@
 
 import io
 import sys
+import threading
 import types
 from pathlib import Path
 from typing import Any
@@ -61,15 +62,10 @@ class _FakeServer:
 
 def _write_web_config(tmp_path: Path) -> Path:
     # 回环绑定 + 未启用认证是正常配置，不会触发「拒绝启动」闸门；
-    # web_show_console=true 跳过控制台隐藏，web_minimize_to_tray=false 跳过 pystray。
+    # web_show_console=true 跳过控制台隐藏。
     cfg = tmp_path / "config.ini"
     cfg.write_text(
-        "[Web]\n"
-        "web_host = 127.0.0.1\n"
-        "web_port = 8000\n"
-        "web_auth_enable = false\n"
-        "web_show_console = true\n"
-        "web_minimize_to_tray = false\n",
+        "[Web]\nweb_host = 127.0.0.1\nweb_port = 8000\nweb_auth_enable = false\nweb_show_console = true\n",
         encoding="utf-8",
     )
     return cfg
@@ -95,7 +91,13 @@ def _run_web_main(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_value: st
     else:
         monkeypatch.setenv(_ENV_KEY, env_value)
 
-    web.main()
+    try:
+        web.main()
+    finally:
+        recorder_thread = getattr(engine, "_recorder_thread", None)
+        if recorder_thread is not None:
+            recorder_thread.join(timeout=2)
+            assert not recorder_thread.is_alive()
     return engine
 
 
@@ -117,3 +119,28 @@ def test_falsy_env_var_keeps_panel_stopped(monkeypatch: pytest.MonkeyPatch, tmp_
     # 反向锁：写死 "0"/"false" 也必须回落停止态，不能按「非空即真」判定。
     engine = _run_web_main(monkeypatch, tmp_path, env_value=env_value)
     assert engine.recording_enabled is False
+
+
+@pytest.mark.parametrize("serve_fails", [False, True])
+def test_web_serves_on_main_thread_and_always_cleans_up(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, serve_fails: bool
+) -> None:
+    events: list[str] = []
+
+    async def serve(server: _FakeServer) -> None:
+        assert threading.current_thread() is threading.main_thread()
+        events.append("serve")
+        if serve_fails:
+            raise OSError("server startup failed")
+
+    monkeypatch.setattr(_FakeServer, "serve", serve)
+    monkeypatch.setattr(
+        _FakeEngineModule, "_shutdown_postprocess_executor", lambda engine: events.append("postprocess")
+    )
+    monkeypatch.setattr(_FakeEngineModule, "cleanup_all_ffmpeg_processes", lambda engine: events.append("ffmpeg"))
+    if serve_fails:
+        with pytest.raises(OSError, match="server startup failed"):
+            _run_web_main(monkeypatch, tmp_path, env_value=None)
+    else:
+        _run_web_main(monkeypatch, tmp_path, env_value=None)
+    assert events == ["serve", "postprocess", "ffmpeg"]

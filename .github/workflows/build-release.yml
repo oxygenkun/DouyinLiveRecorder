@@ -7,7 +7,7 @@
 #
 # 构建逻辑统一由仓库根目录 tool/build_exe.py 承担（本地 / CI 行为一致）：
 #   · --dual   PyInstaller 只跑一次，先产 lite（不含运行时）再产 full（含 ffmpeg+node）
-#   · --smoke  对打出的 CLI / Web / GUI 三个入口依次做启动冒烟
+#   · --smoke  对打出的 CLI / Web 两个入口依次做启动冒烟
 #   产物命名：dist/DouyinLiveRecorder-v<版本>-<os>-<arch>{-lite,-full}.zip
 #   · 网络安装（choco / apt / brew / pip）统一经 .github/actions/retry 复合动作
 #     包装（线性退避重试），与 ci.yml 共用同一实现——重试策略调整只改 action.yml 一处。
@@ -270,7 +270,6 @@ jobs:
       # ── ffmpeg：冒烟测试需要（main.py 启动即检查）──────────────────────
       # 冒烟跑在 lite 产物上（不含内置运行时），故四平台都用系统包管理器装一份。
       # full 版本内置的 ffmpeg 由 tool/build_exe.py --dual 在打包阶段单独下载。
-      # Linux 额外装 xvfb：GUI（tkinter/pystray）冒烟需要虚拟显示。
       - name: Install ffmpeg (Windows)
         if: matrix.platform == 'windows'
         uses: ./.github/actions/retry
@@ -280,18 +279,18 @@ jobs:
           command: choco install ffmpeg -y --no-progress
 
       # 两个 Linux 分支按**家族**判定而不是精确等于：linux-arm64 与 linux-x64 需要同一条
-      # xvfb + 包管理器安装链，差别只在 runner 架构（tool/build_exe.py 自己按 runtime_slot_key() 取对应产物）。
-      - name: Install ffmpeg + xvfb (Linux)
+      # 包管理器安装链，差别只在 runner 架构（tool/build_exe.py 自己按 runtime_slot_key() 取对应产物）。
+      - name: Install ffmpeg (Linux)
         if: startsWith(matrix.platform, 'linux')
         uses: ./.github/actions/retry
         with:
-          label: apt 安装 ffmpeg/xvfb
+          label: apt 安装 ffmpeg
           backoff: "15"
           command: >-
             sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq -o Acquire::Retries=3
             && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq
             -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
-            --no-install-recommends ffmpeg xvfb
+            --no-install-recommends ffmpeg
 
       # GitHub 的 macOS runner 预置了未受信的 aws/tap，Homebrew 新的 tap 信任机制
       # 会因此报错。先显式信任该 tap（幂等、失败不阻断，无需重试），安装步骤内的
@@ -342,21 +341,14 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
-          label: uv 锁定安装（build + gui）
+          label: uv 锁定安装（build）
           command: >-
-            uv sync --locked --no-dev --extra build --extra gui
+            uv sync --locked --no-dev --extra build
 
       # --require-pinned：显式表达「发布路径缺钉定即终止」（tool/build_exe.py 在 CI 下本来也
       # 会因 GITHUB_ACTIONS=true 默认开启，这里写出来是为了让发布命令自解释）。
       # 钉定与签名直接使用 tool/build_exe.py 内置表，由构建入口校验。
-      # 家族判定（同上方 Install 步骤）：arm64 job 若不落进本 xvfb 分支，GUI 冒烟在无头 aarch64 上必红；
-      # 若又落进下方通用分支，它拿到的是 tee build_exe.log 而没有 xvfb-run——两条都不接受。
-      - name: Build executables + smoke test (Linux, xvfb)
-        if: startsWith(matrix.platform, 'linux')
-        run: xvfb-run -a python tool/build_exe.py --smoke --dual --require-pinned
-
       - name: Build executables + smoke test
-        if: "!startsWith(matrix.platform, 'linux')"
         shell: bash
         run: |
           set -euo pipefail
@@ -542,7 +534,7 @@ jobs:
             ```
 
             > 产物由 GitHub Actions 在 `windows-latest` / `ubuntu-latest` / `ubuntu-24.04-arm` / `macos-latest`
-            > 四个平台上经 `tool/build_exe.py --smoke --dual` 构建，并已通过 CLI / Web / GUI 三入口启动冒烟测试。
+            > 四个平台上经 `tool/build_exe.py --smoke --dual` 构建，并已通过 CLI / Web 两入口启动冒烟测试。
             > 可执行文件**未做代码签名**，首次运行时系统可能提示未知发布者。
 
       - name: Write job summary

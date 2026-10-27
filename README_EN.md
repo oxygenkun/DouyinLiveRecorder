@@ -28,16 +28,18 @@ Upstream project: [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLi
 | 🎯 **Multi-platform support** | Supports 51 platforms including Douyin, TikTok, YouTube, Kuaishou, Huya, Douyu, Bilibili, etc. (more being added) |
 | 🔄 **Loop monitoring** | Automatically detects live status — starts recording when live and stops when offline |
 | 🎬 **Multiple formats** | Supports TS, MKV, FLV, MP4, MP3, M4A and other output formats |
-| 🖥️ **Three run modes** | CLI mode, GUI mode, and Web management panel mode |
+| 🖥️ **Two run modes** | CLI mode and Web management panel mode |
 | 📊 **Quality monitoring** | Real-time detection of each room's actual quality, with automatic alerts on quality degradation |
 | 💬 **Danmaku recording** | Captures danmaku from Douyin / Douyu / Huya / Bilibili / TwitchTV, outputting SRT subtitles per segment, synced with video start/stop |
-| 👀 **Danmaku monitoring** | Standalone real-time danmaku viewer (not persisted to disk); viewable in both GUI and Web panel |
+| 👀 **Danmaku monitoring** | Standalone real-time danmaku viewer (not persisted to disk); viewable in the Web panel |
 | 🏷️ **Auto anchor-name update** | When an anchor renames, automatically syncs `URL_config.ini` and renames the recording directory and files |
 | 📱 **Message push** | Supports DingTalk, WeChat, email, Telegram, Bark, NTFY, PushPlus, etc. |
 | 🐳 **Docker support** | Supports Docker containerized deployment, ready to use out of the box |
-| 🌐 **Internationalization** | Built-in Simplified Chinese / English (US) / English (UK) / Traditional Chinese, with restart-free hot switching in GUI and Web panel |
+| 🌐 **Internationalization** | Built-in Simplified Chinese / English (US) / English (UK) / Traditional Chinese, with restart-free hot switching in the Web panel |
 | ⚙️ **Flexible config** | Per-room customization of quality, format, segmented recording, etc., with hot-reload of config changes |
 | 🔐 **Web security** | Token auth, login brute-force rate limiting, path-traversal protection, sensitive-config masking, unauthenticated write protection |
+
+> The native Python GUI and Qt tray have been removed. Use the Web panel or CLI; Tauri packaging is planned separately. Existing `[GUI]` and `web_minimize_to_tray` settings are unused and may be removed manually.
 
 ## 🚀 Quick Start
 
@@ -75,16 +77,12 @@ cd DouyinLiveRecorder
 # Install dependencies (uv is recommended)
 uv sync --locked
 
-# Or use pip (base only; desktop users: pip install ".[gui]")
 pip install -r requirements.txt
 
 # Run using the project environment
 uv run --locked python -m src.main        # CLI mode
 uv run --locked python -m src.web         # Web management panel mode
 
-# GUI / Windows Web tray require the optional extra
-uv sync --locked --extra gui
-uv run --locked --extra gui python -m src.gui
 ```
 
 ### Method 3: Run with Docker
@@ -177,7 +175,6 @@ DouyinLiveRecorder/
 │   └── URL_config.ini         # live room URL list
 ├── src/                        # core source package
 │   ├── main.py                     # CLI entry
-│   ├── gui.py                      # GUI entry
 │   ├── web.py                      # Web management panel entry
 │   ├── msg_push.py                 # message push module
 │   ├── i18n.py                     # i18n implementation
@@ -208,7 +205,6 @@ DouyinLiveRecorder/
 │   ├── sync_http.py           # sync HTTP client
 │   ├── web_api.py             # Web management panel Starlette app
 │   ├── web_config.py          # Web panel config read/write
-│   ├── web_tray.py            # Web-mode system tray (minimize to tray)
 │   ├── base.py               # danmaku collector base class (DanmakuBase / DanmakuMessage)
 │   ├── collector.py           # danmaku collector (thread bridge to main flow)
 │   ├── danmaku_monitor.py     # danmaku monitor hub (DanmakuMonitorHub)
@@ -226,11 +222,6 @@ DouyinLiveRecorder/
 │   │   ├── douyin.proto      # protoc source definition
 │   │   ├── douyin_pb2.py      # protoc-generated (DO NOT EDIT)
 │   │   └── douyin_pb2.pyi     # type stub
-│   ├── gui_qt/              # GUI window layer (PySide6/Qt; `gui.py:main()` delegates to this package)
-│   │   ├── app.py           # Qt application assembly and event loop
-│   │   ├── main_window.py   # main window / sidebar navigation
-│   │   ├── theme.py         # design tokens (25 keys x 3 themes) and QSS generation
-│   │   └── pages/           # five pages: dashboard / config / danmaku / quality / runlog
 │   └── javascript/            # JavaScript signature scripts
 │       ├── crypto-js.min.js
 │       ├── x-bogus.js
@@ -244,7 +235,7 @@ DouyinLiveRecorder/
 ├── typings/                    # third-party lib type stubs (for static checks)
 │   └── execjs/                 # PyExecJS stub
 ├── tool/                    # engineering helper scripts
-│   ├── build_exe.py                # PyInstaller packaging script (CLI/GUI/Web three entries)
+│   ├── build_exe.py                # PyInstaller packaging script (CLI/Web two entries)
 │   ├── smoke_test.py           # generic Web/API smoke test (zero-dep, config-driven)
 │   ├── smoke_web.json          # smoke test sample cases (probe Web panel)
 │   ├── compile_po.py           # .po → .mo compile and sync check (--check)
@@ -310,7 +301,7 @@ language =
 # Recording quality 原画|超清|高清|标清|流畅
 原画|超清|高清|标清|流畅 = 原画
 # Custom quality options (comma-separated) — the user-selected quality subset; when empty or all entries are invalid it falls back to the engine's built-in full set (default: empty);
-# the WEB-side add/remove and the GUI-side "switch quality" write back here; choosing a non-default quality writes "quality,live-room address" into config/URL_config.ini
+# Web quality option management writes back here; choosing a non-default quality writes "quality,live-room address" into config/URL_config.ini
 自定义画质选项(逗号分隔) =
 # Whether to use a proxy IP (yes/no)
 是否使用代理ip(是/否) = 否
@@ -478,9 +469,6 @@ web_password =
 web_token_expiry = 86400
 # Whether to show the console window (when false, runs in background; logs written to logs/web_console.log)
 web_show_console = true
-# Minimize the console to the system tray (instead of the taskbar); Windows only;
-# the close button is disabled — exit via the tray icon's "Exit program" menu
-web_minimize_to_tray = true
 # Trusted reverse-proxy sources (comma-separated). Left empty, X-Forwarded-For is not parsed;
 # when behind Nginx/Caddy, fill in the proxy IP so login rate-limiting can obtain the real client IP
 web_trusted_proxy =
@@ -491,27 +479,6 @@ web_allowed_hosts =
 ```
 
 > `web_host` is `127.0.0.1` in the repo's default config (localhost access only). For Docker or LAN/public access, change it to `0.0.0.0`, and be sure to also enable `web_auth_enable` and set `web_password`.
-
-### GUI interface config (config/config.ini)
-
-```ini
-[GUI]
-# UI theme: light | dark | high_contrast (leave empty to follow the system appearance; the sidebar menu writes it back)
-gui_theme = light
-# UI scale: auto | 85 | 100 | 115 | 130 | 150 (auto computes from the usable screen area; the menu writes it back)
-gui_scale = auto
-# Motion level: follow_system | off | subtle | full (the system "turn off animations" switch wins over the user's choice)
-gui_motion = follow_system
-# UI font family: leave empty for the system default (Microsoft YaHei UI)
-gui_font =
-# Custom font file path: written by "Import Font…"; the copy lives under config/fonts/
-gui_font_file =
-```
-
-> Font notes: the preset families in the dropdown are filtered by whether they are **installed on this machine**,
-> so no entry can silently fall back. "Import Font…" accepts `.ttf` / `.otf` / `.ttc` (SFNT containers);
-> `.woff2` / `.woff` are web delivery formats that Tk cannot load through GDI on Windows — convert them
-> to ttf/otf first. The log terminal and URL editor stay on the monospace font regardless of this setting.
 
 Douyin supports the following 5 live-room / profile URL formats (formats for other platforms are shown in the per-platform examples below):
 
@@ -566,23 +533,6 @@ https://www.douyin.com/user/MS4wLjABAAAA3kr2yA4aRD-sjf9cx8xkOH8Di3RjktpKcAvqIetp
 python -m src.main
 ```
 
-### GUI mode
-
-```bash
-python -m src.gui
-```
-
-GUI features (5 sidebar pages):
-- 📊 Console — recording-status overview, start/stop control
-- 🎯 Quality monitoring — real-time check of whether each room's actual quality matches the setting
-- 💬 Danmaku monitoring — real-time view of each room's danmaku stream, with filtering by room/type
-- 📝 URL config — live-room address management
-- 📋 Run logs — subprocess log viewer
-
-The sidebar also provides an **Appearance** selector (light/dark/follow system) and a **Language** selector (Simplified Chinese / English (US) / English (UK) / Traditional Chinese); switching language takes effect immediately and is written back to `config.ini`, with no restart needed.
-
-The system tray icon supports minimizing to the tray for background running.
-
 ### Web management panel mode
 
 ```bash
@@ -619,7 +569,6 @@ The Web mode shares the same recording engine and config file with CLI mode; CRU
 
 Background mode: set `web_show_console` to `false`; under Windows the console window is hidden, logs are written to `logs/web_console.log`, and the program runs fully in the background.
 
-Under Windows the console defaults to "minimize to system tray" (`web_minimize_to_tray = true`): after clicking minimize the window disappears from the taskbar and collapses to the system tray; double-click the tray icon to restore; the title-bar close button is disabled — exit via the tray icon menu's "Exit program".
 
 > ⚠️ **Security note**: the default bind is localhost-only (`127.0.0.1`) with authentication disabled. If Docker, LAN, or public access requires binding to `0.0.0.0`, enable `web_auth_enable` and set a strong password at the same time.
 
@@ -664,7 +613,7 @@ The danmaku features are controlled by two **mutually decoupled** toggles, which
 | Config item | Effect |
 | --- | --- |
 | `是否录制弹幕(是/否)` | Danmaku is written to SRT subtitle files, synced with video start/stop |
-| `是否弹幕监控(是/否)` | Real-time danmaku viewing only, no SRT written (GUI "Danmaku monitoring" page / Web `/api/danmaku`) |
+| `是否弹幕监控(是/否)` | Real-time danmaku viewing only, no SRT written (Web `/api/danmaku`) |
 | `弹幕分片时长(秒)` | SRT segment granularity, recommended to match "视频分段时间(秒)" |
 | `弹幕录制平台(逗号分隔)` | Whitelist of platforms with danmaku enabled |
 
@@ -701,7 +650,7 @@ Four translation catalogs are built in, probed at load time in the order `gettex
 | `zh_TW` | Traditional Chinese | `i18n/zh_TW.yaml` |
 
 - The config key `language`: leave it empty to follow the system language; values such as `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` are accepted and auto-normalized to the canonical language code; unrecognized values or missing language files fall back to `en_US`
-- **Hot switching**: switchable via three paths — the GUI sidebar language selector, the Web panel top-bar language selector, or directly editing `config.ini`; the CLI main loop checks for config changes each round and reloads translations immediately, **no process restart needed** (the running ffmpeg subprocess is unaffected)
+- **Hot switching**: switchable via the Web panel top-bar language selector or directly editing `config.ini`; the CLI main loop checks for config changes each round and reloads translations immediately, **no process restart needed** (the running ffmpeg subprocess is unaffected)
 - Translations no longer depend on the `LANG` / `LANGUAGE` environment variables (generally unset on Windows)
 - `zh_TW.yaml` requires `PyYAML`; if missing, only that language is lost, other formats are unaffected
 
@@ -769,7 +718,7 @@ docker run -d -v ./config:/app/config -v ./downloads:/app/downloads \
 
 ### Switch run mode
 
-`docker-compose.yaml` has three built-in services (recorder / web / gui) that you switch via profile without editing the file:
+`docker-compose.yaml` has two built-in services (recorder / web) that you switch via profile without editing the file:
 
 ```bash
 # CLI recording mode (default, no port used)
@@ -780,7 +729,7 @@ docker compose --profile web up -d
 
 ```
 
-> Docker supports CLI / Web only. There is no GUI image or X11 profile. Install the desktop GUI on the host with `uv sync --locked --extra gui`.
+> Docker supports CLI / Web only.
 
 > ⚠️ Web-mode note: `web.py` listens on `127.0.0.1` by default; inside the container you must set `web_host = 0.0.0.0` in the `[Web]` section of `config/config.ini` to access it from the host; it is also recommended to enable `web_auth_enable = true` and set `web_password`.
 
@@ -832,10 +781,10 @@ ports:
 
 ```bash
 # Use uv (recommended)
-uv sync --locked --extra dev --extra gui
+uv sync --locked --extra dev
 
 # Or use pip (compatibility)
-pip install ".[dev,gui]"
+pip install ".[dev]"
 ```
 
 ### Code conventions

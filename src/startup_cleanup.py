@@ -8,7 +8,7 @@
 #
 # 三条形态约束（失效路径不同，缺一不可）：
 # - 触发一次即止：基线落 logs/.pyc_stamp，源码与版本都没变时零删除，健康轮次不付重编译成本，
-#   也避免 CLI/GUI 子进程/Web 三个入口互相删掉对方刚生成的缓存。
+#   也避免 CLI/Web 两个入口互相删掉对方刚生成的缓存。
 # - 正向白名单：只回收 Python 真正会写缓存的位置（程序目录顶层 + src/ 下直接含 .py 的目录），
 #   不用「递归排除若干目录名」的反向写法——漏登记一个新目录就会删到用户数据或运行期产物。
 # - 全程不抛：本模块在启动早期运行，任何异常都不得让录制主流程起不来。
@@ -105,7 +105,7 @@ def _read_stamp(app_root: Path) -> tuple[str, str] | None:
 def _write_stamp(app_root: Path, version: str, digest: str) -> bool:
     # 原子写基线：同目录临时文件 + os.replace（后者只看父目录写权限，目标已存在也安全覆盖）。
     # 不复用 src.config_io._atomic_write_text：那条路径持 main.file_update_lock（录制引擎锁体系），
-    # 而本模块会被 GUI 进程与录制子进程各自加载，两类锁不得混用。
+    # 而本模块会被 CLI 与 Web 进程各自加载，两类锁不得混用。
     target = _stamp_path(app_root)
     temp = target.with_name(f"{target.name}.{os.getpid()}.tmp")
     try:

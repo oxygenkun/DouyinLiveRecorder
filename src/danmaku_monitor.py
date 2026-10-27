@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # 弹幕监控枢纽：进程级单例，汇总各直播间弹幕采集器上报的实时事件。
-# 两类消费方：Web API（与录制引擎同进程，直接读内存快照：统计 + 增量消息游标）；
-# GUI（子进程跑录制引擎，tail 边车文件 logs/danmaku_monitor.jsonl）。
+# Web API 与录制引擎同进程，直接读内存快照；JSONL 文件保留采样事件日志。
 #
 # 设计约束：
 # - 所有公开方法异常全吞、只记 debug 日志——弹幕监控是旁路功能，任何失败都绝不允许影响录制主流程；
@@ -29,7 +28,7 @@ _RECENT_BUFFER_SIZE = 500
 _MAX_MESSAGES_PER_RESPONSE = 200
 # JSONL 边车文件轮转阈值（字节）：超过后轮转为 .1 备份（仅保留一代）
 _ROTATE_BYTES = 5 * 1024 * 1024
-# stats 事件写入间隔（秒）：房间静默时 GUI 统计行也能周期性刷新
+# stats 事件写入间隔（秒）：房间静默时 监控统计也能周期性刷新
 _STATS_INTERVAL = 5.0
 # 弹幕速率窗口：10 秒一桶 × 6 桶 = 60 秒，窗口内计数之和即 条/分
 _RATE_WINDOW_SEC = 60.0
@@ -274,7 +273,7 @@ def _get_sidecar() -> _SidecarWriter:
 # 弹幕监控枢纽：线程安全地聚合各房间弹幕事件，维护统计与展示流。
 class DanmakuMonitorHub:
     # 初始化枢纽。log_path 为 JSONL 边车文件路径，None 表示禁用文件输出
-    # （仅供测试/无 GUI 消费方场景）；目录不可写时自动降级为禁用。
+    # （不需要事件日志时使用）；目录不可写时自动降级为禁用。
     def __init__(self, log_path: Optional[str] = None) -> None:
         self._lock = threading.Lock()
         # MID-25：磁盘句柄不再由本实例持有，改由进程级 _SidecarWriter 独占（见其注释）。
@@ -388,7 +387,7 @@ class DanmakuMonitorHub:
             )
 
     # 房间停止监控（main.py 的录制线程在 outer try 的 finally 里调用，覆盖录制态/轮询态/解析失败态）：
-    # 从房间表移除条目并写 conn/stopped 事件——GUI 的 _danmaku_dispatch 见 state=="stopped" 即 pop
+    # 从房间表移除条目并写 conn/stopped 事件。
     # 房间行，Web 快照随房间表自动消失；同房间重新录制时由 room_started 重新登记。
     # 条目必须删除：URL 被移除/注释后房间线程已退出，旧实现却让监控页一直残留失效直播间及其旧数据。
     def room_stopped(self, room: str, reason: Optional[str] = None) -> None:
@@ -453,7 +452,7 @@ class DanmakuMonitorHub:
                         state["online"] = self._parse_online(text, int(state["online"]))
                 # MIN-2236④：弹幕能到达即说明「该房间仍在被监控」，这里一并兜底拉起 stats 线程。
                 # 只靠 room_started 会漏两种形态：stats 线程异常退出后房间表非空、以及未经
-                # room_started 隐式注册的房间（上面的 get→建条目分支）——二者都会让 GUI 的
+                # room_started 隐式注册的房间（上面的 get→建条目分支）——二者都会让监控的
                 # msg_rate/online 永久冻结且无任何线索。判活只是 is_alive() 一次属性读。
                 self._ensure_stats_thread()
         except Exception as e:
@@ -625,7 +624,7 @@ class DanmakuMonitorHub:
 
     # 确保周期 stats 线程在运行（房间全部移除后线程自行退出，须持 self._lock 调用）。
     # 两处调用点（room_started 与 room_message）都必需：房间表非空而线程已死时，只靠 room_started
-    # 拉不起新线程，stats 线程一旦停摆 GUI 的 msg_rate/online 就永久冻结。判活用 is_alive()，
+    # 拉不起新线程，stats 线程一旦停摆 监控的 msg_rate/online 就永久冻结。判活用 is_alive()，
     # 线程退出时在 _stats_loop 的 finally 里自注销 self._stats_thread，两者配套才能真的重启。
     def _ensure_stats_thread(self) -> None:
         t = self._stats_thread
@@ -673,7 +672,7 @@ class DanmakuMonitorHub:
                     )
         except Exception as e:
             # 能走到这里说明异常发生在 while 条件/锁之外，线程就此退出。不外抛也不重抛：本线程是
-            # 守护线程，未捕获异常只会向（GUI/无控制台进程里未必存在的）stderr 打一段无人认领的
+            # 守护线程，未捕获异常只会向（无控制台进程里未必存在的）stderr 打一段无人认领的
             # Traceback，而「已退出」这一事实由下面的 finally 自注销 + 本条 warning 完整交代。
             logger.warning(
                 i18n.tr(

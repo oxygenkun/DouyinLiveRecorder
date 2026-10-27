@@ -52,21 +52,20 @@
 
 输入、路径、执行、平台分发复用现有构造入口，不在各平台复制命令。reconnect 选项在 -i 前且紧跟值，HLS 去 reconnect_at_eof；segment_format 经 SEGMENT_FORMAT_BY_SUFFIX 查表。录制命令省略可选 thread_queue_size，重新引入前验证支持版本。操作与测试见 ffmpeg skill。
 
-## 日志、控制台与 GUI / 后台模式
+## 日志、控制台与后台模式
 
-Web 安全拒绝启动必须早于 stdio 重定向，保留日志兜底；重定向后重建 loguru 控制台 sink，GUI 父进程不持录制日志句柄。logger.add 前检查无控制台的空 stderr；异常日志带类型和上下文并脱敏，房间上下文走 extra[room]。退出状态按进程实际结果判断。Web 托盘成功时主线程运行 Qt、服务放后台线程；降级时服务在主线程运行，保留 watchdog、Ctrl+C 退出与 server.should_exit 接线。
+Web 安全拒绝启动必须早于 stdio 重定向，保留日志兜底；重定向后重建 loguru 控制台 sink。logger.add 前检查无控制台的空 stderr；异常日志带类型和上下文并脱敏，房间上下文走 extra[room]。退出状态按进程实际结果判断。Web 服务在主线程运行，由 uvicorn 处理退出信号；finally 保留后处理、ffmpeg 与 HTTP 连接池清理。
 
 ## i18n 文案、目录与占位符
 
 - 后端四语目录键集合一致，修改 po 后重编 mo；前端内嵌目录按对应 UI 文案同步。日志用 i18n.tr(常量模板, **kw)，不先 f-string 插值，形参与占位符同名。
 - 提取器看不全 push 正文、间接模板和 raise 文案，新增可见串核对目录覆盖测试；错误产生点翻译，配置键、正则和机器码不翻译。删孤儿键需核对 AST 调用与测试夹具。
-- tr 的容错包括 AttributeError / TypeError，不能让翻译异常盖掉原故障。GUI 静态标签用 T 登记，动态状态在产生点翻译；语言切换重译、哨兵、动态页、托盘均刷新，配置保存与重译分开容错。
-- Qt 重译清除已销毁 C++ 包装条目；构造标签与 T 登记同一 msgid。解析子进程状态行按翻译后文案惰性构建，语言变化后复验缓存键；未翻译的遗留输出按真实契约匹配。
+- tr 的容错包括 AttributeError / TypeError，不能让翻译异常盖掉原故障。Web 语言切换同时更新后端与前端文案。
 
 ## 配置键名、布尔口径与 SSL 验证
 
 - 配置键不含 = / :，读取 utf-8-sig，键名对比大小写归一；旧迁移键不盲补。补写原子、持锁、幂等，写回结果可被 strict parser 重读。
-- 容错读取用 config_read.tolerant_config_parser；GUI 不经 config_io 引入 main 锁体系。utils 中该依赖保持函数内延迟导入，避免循环依赖。
+- 容错读取用 config_read.tolerant_config_parser。utils 中该依赖保持函数内延迟导入，避免循环依赖。
 - SSL 平台覆盖经 http_config，异常平台只追加不删除用户项；全局已禁用校验时不重复应用覆盖。
 
 ## 凭据与敏感配置脱敏
@@ -95,13 +94,10 @@ Web 安全拒绝启动必须早于 stdio 重定向，保留日志兜底；重定
 
 返回 dict 用 trace_error_decorator，返回 str/tuple/None 用 trace_error_decorator_or_none，调用方解包前判空。说明注释放装饰器上方是风格约定；注释不会改变 Python 的装饰器绑定。平台 JSON 兜底走 _loads_dict / _safe_loads 和现有取值 helper，裸 loads 棘轮不得扩大；装饰器变化须核对熔断失败样本语义。
 
-## Web / GUI 面板与接口层
+## Web 面板与接口层
 
 - Web 路由走 _route，模型走 web_models.parse，保留请求校验、线程池派发与 422 语义；不恢复 FastAPI/pydantic。房间表格保持受作用域约束的固定布局与窄屏横向滚动。
 - 画质写回共用 update_room_quality，刷新编辑器快照和配置显示源，不把子进程旧设置当现值；显示名查表前去序号前缀。
-- 现行 GUI 在 src/gui_qt，令牌集中 theme.py，QSS 用 objectName，等宽字体经 fixed_font。周期 QTimer 异常限频留痕，保留 session_id / stopping / quitting 竞态守卫与停止单飞闸门。
-- 输出链按入队→唤醒信号→主线程排空；自然 EOF 与手动停止按会话去重。真实信号通路须被测试驱动，不能仅直调 drain；不加空闲轮询，不在读线程清进程句柄。
-- legacy Tk 仅维护其现有回归宿主：after 链 finally 续期、wraplength 防抖迟滞、主题/字体按旧控件契约更新。Tk 几何与字号规则不适用于 Qt，新功能不再套用旧实现。
 
 ## 测试质量与审查协作流程
 

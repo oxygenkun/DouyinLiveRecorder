@@ -1,7 +1,7 @@
 # =============================================================================
 # DouyinLiveRecorder .dockerignore
 # 目的：只把容器运行所需内容送入构建上下文，减小体积、避免宿主机敏感文件与开发产物进镜像。
-# 运行所需：main.py / web.py + src/（不含 gui_qt/；javascript/ 签名脚本、platforms/ 各平台实现与
+# 运行所需：main.py / web.py + src/（javascript/ 签名脚本、platforms/ 各平台实现与
 #   弹幕采集、proto/ 弹幕协议）+ web/（面板前端）+ i18n/**/*.mo
 # 红线：编译好的 .mo 是 gettext 运行时必需、Dockerfile 不会重编译，**不可排除**；
 #   只排 .po 源文件（编译脚本 compile_po.py 在 tool/ 下，随 tool/ 整目录排除）。
@@ -174,7 +174,3 @@ _probe_*.py
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Docker 永远不运行桌面 GUI；可选 GUI 只在宿主机安装。
-src/gui.py
-src/gui_qt/

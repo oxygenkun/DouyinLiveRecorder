@@ -37,7 +37,7 @@ WORKDIR /build
 # 只先拷依赖声明文件：仅依赖变更才重装，源码变更不打断层缓存
 COPY pyproject.toml uv.lock ./
 
-# Docker 永远只跑 CLI / Web；GUI 仅供宿主机通过 gui extra 安装。
+# Docker 运行 CLI / Web，仅安装基础依赖。
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 

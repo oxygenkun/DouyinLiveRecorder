@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-# i18n 待翻译串提取器：AST 扫描运行时代码（main/gui/web/msg_push/i18n + src/ 全部 .py），
+# i18n 待翻译串提取器：AST 扫描运行时代码（main/web/msg_push/i18n + src/ 全部 .py），
 # 提取 print() 的全部常量实参、logger.*() 与 i18n.tr() 的首参（常量串或 f-string 模板底稿），
 # 与四语目录（zh_CN.po / en_US.json / en_GB.json / zh_TW.yaml）比对并打印缺失清单。
 # 只读工具、仅供维护期使用：不进运行时链路，也不在 AGENTS.md 的检查命令块里（缺失靠人工跟进）。
 #
-# 三个**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
+# 当前**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
 # 目录并重编 .mo，否则本脚本会一直报「0 缺失」的假绿：
 #   ① color_obj.print_colored(...)（main.py 彩色控制台输出，不是 print 调用）；
-#   ② messagebox.show*（gui.py 弹窗标题与正文）。
 # 另两个边界：web/app.js 自带四套内嵌目录（与后端目录互不相干，不在扫描面内，须手工五处同改）；
 # 「疑似冗余」段只是参考级——孤儿 msgid（目录比代码多）不会变红，改源码删功能时要人工回查。
 #
@@ -86,7 +85,7 @@ def extract_constant_or_template(node: ast.AST, source: str) -> str | None:
 
 
 # i18n.tr(...) 的调用形态：裸 tr 或 <别名>.tr。别名集合必须覆盖仓内全部写法，
-# 否则该调用点会从提取结果消失，缺失检测对它退化为假绿（gui.py 用的是 i18n_module）。
+# 否则该调用点会从提取结果消失，缺失检测对它退化为假绿。
 TR_CALLER_IDS = {"i18n", "i18n_module"}
 
 # 会「查表」的推送模板渲染入口：msg_push.render_push_content(首参常量, ...) 等价于 tr(首参)。
@@ -102,12 +101,6 @@ def _is_push_render_call(func: ast.expr) -> bool:
         and isinstance(func.value, ast.Name)
         and func.value.id in PUSH_RENDER_CALLER_IDS
     )
-
-
-# ui_i18n.T(...) 的调用形态：裸 T（gui.py 的静态标签标记，src/ui_i18n.py 提供）。
-# i18n 静态标签（按钮/表头/窗口标题）经 T() 建时查表 + 登记重译，其 msgid 与 tr 同族；
-# 不纳入扫描面则这批词条只有人工登记一条路，缺失检测对它们退化为假绿。
-T_CALLER_IDS = {"T"}
 
 
 def scan_file(path: Path) -> set[str]:
@@ -145,10 +138,7 @@ def scan_file(path: Path) -> set[str]:
                 and isinstance(func.value, ast.Name)
                 and func.value.id in TR_CALLER_IDS
             )
-            # ui_i18n.T(模板)：静态标签标记，首参同样按规则 5 提取（apply_title 的第二参
-            # 也是 T(...)，内层 T 调用被 ast.walk 独立访问，无需为它写特例）
-            is_t = isinstance(func, ast.Name) and func.id in T_CALLER_IDS
-            if is_tr or is_t or _is_push_render_call(func):
+            if is_tr or _is_push_render_call(func):
                 text = extract_constant_or_template(node.args[0], source)
                 if text is not None:
                     found.add(text)

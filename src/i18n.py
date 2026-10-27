@@ -8,7 +8,7 @@
 # 三种格式均为「原文 → 译文」的扁平字符串映射，加载后统一为 dict，行为一致。
 #
 # 运行时切换：set_language(lang) 热替换翻译函数（_tr），后续 print/logger 输出
-# 即时使用新语言，无需重启进程（Web 面板/GUI 的即时切换语言功能依赖此入口）。
+# 即时使用新语言，无需重启进程（Web 面板 的即时切换语言功能依赖此入口）。
 #
 # 语言解析：resolve_language(value) 为配置键 language 的统一解析入口——
 # 空 → 系统语言（detect_system_language）；不可识别或语言目录文件缺失 → en_US 回退。
@@ -33,7 +33,7 @@ try:
 except ImportError:  # pragma: no cover - 环境相关分支
     yaml = None  # type: ignore[assignment]
 
-# 支持的语言（有序；键为规范语言码，值为界面显示名，供 GUI/Web 语言选择器使用）
+# 支持的语言（有序；键为规范语言码，值为界面显示名，供 Web 语言选择器使用）
 SUPPORTED_LANGUAGES: dict[str, str] = {
     "zh_CN": "简体中文 (Simplified Chinese)",
     "en_US": "English (US)",
@@ -127,7 +127,7 @@ def detect_system_language() -> str | None:
 # Windows 用户默认 UI 语言代码（如 zh_CN / en_US）；非 Windows 或调用失败返回 None
 def _windows_ui_language() -> str | None:
     # 平台门控放函数体首行：WinDLL 仅存在于 Windows typeshed，裸引用会让 mypy 在
-    # 非 win32 平台（CI 的 linux runner）报 attr-defined（对齐 src/web_tray.py 的门控惯例）
+    # 非 win32 平台（CI 的 linux runner）报 attr-defined（通过平台判断门控）
     if sys.platform != "win32":
         return None
     try:
@@ -145,15 +145,14 @@ def _windows_ui_language() -> str | None:
 # 判断某语言是否**真的能装载**出翻译目录（MID-2248）：判据是「加载得到非空映射」而非「文件存在」——
 # set_language 的 _effective_language 与 resolve_language 的唯一判据就是它。用 is_file() 会漏过两种
 # 真实形态：① PyYAML 未安装 → _load_yaml_catalog 返回 None（zh_TW 只剩恒等映射）；② .mo 损坏 →
-# _load_mo_catalog 捕获异常返回 None。漏网时 _current_language 仍被置成请求码，GUI 回退告警（比较
-# effective != lang_code）不触发，日志打出「语言已切换」而界面与录制子进程全是原文——零告警的语言
+# _load_mo_catalog 捕获异常返回 None。漏网时 _current_language 仍被置成请求码，日志打出「语言已切换」而界面仍是原文——零告警的语言
 # 失效。代价：每次判定完整解析一遍目录（.mo/.json/.yaml 各约 680 条），调用频率仅进程启动、
-# GUI/Web 改语言与 main 主循环每轮热同步（≥30s 一轮），可忽略。
+# Web 改语言与 main 主循环每轮热同步（≥30s 一轮），可忽略。
 def has_catalog(lang: str) -> bool:
     return bool(_load_translations(locale_path, lang))
 
 
-# 把配置语言键值解析为最终显示语言（main.py 启动初始化/热切换与 GUI 初始解析的统一入口）：
+# 把配置语言键值解析为最终显示语言（CLI/Web 启动初始化与热切换的统一入口）：
 #   空 / 缺失         → 系统语言（检测结果不可用或无对应目录时回退 FALLBACK_LANGUAGE）
 #   可识别且有目录    → 该语言（别名归一化，如 zh-cn → zh_CN）
 #   不可识别 / 无目录 → FALLBACK_LANGUAGE（en_US）
@@ -192,7 +191,7 @@ _project_root = os.path.normpath(str(module_dir))
 # 判断调用者文件是否位于需要翻译的项目源码目录下。
 def _should_translate(caller_file: str) -> bool:
     caller_norm = os.path.normpath(caller_file)
-    # 在项目根目录下即为项目源码（含 src/ 及 main.py/web.py/gui.py 等）。
+    # 在项目根目录下即为项目源码（含 src/ 及 main.py/web.py 等）。
     # L-03（2026-10-18 审查）：前缀比对必须带路径分隔符边界——裸 startswith 会把「与项目根同名前缀的
     # 兄弟目录」（根为 /proj 时的 /proj-evil/xxx.py）判成本项目源码，第三方目录里的 print 也被翻译；
     # 判定语义是「谁在本项目内」，不是「谁像本项目」。归一后完全相等（把项目根当文件传进来的调用方）
@@ -274,7 +273,7 @@ def _load_translations(locale_dir: str | Path, lang: str) -> dict[str, str] | No
 
 # [MIN-2254 已删除 init_gettext(locale_dir, locale_name)]：它返回的 gettext 函数**绑死在传入的
 # locale_name 上**、不随 set_language() 重读 _tr（切换后静默退回旧语言）；且 gettext.bindtextdomain /
-# textdomain 是进程级全局副作用，会经 gui.py 的 env 传染整个录制子进程树。留一个「看起来能用、
+# textdomain 是进程级全局副作用。留一个「看起来能用、
 # 用了就失去热切换」的公开面是下一个改动踩坑的最短路径，故整体删除、不保留兼容壳；加载目录一律
 # 走 _load_translations / _build_translator（唯一的翻译函数构建入口）。
 
@@ -300,7 +299,7 @@ original_print = builtins.print  # 保存原始 print 函数
 # MID-52：目录缺失时（PyYAML 未装 → zh_TW.yaml 加载不了；发行包漏装 en_GB.json）按 resolve_language
 # 的口径回退 FALLBACK_LANGUAGE，保证 _current_language 与实际装载的目录**永远一致**——旧实现回报
 # 请求码，「语言已切换」是假的，且该码写回 config.ini 后录制子进程经 resolve_language 落到 en_US：
-# 同一部署两种语言。注意：本函数刻意不做系统语言探测（那是 resolve_language 的职责，main/GUI 入口
+# 同一部署两种语言。注意：本函数刻意不做系统语言探测（那是 resolve_language 的职责，CLI/Web 入口
 # 已先调用），否则「set_language('') 应为默认语言」的既有语义会被宿主环境改掉。
 def set_language(lang: str | None) -> str:
     global _current_language, _tr
@@ -312,7 +311,7 @@ def set_language(lang: str | None) -> str:
 
 # 把「请求的语言」折算为「有目录可加载的生效语言」；候选按优先级排列。
 # 全部候选都没有目录（理论上只出现在「整个 i18n 目录没装好」的畸形发行包）时返回 FALLBACK_LANGUAGE
-# ——与 resolve_language 在同一情形下的答案一致，这样 GUI/Web 与录制子进程至少报同一个码（译文都是
+# ——与 resolve_language 在同一情形下的答案一致，这样 Web 与录制子进程至少报同一个码（译文都是
 # 恒等映射，不再有二义）。「有目录」的判据即 has_catalog（MID-2248 收紧为「真的装载得出非空映射」）。
 def _effective_language(lang: str | None) -> str:
     raw = (lang or "").strip()
@@ -336,25 +335,6 @@ def get_language() -> str:
 # 返回受支持的语言映射（键为语言码、值为显示名），供选择器渲染
 def available_languages() -> dict[str, str]:
     return dict(SUPPORTED_LANGUAGES)
-
-
-# 「语言码 → 唯一显示名」表，供 GUI / Web 语言选择器渲染菜单值并做显示名 → 语言码反查。
-# MID-53：GUI 原先自行 `name.split(" (")[0]` 裁剪括注，于是 "English (US)" 与 "English (UK)" 都折成
-# "English"——反查表后写覆盖前写只剩 en_GB，用户永远选不到 en_US，且下拉里出现两个同名项。
-# 显示名的裁剪规则**只此一处**，调用方不得再自行裁剪；重名时追加语言码兜底（语言码互不相同，故
-# 结果必然唯一）。
-def unique_display_names() -> dict[str, str]:
-    names: dict[str, str] = {}
-    used: set[str] = set()
-    for code, name in SUPPORTED_LANGUAGES.items():
-        display = name.strip()
-        if display in used:
-            display = f"{display} ({code})"
-        if display in used:  # 极端情形：追加语言码后仍与既有项重名 → 直接用语言码
-            display = code
-        used.add(display)
-        names[code] = display
-    return names
 
 
 # 包装 print：对来自源码目录的输出自动翻译后再打印。
