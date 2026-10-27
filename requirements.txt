@@ -5,8 +5,8 @@
 #   tests/test_regression_2026_09_22_gates.py 锁死（单侧遗漏直接判红）。Docker / CI 使用
 #   pyproject.toml + uv.lock；本文件仅兼容本地 `pip install -r` 与依赖下限审计。
 # 构建期 / 开发期依赖不入本清单：PyInstaller 见 [project.optional-dependencies].build（>=6.10.0），
-#   pytest / Ruff / pre-commit 见 .dev（`pip install .[build]` / `.[dev]`），
-#   GUI 依赖仅在 .gui（`uv sync --extra gui`），不在基础清单中。前端用例（tests/frontend/*.mjs）用 Node 内置 node:test，
+#   pytest / Ruff / pre-commit 见 .dev（`uv sync --locked --extra build` / `--extra dev`）。
+#   前端用例（tests/frontend/*.mjs）用 Node 内置 node:test，
 #   零 npm 依赖，无需新增 Python 包。
 # 下限口径：全清单只设下限、不设上限（唯一例外 protobuf，理由见该行上方注释）。
 # =============================================================================

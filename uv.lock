@@ -268,7 +268,7 @@ wheels = [
 [[package]]
 name = "douyinliverecorder"
 version = "4.6.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "brotli" },
     { name = "distro" },

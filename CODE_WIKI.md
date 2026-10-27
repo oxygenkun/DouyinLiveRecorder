@@ -914,7 +914,7 @@ def host_of(url: str) -> str: ...
 > 该模块（连同 `tests/test_weverse_auth.py`）已于 2026-09-23 整体删除，结论仅作备查：pip 上的 `weverse`
 > 包会拉入已废弃的 pycrypto==2.6.1（Python 3.10+ 无法编译），**任何时候都不要加入依赖清单**。
 >
-> 注 2：可执行文件打包需 PyInstaller，属于构建期可选依赖：`pip install .[build]`
+> 注 2：可执行文件打包需 PyInstaller，属于构建期可选依赖：`uv sync --locked --extra build`
 >
 > （对应 `pyproject.toml` 的 `[project.optional-dependencies] build`）。
 
@@ -1203,7 +1203,7 @@ python tool/build_exe.py --dual       # 同时生成 lite（无运行时）与 f
 - `hiddenimports`：`i18n`、`src.async_http`（src/main.py 经 `__import__` 动态导入）、`h2`（httpx[http2] 懒加载）；`a_web` 额外 `collect_submodules('uvicorn')`（协议模块按字符串导入）。
 - `excludes`: CLI and Web exclude desktop libraries; CLI also excludes Web server libraries. Both share `_internal/`.
 
-**版本号**：从 `pyproject.toml` 的 `version` 字段解析（单一事实源），用于 zip 命名，解析失败回退 `0.0.0`。`src/main.py` 运行时同样从 `pyproject.toml` 动态读取版本号（优先 `importlib.metadata`，回退直接解析文件）。
+**版本号**：从 `pyproject.toml` 的 `version` 字段解析（单一事实源），用于 zip 命名，解析失败回退 `0.0.0`。`src/main.py` 运行时同样从 `pyproject.toml` 动态读取版本号（直接解析文件）。
 
 ### 2. 目录结构规范（打包产物）
 
@@ -1303,7 +1303,7 @@ def _app_root() -> str:
 
 1. `prepare` job：用 tomllib 从 pyproject.toml 提取版本号并校验 tag 一致（打错 tag 直接失败），跑 `check_version.py` 确认各消费方动态读取。
 2. `release-create` job：发版路径下**预创建** Release 记录（单例 job，消除多平台 build 并发创建同一 Release 的竞态；不传 files）；手动发版路径在此补建轻量 tag（Release 必须挂在 tag 上）。
-3. build job（矩阵）：各平台以系统包管理器装 ffmpeg 供冒烟——Windows `choco`、Linux `apt`、macOS `brew`（`brew trust aws/tap` 为独立幂等步骤，`HOMEBREW_*` 变量在命令内 export）；**全部网络安装命令经 `.github/actions/retry` 复合动作包装**（线性退避 ×3，系统包管理器退避 15s、pip 10s）；依赖为 `pip install -r requirements.txt` + `pip install ".[build]"`。
+3. build job（矩阵）：各平台以系统包管理器装 ffmpeg 供冒烟——Windows `choco`、Linux `apt`、macOS `brew`（`brew trust aws/tap` 为独立幂等步骤，`HOMEBREW_*` 变量在命令内 export）；**全部网络安装命令经 `.github/actions/retry` 复合动作包装**（线性退避 ×3，系统包管理器退避 15s、pip 10s）；依赖统一通过 `uv sync --locked --extra build` 安装。
 5. 产物发布：发版路径（tag / 手动勾选 create_release）由 build job 经 `softprops/action-gh-release@v3` 把 zip **直传 Release**（显式 `tag_name` 与 release-create 指向同一 Release，GitHub 支持同 Release 并发上传不同 asset）；仅构建路径走 `upload-artifact@v7`（`compression-level: 0` 跳过二次压缩，留存 30 天供人工取回）。
 6. `release` job（发版路径）：`gh release download` 拉回已发布附件校验齐全（4 平台 ×（lite+full）= 8 个 zip，缺失即失败不发布残缺 Release），生成 `SHA256SUMS.txt`，最后经 `softprops/action-gh-release@v3` 补传校验和并写发版说明（`generate_release_notes: true`）。
 
@@ -1597,6 +1597,11 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **修改内容** · `docs/agent-reference/project-structure.md`、`docs/agent-reference/session-learnings.md` — 目录树同步新增模块与测试文件；经验条目追加（ADS 夹具、保留设备名实测、用例数增量归因、offscreen 探针的退出形态、先测后改的冗余度量、锚点优于行号、`strict=True` 下的重复键）
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
+
+### 2026-10-28 — 移除项目包构建
+
+- 移除项目自身的 setuptools 构建配置、安装命令入口及已跟踪的 egg-info，uv 仅同步依赖，CLI / Web 使用 `python -m src.main` / `src.web` 启动。版本直接读取 `pyproject.toml`，PyInstaller 将该文件随两个入口一并打包；开发指引、CI 与相关回归用例同步调整。
+- PyInstaller 的 setuptools 传递依赖仍由锁文件管理；历史日志仅记录当时状态，不作为现行安装要求。
 
 ### 2026-10-28 — 清理开发工具绑定
 

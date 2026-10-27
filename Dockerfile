@@ -39,7 +39,7 @@ COPY pyproject.toml uv.lock ./
 
 # Docker 运行 CLI / Web，仅安装基础依赖。
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-install-project
+    uv sync --locked --no-dev
 
 # -----------------------------------------------------------------------------
 # 自建精简 FFmpeg（2026-10-22）
@@ -114,7 +114,7 @@ FROM python:3.14-slim-bookworm
 ARG TZ=Asia/Shanghai
 # 版本号唯一事实源是 pyproject.toml 的 [project].version，构建时经 --build-arg APP_VERSION 注入；
 # docker-compose.yaml 从 .env 读同名变量，不设则 LABEL version 为空（镜像内版本仍由
-# main.py / src/web_api.py 经 importlib.metadata 在运行时读取）。本地 / CI 取值：
+# main.py / src/web_api.py 经 pyproject.toml 在运行时读取）。本地 / CI 取值：
 #   docker build --build-arg APP_VERSION="$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
 # MIN-14（2026-09-21）：ARG 必须声明在**使用它的 LABEL 之前**——Dockerfile 按行做变量替换，
 # 顺序颠倒会让 version 标签固化为空串、--build-arg 完全不生效；tool/check_version.py 现已

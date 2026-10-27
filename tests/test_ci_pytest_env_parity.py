@@ -18,7 +18,7 @@ CI_FILE = ROOT / ".github" / "workflows" / "ci.yml"
 # 那条 job 也是靠 requirements.txt 兜底的，纳入判定面只会让锁更紧而非更松。
 _PYTEST_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_.\-])pytest(?![A-Za-z0-9_\-])")
 
-# 运行时依赖安装锚点：uv sync --locked 必须安装项目及基础依赖，不能只装工具组。
+# 运行时依赖安装锚点：uv sync --locked 必须安装基础依赖，不能只装工具组。
 # [历史注 2026-10-23] 从 pip requirements 迁移；extra 同步会连同基础依赖一起安装。
 _REQUIREMENTS_INSTALL_RE = re.compile(r"uv sync --locked\b(?![^\n|&;]*--(?:only|no-install)-)")
 

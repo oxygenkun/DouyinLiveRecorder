@@ -98,10 +98,6 @@ build = [
     "pyinstaller>=6.10.0",
 ]
 
-[project.scripts]
-douyin-recorder = "src.main:main"
-douyin-recorder-web = "src.web:main"
-
 [project.urls]
 Homepage = "https://github.com/y123ao6/DouyinLiveRecorder"
 Documentation = "https://github.com/y123ao6/DouyinLiveRecorder"
@@ -110,24 +106,8 @@ Issues = "https://github.com/y123ao6/DouyinLiveRecorder/issues"
 Changelog = "https://github.com/y123ao6/DouyinLiveRecorder/releases"
 Sponsor = "https://github.com/sponsors/y123ao6"
 
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-# 子包必须显式列出：显式 packages 不递归发现，漏列会让 `pip install .` 产出的发行包缺失
-# src/platforms（各平台弹幕采集器）与 src/proto（抖音弹幕 protobuf），运行时以
-# ModuleNotFoundError，因此显式列出全部运行时子包。
-packages = ["src", "src.platforms", "src.proto"]
-
-
-[tool.setuptools.package-data]
-src = ["javascript/*.js"]
-# douyin.proto 是 douyin_pb2.py 的生成源：跨大版本升级 protobuf runtime 前须用同代 protoc
-# 重新生成（见上方 F-14 注释），故必须随发行包分发；漏列会让 sdist 里只剩生成物没有源定义
-"src.proto" = ["*.proto"]
-# 注：i18n/ 翻译目录不是 Python 包（无 __init__.py），无法通过 package-data 分发；
-# .mo 文件随 git 仓库、发布 zip（tool/build_exe.py）与 Docker 镜像分发。
+[tool.uv]
+package = false
 
 [tool.ruff]
 include = ["*.py", "*.pyi"]

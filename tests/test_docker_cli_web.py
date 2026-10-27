@@ -13,7 +13,7 @@ def test_image_installs_locked_base_dependencies_only() -> None:
     # 只看可执行指令，历史说明里的包名不应影响安装契约。
     text = DOCKERFILE.read_text(encoding="utf-8")
     instructions = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    assert "uv sync --locked --no-dev --no-install-project" in instructions
+    assert "uv sync --locked --no-dev" in instructions
     assert "COPY pyproject.toml uv.lock ./" in instructions
     assert "--extra" not in instructions
     assert "INSTALL_GUI" not in instructions
@@ -40,10 +40,8 @@ def test_published_image_workflow_has_no_gui_option() -> None:
     assert "--extra gui" not in text
 
 
-def test_distribution_exposes_cli_and_web_entry_points() -> None:
+def test_project_runs_from_source_without_package_installation() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert metadata["project"]["scripts"] == {
-        "douyin-recorder": "src.main:main",
-        "douyin-recorder-web": "src.web:main",
-    }
-    assert set(metadata["tool"]["setuptools"]["packages"]) == {"src", "src.platforms", "src.proto"}
+    assert metadata["tool"]["uv"]["package"] is False
+    assert "build-system" not in metadata
+    assert "scripts" not in metadata["project"]

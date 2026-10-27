@@ -7,6 +7,7 @@ import sys
 import threading
 import types
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -566,3 +567,29 @@ def test_postprocess_drain_returns_when_budget_expires(main_mod: Any, monkeypatc
         for worker in workers:
             worker.join(timeout=2)
             assert not worker.is_alive()
+
+
+@pytest.mark.parametrize("entry", ["cli", "web"])
+@pytest.mark.parametrize("layout", ["source", "_internal"])
+@pytest.mark.parametrize("configured_version", ["9.8.7", None])
+def test_version_reads_source_config_in_source_and_frozen_layouts(
+    main_mod: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    entry: str,
+    layout: str,
+    configured_version: str | None,
+) -> None:
+    from src import web_api
+
+    module = main_mod if entry == "cli" else web_api
+    app_root = tmp_path / layout
+    (app_root / "src").mkdir(parents=True)
+    if configured_version is not None:
+        (app_root / "pyproject.toml").write_text(f'[project]\nversion = "{configured_version}"\n', encoding="utf-8")
+    monkeypatch.setattr(module, "__file__", str(app_root / "src" / "entry.py"))
+    expected = configured_version or "0.0.0"
+    if entry == "cli":
+        assert module._read_version_from_pyproject() == f"v{expected}"
+    else:
+        assert module._read_app_version() == expected

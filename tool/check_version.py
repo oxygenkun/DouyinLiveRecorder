@@ -2,8 +2,8 @@
 #
 # 单一事实源 = pyproject.toml 的 version 字段。各消费方一律**动态读取**，所以本脚本查的不是
 # 「各处版本号字符串是否相等」，而是「动态化是否还在、有没有人重新写死」：
-#   - main.py         运行时经 importlib.metadata / 正则从 pyproject.toml 读
-#   - src/web_api.py  经 importlib.metadata 动态读取（_read_app_version）
+#   - main.py         运行时经 pyproject.toml 直接读取
+#   - src/web_api.py  经 pyproject.toml 动态读取（_read_app_version）
 #                     [历史注] 2026-09-29 阶段2（FastAPI → Starlette）迁移前检查对象是
 #                     FastAPI(version=) 构造参数，FastAPI 依赖移除后同步换对象，fail-closed 语义保留
 #   - Dockerfile      经 APP_VERSION 构建参数注入；另校验「ARG APP_VERSION 声明行早于使用它的
@@ -112,21 +112,14 @@ def check_dockerfile_arg_order() -> str | None:
 
 
 def extract_webapi_version() -> str | None:
-    # src/web_api.py 的版本号应经 _read_app_version 动态读取（importlib.metadata 优先、
-    # 解析 pyproject.toml 兜底），不应写死字面版本号。
-    # 阶段2（FastAPI → Starlette）后 FastAPI(version=) 构造点已不存在，检查对象换成
-    # importlib.metadata 动态读取形态；「检查对象消失仍按失败处理」的 MIN-2262 语义保留。
-    # 返回:
-    #   "DYNAMIC"  -> 经 importlib.metadata 动态读取（正确）
-    #   字面版本号  -> 模块级版本常量写死了字面量（应改为动态）
-    #   None       -> 未找到动态读取形态（MIN-2262：调用方按**失败**处理）
+    # Web 入口从 pyproject.toml 读取版本；读取函数或调用缺失仍按失败处理。
+    # 返回 DYNAMIC、硬编码版本号或 None（缺少动态读取）。
     text = (ROOT / "src" / "web_api.py").read_text(encoding="utf-8")
-    if not re.search(r"importlib\.metadata", text):
-        return None
-    # 动态读取形态在位；再防「保留 import 但把模块级常量回填成字面量」的半吊子写法
     m = re.search(r"_APP_VERSION\s*=\s*[\"'](\d[\w.]*)[\"']", text)
     if m:
         return m.group(1)
+    if not re.search(r"_APP_VERSION\s*=\s*_read_app_version\(\)", text) or "pyproject.toml" not in text:
+        return None
     return "DYNAMIC"
 
 
@@ -191,12 +184,12 @@ def main() -> int:
     # 检查 src/web_api.py 的版本号是否动态读取
     web_status = extract_webapi_version()
     if web_status == "DYNAMIC":
-        print("  [OK]   src/web_api.py: 版本号经 importlib.metadata 动态读取")
+        print("  [OK]   src/web_api.py: 版本号经 pyproject.toml 动态读取")
     elif web_status is None:
         # MIN-2262（2026-09-23）：把动态读取整段删掉即可让本项从「检查」变成「跳过」，
         # 属最省事的破坏。要求检查对象存在，确需放行时显式加开关，不得默认放行消失态。
         errors.append(
-            "  [FAIL] src/web_api.py: 未找到版本号动态读取形态（importlib.metadata）（检查对象消失，不得当作通过）"
+            "  [FAIL] src/web_api.py: 未找到版本号动态读取形态（pyproject.toml）（检查对象消失，不得当作通过）"
         )
     else:
         errors.append(f"  [FAIL] src/web_api.py: 仍写死版本号 {web_status}（应从 pyproject.toml 动态读取）")

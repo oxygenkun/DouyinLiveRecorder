@@ -170,14 +170,7 @@ from src.video_postprocess import (
 
 
 # 版本号唯一事实源是 pyproject.toml；解析失败时回退 v0.0.0
-# 已安装发行包时走 importlib.metadata；源码直跑取不到包名，只能自行解析 pyproject.toml
 def _read_version_from_pyproject() -> str:
-    try:
-        from importlib.metadata import version as get_version
-
-        return f"v{get_version('DouyinLiveRecorder')}"
-    except Exception:
-        pass
     pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
     if pyproject_path.exists():
         text = pyproject_path.read_text(encoding="utf-8")

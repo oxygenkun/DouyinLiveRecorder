@@ -266,3 +266,25 @@ class TestSmokeConfigValid:
         checks, base_url = smoke_test.load_config(str(ROOT / "tool" / "smoke_web.json"))
         assert len(checks) == 2
         assert base_url == "http://127.0.0.1:8000"
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        (
+            'def _read_app_version():\n    return read("pyproject.toml")\n_APP_VERSION = _read_app_version()\n',
+            "DYNAMIC",
+        ),
+        ('_APP_VERSION = "1.2.3"\n', "1.2.3"),
+        ("", None),
+    ],
+)
+def test_version_check_requires_source_version_reader(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, source: str, expected: str | None
+) -> None:
+    from tool import check_version
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "web_api.py").write_text(source, encoding="utf-8")
+    monkeypatch.setattr(check_version, "ROOT", tmp_path)
+    assert check_version.extract_webapi_version() == expected

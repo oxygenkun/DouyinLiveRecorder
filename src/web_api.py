@@ -457,14 +457,7 @@ def _get_client_ip(request: Request, cfg: dict[str, str | int | bool]) -> str:
 
 def _read_app_version() -> str:
     # 运行时从 pyproject.toml 读取版本号（单一事实源），失败回退 "0.0.0"。
-    # 优先 importlib.metadata（已安装时），回退直接解析 pyproject.toml 文件。
     # 与 main.py 的 _read_version_from_pyproject 保持一致的数据来源。
-    try:
-        from importlib.metadata import version as _get_version
-
-        return _get_version("DouyinLiveRecorder")
-    except Exception:
-        pass
     pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
     if pyproject_path.exists():
         text = pyproject_path.read_text(encoding="utf-8")

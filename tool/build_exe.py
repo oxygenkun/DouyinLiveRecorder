@@ -134,6 +134,7 @@ from PyInstaller.utils.hooks import collect_submodules
 excludes_bloat = {bloat_excludes}
 
 datas = [
+    ('pyproject.toml', '.'),                # CLI / Web 从源码配置读取版本，冻结后同样可用
     ('src/javascript', 'src/javascript'),   # JS 签名脚本（src/__init__.py 经 __file__ 定位 → _internal/src/javascript）
     *{i18n_datas},   # 翻译目录（剔除 *.po 源文件；由 build_exe.i18n_datas_entries() 生成）
     ('web', 'web'),                         # Web 面板静态资源（src/web_api.py 经 __file__ 定位 → _internal/web）

@@ -919,7 +919,7 @@ def host_of(url: str) -> str: ...
 > for reference only: the pip `weverse` package pulls in the deprecated pycrypto==2.6.1 (uncompilable on Python 3.10+),
 > so it must **never** be added to the dependency list.
 >
-> Note 2: Executable packaging requires PyInstaller, an optional build-time dependency: `pip install .[build]`
+> Note 2: Executable packaging requires PyInstaller, an optional build-time dependency: `uv sync --locked --extra build`
 >
 > (corresponding to `pyproject.toml`'s `[project.optional-dependencies] build`).
 
@@ -1187,7 +1187,7 @@ python tool/build_exe.py --dual       # emit both zips: lite (no runtime) and fu
 - `hiddenimports`: `i18n`, `src.async_http` (dynamically imported by src/main.py via `__import__`), `h2` (httpx[http2] lazy load); `a_web` additionally `collect_submodules('uvicorn')` (protocol modules imported by string).
 - `excludes`: CLI and Web exclude desktop libraries; CLI also excludes Web server libraries. Both share `_internal/`.
 
-**Version number**: Parsed from the `version` field of `pyproject.toml` (single source of truth), used for zip naming; falls back to `0.0.0` on parse failure. `src/main.py` also reads the version dynamically from `pyproject.toml` at runtime (prefers `importlib.metadata`, falls back to parsing the file directly).
+**Version number**: Parsed from the `version` field of `pyproject.toml` (single source of truth), used for zip naming; falls back to `0.0.0` on parse failure. `src/main.py` also reads the version dynamically from `pyproject.toml` at runtime (reading the file directly).
 
 ### 2. Directory Structure Convention (packaging artifact)
 
@@ -1579,6 +1579,11 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **Modified** · `docs/agent-reference/project-structure.md`, `docs/agent-reference/session-learnings.md` — The directory tree synced with the new modules and test files; lessons appended (the ADS fixture, the reserved-name measurement, the case-count attribution, the offscreen probe exit shape, measuring redundancy before editing, anchors over line numbers, and duplicate keys under `strict=True`)
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
+
+### 2026-10-28 — Remove project package builds
+
+- Remove the project's setuptools build configuration, installed command entry points and tracked egg-info. uv only syncs dependencies; run CLI / Web with `python -m src.main` / `src.web`. Read the version directly from `pyproject.toml` and include it in the shared PyInstaller output. Update development instructions, CI and regression coverage.
+- PyInstaller still requires setuptools as a locked transitive dependency. Historical logs describe past states and do not define current installation requirements.
 
 ### 2026-10-28 — Remove development-tool bindings
 

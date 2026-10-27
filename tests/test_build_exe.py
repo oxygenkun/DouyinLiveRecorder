@@ -1524,6 +1524,11 @@ def test_every_analysis_applies_the_bloat_excludes() -> None:
         i18n_datas=build_exe.i18n_datas_entries(),
     )
     assert rendered.count("excludes=excludes_bloat +") == 2, "两个 Analysis 必须都挂上排除清单"
+    spec = ast.parse(rendered)
+    datas = next(node for node in spec.body if isinstance(node, ast.Assign) and node.targets[0].id == "datas")
+    assert ("pyproject.toml", ".") in [
+        ast.literal_eval(item) for item in datas.value.elts if isinstance(item, ast.Tuple)
+    ]
 
 
 def test_i18n_datas_skip_po_sources_but_keep_runtime_formats() -> None:

@@ -16,8 +16,6 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-# 仓库当前保留一份已跟踪的 DouyinLiveRecorder.egg-info 元数据快照；下列规则仅阻止
-# 其它/新增 egg-info 目录误入库，已跟踪文件仍会正常出现在 git diff 中并须随 pyproject 重建。
 .Python
 build/
 develop-eggs/
@@ -33,9 +31,6 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
-# 本目录内文件全部保持跟踪；不加否定规则时，git add 显式传入该目录名会因匹配上一行
-# 而整体报 ignored 失败（即使目录内文件全部已跟踪），提交工具按退出码中止提交。
-!DouyinLiveRecorder.egg-info/
 .installed.cfg
 *.egg
 MANIFEST

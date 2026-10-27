@@ -71,7 +71,7 @@
 git clone https://github.com/y123ao6/DouyinLiveRecorder.git
 cd DouyinLiveRecorder
 
-# 安装依赖（推荐使用 uv）
+# 只安装依赖，项目直接从源码运行（推荐使用 uv）
 uv sync --locked
 
 pip install -r requirements.txt
@@ -768,9 +768,6 @@ ports:
 ```bash
 # 使用 uv（推荐）
 uv sync --locked --extra dev
-
-# 或使用 pip（兼容入口）
-pip install ".[dev]"
 ```
 
 ### 代码规范

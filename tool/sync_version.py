@@ -8,7 +8,7 @@
 # python tool/sync_version.py --dry-run    # 显示将要做的变更但不实际写入
 #
 # 现状：版本号已全部动态化，SYNC_TARGETS 为空——运行时（main.py / src/web_api.py）经
-# importlib.metadata 读 pyproject.toml，Dockerfile 经 APP_VERSION 构建参数注入，
+# 直接读取 pyproject.toml，Dockerfile 经 APP_VERSION 构建参数注入，
 # i18n/zh_CN.po 不再携带版本号，README / CODE_WIKI 由人工维护、不在本脚本范围。
 # 故版本一致性检查不是本脚本，而是 tool/check_version.py（它查「动态化有没有被改回写死」，
 # 且在 AGENTS.md 检查命令块里）；本脚本结构保留，供将来真出现写死版本时复用。

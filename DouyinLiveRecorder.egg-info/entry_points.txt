@@ -1,3 +1,0 @@
-[console_scripts]
-douyin-recorder = src.main:main
-douyin-recorder-web = src.web:main

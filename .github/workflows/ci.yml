@@ -142,7 +142,7 @@ jobs:
       # 就是「跑全量」，故不再做路径过滤。
       # [历史注] 原过滤口径（2026-09-20 定稿）为：src/**、tests/**、tool/**、i18n/**、
       # web/**、源码入口（main/web/i18n/msg_push.py）、requirements.txt、pyproject.toml、
-      # uv.lock、DouyinLiveRecorder.egg-info/**、.coveragerc-concurrency、Dockerfile、
+      # uv.lock、.coveragerc-concurrency、Dockerfile、
       # docker-compose.yaml、.github/workflows/**、.github/actions/** 归入 python 组。
 
   # ── 1. 静态检查（格式 / 导入序 / 版本一致性 / 钉定表结构 / 翻译同步）─
@@ -176,7 +176,7 @@ jobs:
         with:
           label: uv 安装 Ruff
           command: >-
-            uv sync --locked --no-dev --extra dev --no-install-project
+            uv sync --locked --no-dev --extra dev
 
       # 格式参数与 AGENTS.md 唯一清单一致；排除范围由 tool.ruff 统一定义。
       - name: Run Ruff format check

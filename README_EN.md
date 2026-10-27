@@ -782,9 +782,6 @@ ports:
 ```bash
 # Use uv (recommended)
 uv sync --locked --extra dev
-
-# Or use pip (compatibility)
-pip install ".[dev]"
 ```
 
 ### Code conventions

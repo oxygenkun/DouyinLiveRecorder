@@ -25,7 +25,7 @@
 
 ## 依赖管理
 
-- `pyproject.toml` 声明、`uv.lock` 锁定；CI / Docker 用 `--locked`。基础安装 `uv sync --locked`，开发加 `--extra dev`，打包再加 `--extra build`；不以 `--dev` 替代现有 dev extra。
+- 项目按源码运行，`[tool.uv] package = false`，不构建或安装项目自身。`pyproject.toml` 声明依赖、`uv.lock` 锁定；CI / Docker 用 `--locked`。基础安装 `uv sync --locked`，开发加 `--extra dev`，打包再加 `--extra build`；不以 `--dev` 替代现有 dev extra。
 - `requirements.txt` 是基础依赖的 pip 兼容清单，与 project.dependencies 同步。比对时去行内注释、归一包名与规格集合；dev / build 依赖不放回基础清单。
 - 安全下限以依赖声明和审计为准；新增或抬升依赖下限跑 `deps-audit`，不随意加漏洞忽略项。pip-audit 属审计工具，不进运行时依赖。
 - protobuf 上限放宽前先用兼容的 protoc 重新生成，禁止手改 `douyin_pb2.py`；引用的动态消息字段与现有 `.pyi` 同步。
@@ -134,7 +134,7 @@ ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成
 
 ## 关键约定
 
-- 版本唯一声明在 pyproject；入口经 importlib.metadata 动态读取，Docker 经 APP_VERSION 注入；文档版本按需同步。
+- 版本唯一声明在 pyproject；入口直接读取 pyproject.toml，Docker 经 APP_VERSION 注入；文档版本按需同步。
 - 布尔解析复用 config_bool.parse_config_bool，读取写回复用 config_io.read_config_bool；前端 parseConfigBool 保持同一 token 集合，未知值走默认且不覆写用户原文。
 - 改公共符号前用 rg 搜索调用点、测试、资源和 standalone 孪生实现；删符号后不留悬空调用。src/main.py 内部的 main 是函数，不作模块前缀使用。
 - JS 文件增删与 utils._JS_SHA256_EXPECTED 同步；migu.js 返回完整签名 URL，调用方不再拼过时参数。

@@ -71,10 +71,6 @@ stderr **18 条** `Unable to parse file`；带 `PYTHONUTF8=1` 时 **rc=0、stder
 
 Node 运行时以 24.19.0 实测为准（全部 JS 签名脚本 + migu.js 通过），Dockerfile 随之安装 Node 24 LTS。FFmpeg 以 9.0 为基线，9.0 移除的 CLI 参数清单：`-vsync` / `-top` / `-qphist` / `-filter_complex_script` / `-adrift_threshold`。录制命令中的冗余 `-v verbose` 已删除（被 `-loglevel error` 覆盖）。
 
-## egg-info 腐化实例
-
-2026-09-18 对账时发现 `DouyinLiveRecorder.egg-info` 仍停留在 4.1.0 快照：`PKG-INFO` 版本 4.1.0（pyproject 已 4.3.0）、`requires.txt` 仍是 `websockets>=12.0` 与无上限的 `protobuf>=6.31.1`、`SOURCES.txt` 缺 30+ 文件。
-
 ## Dockerfile ARG 旧检查失效形态
 
 旧 `scripts/check_version.py` 只正则匹配「有没有 `version="${APP_VERSION}"` 这个字面」，顺序颠倒照样判 DYNAMIC——即检查对 ARG 声明在使用点之后的失效永久失明。
