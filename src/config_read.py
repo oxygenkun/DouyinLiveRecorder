@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import Final
 
-import i18n
+from src import i18n
 from src.logger import logger
 from src.web_config import TEXT_ENCODING
 

@@ -28,8 +28,8 @@ _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
 _PATH_BASELINE = sys.path.count(_REPO_ROOT)  # 注入前的条目数（各调用形态下都实测为 0 或 1）
 sys.path.insert(0, _REPO_ROOT)
 try:
-    import main  # noqa: E402  必须在 src.notify 之前
     import src.notify as notify  # noqa: E402
+    from src import main  # noqa: E402  必须在 src.notify 之前
 finally:
     if _REPO_ROOT in sys.path:
         sys.path.remove(_REPO_ROOT)
@@ -177,7 +177,7 @@ def test_push_message_sends_room_name_as_bark_title(monkeypatch: pytest.MonkeyPa
 # 占位符、也没有被翻译的字段」，坏掉会立刻红。
 @pytest.mark.parametrize("lang", ["zh_CN", "en_US", "en_GB", "zh_TW"])
 def test_build_push_title_keeps_placeholder_out_of_translation(monkeypatch: pytest.MonkeyPatch, lang: str) -> None:
-    import i18n
+    from src import i18n
 
     original = i18n.get_language()
     monkeypatch.setattr(main, "push_message_title", "")

@@ -79,12 +79,12 @@ uv sync --locked
 pip install -r requirements.txt
 
 # Run using the project environment
-uv run --locked python main.py        # CLI mode
-uv run --locked python web.py         # Web management panel mode
+uv run --locked python -m src.main        # CLI mode
+uv run --locked python -m src.web         # Web management panel mode
 
 # GUI / Windows Web tray require the optional extra
 uv sync --locked --extra gui
-uv run --locked --extra gui python gui.py
+uv run --locked --extra gui python -m src.gui
 ```
 
 ### Method 3: Run with Docker
@@ -176,6 +176,11 @@ DouyinLiveRecorder/
 │   ├── config.ini             # main config file
 │   └── URL_config.ini         # live room URL list
 ├── src/                        # core source package
+│   ├── main.py                     # CLI entry
+│   ├── gui.py                      # GUI entry
+│   ├── web.py                      # Web management panel entry
+│   ├── msg_push.py                 # message push module
+│   ├── i18n.py                     # i18n implementation
 │   ├── __init__.py             # package init + Node.js env config + danmaku platform registry/factory
 │   ├── spider.py              # live stream URL parsing (60+ platforms, danmaku logic extracted)
 │   ├── stream.py              # live stream recording orchestration (ffmpeg commands/segmentation/format)
@@ -238,7 +243,8 @@ DouyinLiveRecorder/
 │   └── style.css               # stylesheet (theme, responsive)
 ├── typings/                    # third-party lib type stubs (for static checks)
 │   └── execjs/                 # PyExecJS stub
-├── scripts/                    # engineering helper scripts
+├── tool/                    # engineering helper scripts
+│   ├── build_exe.py                # PyInstaller packaging script (CLI/GUI/Web three entries)
 │   ├── smoke_test.py           # generic Web/API smoke test (zero-dep, config-driven)
 │   ├── smoke_web.json          # smoke test sample cases (probe Web panel)
 │   ├── compile_po.py           # .po → .mo compile and sync check (--check)
@@ -256,13 +262,7 @@ DouyinLiveRecorder/
 │   └── zh_TW.yaml              # Traditional Chinese (YAML catalog, requires PyYAML)
 ├── ffmpeg/                     # FFmpeg dir (Windows)
 ├── node/                       # Node.js dir (Windows)
-├── main.py                     # CLI entry
-├── gui.py                      # GUI entry
-├── web.py                      # Web management panel entry
 ├── index.html                  # M3U8 video player (standalone tool page)
-├── msg_push.py                 # message push module
-├── i18n.py                     # i18n implementation
-├── build_exe.py                # PyInstaller packaging script (CLI/GUI/Web three entries)
 ├── requirements.txt            # Python dependencies
 ├── pyproject.toml             # Python project config
 ├── Dockerfile                  # Docker build file (multi-stage)
@@ -289,7 +289,7 @@ language =
 是否启用日志文件(是/否) = 是
 # Purge stale bytecode caches at startup: runs only when the version or source content changed
 # (no-op otherwise). Scope is __pycache__ under the app folder and src/ only - never tests/,
-# scripts/, downloads/ and similar directories
+# tool/, downloads/ and similar directories
 是否启动时清理陈旧字节码缓存(是/否) = 是
 # Live save path (defaults to downloads/ if empty)
 直播保存路径(不填则默认) =
@@ -563,13 +563,13 @@ https://www.douyin.com/user/MS4wLjABAAAA3kr2yA4aRD-sjf9cx8xkOH8Di3RjktpKcAvqIetp
 ### CLI mode
 
 ```bash
-python main.py
+python -m src.main
 ```
 
 ### GUI mode
 
 ```bash
-python gui.py
+python -m src.gui
 ```
 
 GUI features (5 sidebar pages):
@@ -586,7 +586,7 @@ The system tray icon supports minimizing to the tray for background running.
 ### Web management panel mode
 
 ```bash
-python web.py
+python -m src.web
 ```
 
 After startup, open `http://localhost:8000` in a browser.
@@ -863,21 +863,21 @@ pytest
 
 ### Web/API smoke testing
 
-The project ships a generic, zero-dependency Web/API smoke-test tool `scripts/smoke_test.py` (pure standard library, no third-party packages needed), which can do lightweight liveness probes against **running HTTP interfaces** such as the Web management panel.
+The project ships a generic, zero-dependency Web/API smoke-test tool `tool/smoke_test.py` (pure standard library, no third-party packages needed), which can do lightweight liveness probes against **running HTTP interfaces** such as the Web management panel.
 
 ```bash
-# Check the local Web management panel (default 127.0.0.1:8000; sample config in scripts/smoke_web.json)
-python scripts/smoke_test.py -c scripts/smoke_web.json
+# Check the local Web management panel (default 127.0.0.1:8000; sample config in tool/smoke_web.json)
+python tool/smoke_test.py -c tool/smoke_web.json
 
 # Generate an HTML report
-python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f html
+python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 ```
 
 - Config-driven (JSON): `url` / `method` / `expected_status` / `timeout` / request headers / request body / response text that should be included / expected JSON fields
 - Supports `base_url` prefix concatenation; console / JSON / HTML report formats; non-zero exit code on failure (can be wired into CI)
-- Unlike `build_exe.py --smoke` (packaging-artifact smoke test), this tool probes **running HTTP interfaces** for liveness — the two complement each other
-- The default case `scripts/smoke_web.json` probes the Web panel `/` (home page 200) and `/health` (`{"status": "ok"}`, a public liveness endpoint provided by `src/web_api.py`, not gated by `web_auth_enable`)
-- **Wired into CI**: the `test` job in `.github/workflows/ci.yml` starts `python web.py` in a controlled way after pytest, then runs the `scripts/smoke_web.json` smoke test once it is ready (network flakiness handled via `.github/actions/retry`; on failure it keeps the `logs/web-smoke-*` artifacts and turns the job red), covering the "can the panel process really bind and respond" path that TestClient cannot
+- Unlike `tool/build_exe.py --smoke` (packaging-artifact smoke test), this tool probes **running HTTP interfaces** for liveness — the two complement each other
+- The default case `tool/smoke_web.json` probes the Web panel `/` (home page 200) and `/health` (`{"status": "ok"}`, a public liveness endpoint provided by `src/web_api.py`, not gated by `web_auth_enable`)
+- **Wired into CI**: the `test` job in `.github/workflows/ci.yml` starts `python -m src.web` in a controlled way after pytest, then runs the `tool/smoke_web.json` smoke test once it is ready (network flakiness handled via `.github/actions/retry`; on failure it keeps the `logs/web-smoke-*` artifacts and turns the job red), covering the "can the panel process really bind and respond" path that TestClient cannot
 
 ### Add a new platform
 
@@ -1018,7 +1018,7 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 - **Mobile and short-link platforms onboarded**: Bilibili `b23.tv` (pure-numeric path taken directly; alphabetic short codes followed through a 302), Douyu `m.douyu.com` (whitelist + room-id normalization), Huya `hy.fan` (new resolver + 301 short-code resolution), and Xiaohongshu `parse_xhs_live_url` (four shapes: `/livestream/<room ID>` / dynamic path / `xhslink` / share parameters). All reuse the existing stream-fetch chain after normalization, and `record_host` keeps the short-link domain so circuit-breaker buckets count separately.
 - **Linux arm64 (aarch64) ffmpeg in three parts**: the release matrix gains `ubuntu-24.04-arm` (four platforms x lite/full = 8 zips); new `src/ffmpeg_linux_download.py` (official digest first, TOFU downgrade, two-pass install) as the no-root fallback; new `docker-publish.yml`, one architecture layer per native runner, composed into a manifest by digest (`v*` tags only).
 - **Stale bytecode-cache purge at startup**: new `src/startup_cleanup.py` - whitelisted scan roots, baseline `sha256(relative path + file bytes)` plus the version, persisted in `logs/.pyc_stamp`; it purges once, only when sources or the version actually changed (on by default, switchable).
-- **Release-chain runtime pinning gains an "online source layer"**: `build_exe.py` gains the three-state switch `DLR_RUNTIME_PIN_SOURCE` (off/verify/adopt; off by default, no network request at all). `adopt` opens only for "the manifest has independent authentication" (`trust=signed` and the manifest verifies), and online values must pass a 64-character lowercase-hex shape check. `_PINNED_RUNTIME_SHA256` is unchanged, so default behavior is identical to before.
+- **Release-chain runtime pinning gains an "online source layer"**: `tool/build_exe.py` gains the three-state switch `DLR_RUNTIME_PIN_SOURCE` (off/verify/adopt; off by default, no network request at all). `adopt` opens only for "the manifest has independent authentication" (`trust=signed` and the manifest verifies), and online values must pass a 64-character lowercase-hex shape check. `_PINNED_RUNTIME_SHA256` is unchanged, so default behavior is identical to before.
 
 **🐛 Fixes**
 - **A duplicated option inside one config.ini section voided the whole file**: with the same key on two lines inside `[录制设置]`, `RawConfigParser()` (strict defaults to True) raises `DuplicateOptionError` and not one key survives the read (`import main` dies on the spot, the GUI reports a read failure every 10 s). New `src/config_read.py` (`tolerant_config_parser` / `find_duplicate_options` / `warn_duplicate_options`) wired into 10 read sites, with missing-key write-back kept idempotent.
@@ -1040,14 +1040,14 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 
 **📦 Dependency Changes**
 - **Runtime dependency `PySide6>=6.12.0` added** with the window migration (20 entries after `customtkinter` was removed, back to 21); the 6.12 floor is the measured minimum that supports Python 3.14.8. `uv.lock` and the egg-info were regenerated via `sync_metadata.py`. `pystray` / `Pillow` stay - the Web tray `src/web_tray.py` still uses pystray.
-- **`customtkinter` removed** in one pass from `requirements.txt`, `pyproject.toml` (runtime list and the `.[gui]` extra) and `typings/customtkinter/`; `build_exe.py` drops `collect_data_files('customtkinter')` while keeping the excludes entry as a defensive measure.
+- **`customtkinter` removed** in one pass from `requirements.txt`, `pyproject.toml` (runtime list and the `.[gui]` extra) and `typings/customtkinter/`; `tool/build_exe.py` drops `collect_data_files('customtkinter')` while keeping the excludes entry as a defensive measure.
 - **dev extra gains `pre-commit>=3.6.0`** (with `.pre-commit-config.yaml`); it belongs to the dev extra and stays out of `requirements.txt`, so runtime dependencies remain 21.
 - **CI tool-version constants aligned with the local installs**: `isort_version` 9.0.2, `black_version` 26.10.1, and the two mirror revs in `.pre-commit-config.yaml` -> 26.10.1 / 9.0.2, leaving one value across "local venv / CI / commit hook"; before raising them a full `black --check` ran under both black versions (verdict unchanged) and both new revs were verified via the GitHub API.
 
 **🛠️ Repo Maintenance & Docs**
 - **UI modernization phases 4-6 closed out**: CTk -> ttk widget layer, dependency removal and packaging cleanup, the size baseline filled in (91.81MB / 224 files), xvfb made permanent, and type scale / zoom / motion.
 - **Three rounds of i18n machine checks**: new `tests/test_i18n_catalog_coverage.py` (msgids from by-name call sites present in all four catalogs / whitelist set equality / key sets equal item by item), `test_i18n_raise_site_tr.py` and `test_gui_qt_label_parity.py`; `extract_i18n_strings.py` now understands `T(...)`. Catalog size went 1110 -> 1127 keys (6 orphan keys retracted along the way).
-- **Gates and CI**: typecheck gains `mypy --platform win32`; new `pyrightconfig.json` (include equal to `[tool.mypy].files`, exclude covering both lists) so a pathless `pyright` run reproduces the IDE scan surface; new `tests/test_ci_frontend_registration.py` (two-way diff between `.mjs` and the ci.yml list) and the hook body `scripts/agent_hook_guard.py` with `/dlr-dod`.
+- **Gates and CI**: typecheck gains `mypy --platform win32`; new `pyrightconfig.json` (include equal to `[tool.mypy].files`, exclude covering both lists) so a pathless `pyright` run reproduces the IDE scan surface; new `tests/test_ci_frontend_registration.py` (two-way diff between `.mjs` and the ci.yml list) and the hook body `tool/agent_hook_guard.py` with `/dlr-dod`.
 - **Code review and metadata reconciliation**: `CODE_REVIEW_2026-10-02.md` (8 per-file deep-audit packages - Critical 2 / Medium 18 / Minor 47 = 67; the report matrix originally said 17 / 66 and was corrected against the enumeration); two metadata reconciliation passes (zero value changes); `AGENTS.md` re-verified with 69 machine checks, 6 claims corrected against measurement and 3 `file:line` references turned into anchors.
 - **CODE_WIKI gains a "change overview by module" section in both languages** (11 subsections, rendered from one shared data table); the Linux arm64 and four-platform matrix was synced into the artifact list and GHCR pull notes of both READMEs.
 
@@ -1085,7 +1085,7 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 - **The `fastapi` / `pydantic` runtime dependencies are removed** (details under "Dependency Changes" below): the panel's 24 routes, request/response shapes, security headers, and auth middleware behave identically; the internal request models are read via `.parse()`, with no API-surface change for external consumers. Only custom deployments importing these two packages outside the panel need adjusting.
 
 **📦 Dependency Changes**
-- **Runtime dependencies 23 → 21**: `fastapi>=0.140.0` and `pydantic>=2.13.4` removed; the package-name sets of `requirements.txt` and `pyproject.toml [project.dependencies]` are equal item by item (regression lock `tests/test_regression_2026_09_22_gates.py`), and `uv.lock` plus `DouyinLiveRecorder.egg-info` were rebuilt via `scripts/sync_metadata.py` (zero residue of either package).
+- **Runtime dependencies 23 → 21**: `fastapi>=0.140.0` and `pydantic>=2.13.4` removed; the package-name sets of `requirements.txt` and `pyproject.toml [project.dependencies]` are equal item by item (regression lock `tests/test_regression_2026_09_22_gates.py`), and `uv.lock` plus `DouyinLiveRecorder.egg-info` were rebuilt via `tool/sync_metadata.py` (zero residue of either package).
 - **`urllib3` declared floor 2.7.0 → 2.8.0**: the CI `deps-audit` "floor re-check" measured the old floor itself inside the affected band of CVE-2026-97687 / CVE-2026-97688 / CVE-2026-97689 (all fixed in 2.8.0); `requirements.txt` and `pyproject.toml [project.dependencies]` raised in sync (still 21 entries, package-name sets unchanged), with `uv.lock` and `DouyinLiveRecorder.egg-info` rebuilt via `sync_metadata.py`; the local venv already had 2.8.0 installed, so the resolved set is unchanged.
 - **CI typecheck job now installs pinned `pytest==9.1.1`**: type checking over `tests/` is no longer half-blind (fixtures and the `NoReturn` of `pytest.fail()` are visible again).
 - **Doc-level dependency-notation fix**: the dev-dependency pip line in both READMEs went from 5 packages (missing `pytest-cov`; an environment set up that way cannot run the coverage gate) to the canonical `pip install .[dev]` (pointing at the six entries of `[project.optional-dependencies].dev`).
@@ -1119,10 +1119,10 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 
 **✨ New Features / Improvements**
 - **Per-room log correlation field `extra[room]`**: `src/logger.py` gains `ROOM_FIELD` / `set_room_context()` / `get_room_context()` (internal `ContextVar` + patcher), so interleaved multi-room logs can be sliced per room.
-- **Web panel `/health` probe endpoint**: `GET /health` returns `{"status": "ok", "version": …}`, and the built-in smoke tool `scripts/smoke_test.py` is wired into CI as a real HTTP probe.
+- **Web panel `/health` probe endpoint**: `GET /health` returns `{"status": "ok", "version": …}`, and the built-in smoke tool `tool/smoke_test.py` is wired into CI as a real HTTP probe.
 - **W6: Apple Silicon ffmpeg PATH yield policy**: on darwin + arm64 with another native ffmpeg already on `PATH`, the bundled x86_64 build (which only runs through Rosetta translation) is no longer unconditionally prepended; yielding requires all five criteria to hold. Other platforms are unchanged, byte for byte.
-- **Runtime binary integrity**: `build_exe.py` gains the `_PINNED_RUNTIME_SHA256` table plus `--require-pinned`, backed by `scripts/check_runtime_pins.py` (structure mode in the local gate / `--strict` in the release prepare job / `--emit-env` for CI injection); first-time runtime installs now prefer officially published hashes, and release builds add GPG verification plus a full-package self-check.
-- **Build artifact size optimization (09-24)**: excluded runtime-unreachable modules (`PIL._avif`, `pydantic.v1.mypy` which drags in all of mypy, uvicorn's optional implementations, `i18n/*.po`, …) plus zip `compresslevel=9` — the lite artifact went from **82.77MB to 64.88MB (−21.6%)** and the zip from **54.84MB to 42.19MB (−23.1%)**, with a new measurement script `scripts/report_bundle_size.py`.
+- **Runtime binary integrity**: `tool/build_exe.py` gains the `_PINNED_RUNTIME_SHA256` table plus `--require-pinned`, backed by `tool/check_runtime_pins.py` (structure mode in the local gate / `--strict` in the release prepare job / `--emit-env` for CI injection); first-time runtime installs now prefer officially published hashes, and release builds add GPG verification plus a full-package self-check.
+- **Build artifact size optimization (09-24)**: excluded runtime-unreachable modules (`PIL._avif`, `pydantic.v1.mypy` which drags in all of mypy, uvicorn's optional implementations, `i18n/*.po`, …) plus zip `compresslevel=9` — the lite artifact went from **82.77MB to 64.88MB (−21.6%)** and the zip from **54.84MB to 42.19MB (−23.1%)**, with a new measurement script `tool/report_bundle_size.py`.
 - **Five new gates**: `PYTHONUTF8=1` + "any warning fails" (kills the mode where isort silently skips files with Chinese comments under a GBK locale and still exits 0); a decorator-contract AST lock; a test-hygiene AST lock (R1–R4 / R6 "manual MonkeyPatch must pair with undo"); a front-end catalog consistency lock (`data-i18n*` keys compared one-by-one against the four embedded catalogs); a `deps-audit` job and hard failure when coverage data is missing.
 - **Dynamic concurrency floor lowered**: `ConcurrencyScheduler`'s `min_capacity` default changed from 8 to 1.
 - **Bundled-ffmpeg upstreams and satisfaction tiers (09-26 ~ 09-27)**: both Linux architectures moved to BtbN's GPL-complete assets, keyed per `<os>-<arch>` runtime key, with the source endpoint fixed to the immutable month-end tag; the two macOS slots use the **official GPG signature tier** (evermeet publishes no SHA256, so signature verification is that slot's only criterion, with the full 40-hex-digit master fingerprint pinned out of band). Hash pinning and signature verification are two non-interchangeable lines of defense.
@@ -1138,7 +1138,7 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 - **Boolean config semantics changed**: keys previously written as `true/false`, `1/0`, … were **silently ignored** (falling back to a default); after upgrading they take effect literally — if your config depended on the old wrong fallback value, the effective value changes. Please re-check the 8 affected settings after upgrading.
 - **Runtime dependencies 20 → 23**: newly declared explicitly — `urllib3>=2.7.0` (CVE-2026-44431), `h2>=4.4.1` (PYSEC-2026-3628) and `socksio>=1.0.0` (httpx runtime deps for HTTP/2 and SOCKS); `starlette` lower bound `>=0.49.1` → **`>=1.3.1`** (CVE-2026-48710 plus PYSEC-2026-2280/2281/248/249); `protobuf` keeps its `<8` cap (gencode compatibility guardrail).
 - **Build time**: the `build-release.yml` prepare job now blocks unpinned runtime binaries via `check_runtime_pins.py --strict`.
-- **`build_exe.py --dual --no-zip` now fails fast**: the `--dual` branch never read `no_zip`, so an explicitly typed `--no-zip` was silently ignored while both large zips were still produced. Contradictory flag combinations now abort instead of letting one of the two flags do nothing.
+- **`tool/build_exe.py --dual --no-zip` now fails fast**: the `--dual` branch never read `no_zip`, so an explicitly typed `--no-zip` was silently ignored while both large zips were still produced. Contradictory flag combinations now abort instead of letting one of the two flags do nothing.
 - **Release attachments regain platform and variant labels — please use the new attachments**: after a re-publish, Windows / Linux / macOS attachments are named `DouyinLiveRecorder-v4.3.0-<os>-<arch>-lite.zip` and `-full.zip`. Any earlier attachment shaped like `DouyinLiveRecorder-v4.3.zip` (no platform segment, no variant segment) is a defective artifact of the bug above: its content was the full package, and the lite package did not exist.
 - **Linux full packages grow substantially**: with the BtbN switch, the bundled ffmpeg asset (uncompressed) is about 126.6 MB for linux64 and 108.8 MB for linuxarm64, versus roughly 41.9 MB for the previous johnvansickle amd64 static build. Choose the `lite` package to keep the download small (binaries are then fetched on first run).
 
@@ -1146,7 +1146,7 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 - **Test coverage push (09-21)**: `src/` coverage **73.28% → 82.03%** (tests only, zero product-code changes), plus a layered allowlist (table empty by default, fails when it expires).
 - **Four-language catalogs kept complete and verified**: 594 → **780 entries**, with all four catalogs matching key by key and no empty values; the `.mo` is recompiled whenever they change.
 - **Metadata single-source sync**: `AGENTS.md` dependency count and lower-bound wording, the `CODE_WIKI*.md` dependency tables (16 → 23 entries), `DouyinLiveRecorder.egg-info` regenerated, `_probe_*.py` added to `.dockerignore`, and `[Cookie] ttwid` added to `config/config.ini`.
-- **Type stubs & comment governance**: 7 `.pyi` files under `typings/execjs/` got complete annotations and two abstract-base stubs dropped `six` (switched to `metaclass=ABCMeta`); multiple repo-wide comment-refinement batches (including one 68-file round), and `scripts/check_annotations.py` gained a third blind spot (newline form).
+- **Type stubs & comment governance**: 7 `.pyi` files under `typings/execjs/` got complete annotations and two abstract-base stubs dropped `six` (switched to `metaclass=ABCMeta`); multiple repo-wide comment-refinement batches (including one 68-file round), and `tool/check_annotations.py` gained a third blind spot (newline form).
 - **Leftovers of deleted modules cleaned up**: `src/weverse_auth.py` / `tests/test_weverse_auth.py` (deleted 2026-09-23) were removed from structure trees and dependency notes, and their 3 orphan translations were dropped from the four catalogs.
 - **Cross-file consistency sync (09-27)**: `requirements.txt` vs `pyproject.toml [project.dependencies]` — 23 vs 23 package-name sets equal, with all three extras groups matching; `python_build = 3.14` and `node_version = 24` identical in `ci.yml` and `build-release.yml`; the 14 local tool directories and 6 runtime artifact directories present without gaps across `.gitignore`, `.dockerignore`, every pyproject tool exclude and `.coveragerc-concurrency`. The only edit this round was completing the truncated inline comment on `websockets>=14.0` (no specifier changed).
 - **`AGENTS.md` size pass (09-27)**: readings that already existed in `docs/agent-reference/measured-evidence.md` were replaced by pointers and three genuine duplications merged, taking the file from 97,034 to 95,715 B (-1.4%); a token-preservation audit proves no constraint was lost (0 losses among test names, error codes, and constant / environment-variable names).
@@ -1154,8 +1154,8 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 **🧪 Tests & Verification**
 - Full `pytest`: **3240 passed / 14 skipped / 0 failed** (two measured runs on 09-27, one of them with `--cov=src`). The case previously reported as permanently red on this Windows host, `test_symlinked_system_hit_inside_bundled_dir_keeps_prepending`, is now skipped explicitly by host capability (`symlink not permitted on this host`) and is counted among those 14 skips rather than being a failure.
 - `black --check .` **169 files unchanged**; `isort --check-only .` no reordering; parameterless `mypy` **158 files, 0 issues** (`mypy --platform linux` likewise 0); `basedpyright` (standard) **0 errors / 0 warnings / 0 notes**.
-- Coverage: total `src/` coverage **83.91%**, and `scripts/check_coverage.py` reports **all 42 modules meeting their thresholds** (`src/proto/douyin_pb2.py` is a protoc artifact and explicitly exempt).
-- `node --test tests/frontend/*.mjs` green; `scripts/check_version.py` and `scripts/check_runtime_pins.py` both rc=0; `scripts/compile_po.py --check` reports `zh_CN.mo` in sync with the `.po` (781 entries).
+- Coverage: total `src/` coverage **83.91%**, and `tool/check_coverage.py` reports **all 42 modules meeting their thresholds** (`src/proto/douyin_pb2.py` is a protoc artifact and explicitly exempt).
+- `node --test tests/frontend/*.mjs` green; `tool/check_version.py` and `tool/check_runtime_pins.py` both rc=0; `tool/compile_po.py --check` reports `zh_CN.mo` in sync with the `.po` (781 entries).
 
 ### Earlier entries (archived)
 

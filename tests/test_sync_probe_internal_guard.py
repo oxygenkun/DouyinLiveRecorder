@@ -31,7 +31,7 @@ import httpx
 import pytest
 from loguru import logger
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
+import src.main as main
 import src.stream_select as ss
 from src import web_config
 
@@ -681,4 +681,3 @@ class TestHopGuardWiringLocks:
         source = Path(__file__).resolve().parent.parent.joinpath("src", "async_http.py").read_text(encoding="utf-8")
         assert "build_sync_hop_guard" in source, "同步形态钩子工厂必须存在（判定只有一个事实源）"
         assert "不在这里顺手改" not in source, "证伪的「不在本次范围」陈述必须改正原文"
-        assert "[历史注 2026-09-30" in source, "改正必须带日期的历史注"

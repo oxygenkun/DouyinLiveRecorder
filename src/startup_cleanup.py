@@ -19,7 +19,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-import i18n
+from src import i18n
 from src.logger import logger
 
 # 缓存目录名（CPython 固定写死，逐字相等才认定为目标）
@@ -59,7 +59,7 @@ def _stamp_path(app_root: Path) -> Path:
 
 def _scan_dirs(app_root: Path) -> list[Path]:
     # 枚举扫描根 = 程序目录顶层（仅当它直接含 .py）+ src/ 子树里每个直接含 .py 的目录。
-    # 顶层刻意不递归：程序目录下的 downloads/ logs/ tests/ scripts/ node/ 都可能藏 .py（用户脚本、
+    # 顶层刻意不递归：程序目录下的 downloads/ logs/ tests/ tool/ node/ 都可能藏 .py（用户脚本、
     # 临时验证脚本、正式维护脚本），它们的缓存与本次运行的导入无关，一律不属于清理范围。
     dirs: list[Path] = []
     if any(app_root.glob("*.py")):

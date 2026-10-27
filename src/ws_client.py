@@ -20,7 +20,7 @@ from typing import Awaitable, Callable, Optional, Union, cast
 
 import websockets
 
-import i18n
+from src import i18n
 
 from . import utils
 from .base import spawn_danmaku_task

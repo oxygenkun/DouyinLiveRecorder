@@ -1,4 +1,4 @@
-# scripts/check_coverage.py 的回归锁（该检查此前全库零回归锁，MID-2261）。
+# tool/check_coverage.py 的回归锁（该检查此前全库零回归锁，MID-2261）。
 #
 # 口径：按「删掉某条 fail-closed 判据必须变红」组织用例，全部离线——只喂构造好的
 # coverage 报告 dict / 临时目录树，不跑 pytest 自身、不调用真实 .coverage。
@@ -23,7 +23,7 @@
 # 产出成串假失败（单跑全绿、换个顺序就红）。确需两次判定的那一条用 ExitStack 把还原
 # **推到两次判定之间**（见 test_stale_table_entry_exits_2_then_clean_table_passes）。
 #
-# 加载方式：scripts/ 不在包路径内，用
+# 加载方式：tool/ 不在包路径内，用
 # spec_from_file_location 显式加载，避免 sys.path 注入被 isort 重排到 import 之前。
 
 import ast
@@ -48,7 +48,7 @@ _JUDGMENTS = frozenset({"evaluate_report", "check_coverage", "main"})
 
 
 def _load_check_coverage() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("_check_coverage_probe", ROOT / "scripts" / "check_coverage.py")
+    spec = importlib.util.spec_from_file_location("_check_coverage_probe", ROOT / "tool" / "check_coverage.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -476,7 +476,7 @@ def test_cli_entrypoint_propagates_rc2_for_unusable_data(tmp_path: Path) -> None
     # 输出**按字节**判定（不用 text=True/encoding=）：中文 Windows 下子进程 stderr 是码页
     # 编码的本地化文本，让解码进入判定路径就会在 UTF-8 检查下炸 reader 线程。
     proc = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "check_coverage.py"), "--data-file", str(tmp_path / "absent")],
+        [sys.executable, str(ROOT / "tool" / "check_coverage.py"), "--data-file", str(tmp_path / "absent")],
         capture_output=True,
         stdin=subprocess.DEVNULL,
         cwd=ROOT,

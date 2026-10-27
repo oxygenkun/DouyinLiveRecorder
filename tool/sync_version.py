@@ -2,15 +2,15 @@
 # 版本号同步脚本 — 以 pyproject.toml 的 version 为准，把仍写死版本的文件改齐。
 #
 # 用法:
-# python scripts/sync_version.py              # 使用 pyproject.toml 中的版本号
-# python scripts/sync_version.py 4.0.9.0      # 指定新版本号
-# python scripts/sync_version.py --check      # 仅检查是否一致，不修改文件
-# python scripts/sync_version.py --dry-run    # 显示将要做的变更但不实际写入
+# python tool/sync_version.py              # 使用 pyproject.toml 中的版本号
+# python tool/sync_version.py 4.0.9.0      # 指定新版本号
+# python tool/sync_version.py --check      # 仅检查是否一致，不修改文件
+# python tool/sync_version.py --dry-run    # 显示将要做的变更但不实际写入
 #
 # 现状：版本号已全部动态化，SYNC_TARGETS 为空——运行时（main.py / src/web_api.py）经
 # importlib.metadata 读 pyproject.toml，Dockerfile 经 APP_VERSION 构建参数注入，
 # i18n/zh_CN.po 不再携带版本号，README / CODE_WIKI 由人工维护、不在本脚本范围。
-# 故版本一致性检查不是本脚本，而是 scripts/check_version.py（它查「动态化有没有被改回写死」，
+# 故版本一致性检查不是本脚本，而是 tool/check_version.py（它查「动态化有没有被改回写死」，
 # 且在 AGENTS.md 检查命令块里）；本脚本结构保留，供将来真出现写死版本时复用。
 #
 
@@ -21,14 +21,14 @@ import re
 import sys
 from pathlib import Path
 
-# 项目根目录（脚本在 scripts/ 下，上一级即为根目录）
+# 项目根目录（脚本在 tool/ 下，上一级即为根目录）
 ROOT_DIR = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = ROOT_DIR / "pyproject.toml"
 
 # ── 需要同步的目标文件及其替换规则 ─────────────────────────────────────
 # 每条规则: (相对路径, [(正则模式, 替换模板), ...])，模板可用 \1 捕获组 + {version} 占位符。
 # 清单为空 → 本脚本当下是**空转**的：--check 会打印「所有文件版本号一致」，那只是「零目标
-# 全部通过」，不自证任何事。要核版本一致性请跑 scripts/check_version.py。
+# 全部通过」，不自证任何事。要核版本一致性请跑 tool/check_version.py。
 # 新增写死版本的文件时在此追加规则；check_all() 刻意「先判命中再判等」，别改回「sub 结果与
 # 原文相同 = 已一致」——那会在正则失配时静默变绿。
 SYNC_TARGETS: list[tuple[str, list[tuple[str, str]]]] = []
@@ -107,7 +107,7 @@ def check_all(version: str) -> bool:
 
 def main() -> None:
     # 退出码只在 --check 分支产生（0 一致 / 1 不一致）；同步与 --dry-run 分支一律正常退出，
-    # 它是「执行工具」，不要接成检查命令（版本检查见 scripts/check_version.py）。
+    # 它是「执行工具」，不要接成检查命令（版本检查见 tool/check_version.py）。
     parser = argparse.ArgumentParser(description="同步 pyproject.toml 版本号到所有相关文件")
     parser.add_argument("version", nargs="?", default=None, help="指定新版本号（默认从 pyproject.toml 读取）")
     parser.add_argument("--check", action="store_true", help="仅检查一致性，不修改文件")
@@ -130,7 +130,7 @@ def main() -> None:
             print("[OK] 所有文件版本号一致")
             sys.exit(0)
         else:
-            print("[FAIL] 部分文件版本号不一致，运行 `python scripts/sync_version.py` 进行同步")
+            print("[FAIL] 部分文件版本号不一致，运行 `python tool/sync_version.py` 进行同步")
             sys.exit(1)
 
     changed_count = 0

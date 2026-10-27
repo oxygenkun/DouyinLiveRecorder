@@ -21,7 +21,7 @@ source = src
 # 并发项，线程内代码就会静默不计入覆盖率。若将来改用多进程，须改为 concurrency = multiprocessing
 # 并同时打开 parallel = true 与 sigterm = true，否则子进程数据会整体丢失。
 concurrency = thread
-# 数据文件记相对路径：使 .coverage 产物跨机器 / 容器可搬运，并与 scripts/check_coverage.py
+# 数据文件记相对路径：使 .coverage 产物跨机器 / 容器可搬运，并与 tool/check_coverage.py
 # 的 "src/x.py" 相对路径匹配口径一致。
 relative_files = true
 # 与 pyproject.toml [tool.coverage.run].omit 保持一致（本地工具生成目录同源维护）

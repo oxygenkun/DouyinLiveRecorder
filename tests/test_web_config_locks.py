@@ -36,7 +36,7 @@ _BLANK_SENSITIVE_DETAIL = "敏感配置项不得清空：如需移除请显式�
 
 
 @pytest.fixture()
-def fake_main() -> Generator[types.ModuleType, None, None]:
+def fake_main(monkeypatch: pytest.MonkeyPatch) -> Generator[types.ModuleType, None, None]:
     # web_api 的处理函数内部 `import main as _main` 取 file_update_lock，注入轻量假模块
     # 避免导入真实 main.py 触发 FFmpeg/Node 检查等重副作用（与 tests/test_web_api.py 同源口径）。
     fake = types.ModuleType("main")
@@ -50,15 +50,18 @@ def fake_main() -> Generator[types.ModuleType, None, None]:
     setattr(fake, "text_encoding", "utf-8-sig")
     setattr(fake, "url_config_file", "")
     setattr(fake, "ini_URL_content", "")
-    previous = sys.modules.get("main")
-    sys.modules["main"] = fake
+    previous = sys.modules.get("src.main")
+    sys.modules["src.main"] = fake
+    import src
+
+    monkeypatch.setattr(src, "main", fake, raising=False)
     try:
         yield fake
     finally:
         if previous is not None:
-            sys.modules["main"] = previous
+            sys.modules["src.main"] = previous
         else:
-            sys.modules.pop("main", None)
+            sys.modules.pop("src.main", None)
 
 
 @pytest.fixture()

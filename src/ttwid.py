@@ -19,7 +19,7 @@ import sys
 import threading
 import time
 
-import i18n
+from src import i18n
 
 from .async_http import async_req
 from .cookie_cache import DEFAULT_TTL as _CACHE_TTL_SECONDS

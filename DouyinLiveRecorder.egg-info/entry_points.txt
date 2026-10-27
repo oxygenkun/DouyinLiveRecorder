@@ -1,4 +1,4 @@
 [console_scripts]
-douyin-recorder = main:main
-douyin-recorder-gui = gui:main
-douyin-recorder-web = web:main
+douyin-recorder = src.main:main
+douyin-recorder-gui = src.gui:main
+douyin-recorder-web = src.web:main

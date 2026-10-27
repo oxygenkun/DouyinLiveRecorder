@@ -7,12 +7,12 @@
 # 的最小 .mo（按 msgid 排序、无哈希表）。
 #
 # 「.po 改了但 .mo 忘了重编译」由两处同源把守（都是字节级比对，不是抽样）：
-#   CI / 本地检查块里的 `python scripts/compile_po.py --check`，以及
+#   CI / 本地检查块里的 `python tool/compile_po.py --check`，以及
 #   tests/test_i18n.py::TestMoCatalog::test_po_and_mo_in_sync（直接 import 本模块重算一遍）。
 #
 # 用法：
-#   python scripts/compile_po.py            # 编译生成 .mo
-#   python scripts/compile_po.py --check    # 校验已提交的 .mo 与 .po 是否同步（CI 用，零副作用不写盘）
+#   python tool/compile_po.py            # 编译生成 .mo
+#   python tool/compile_po.py --check    # 校验已提交的 .mo 与 .po 是否同步（CI 用，零副作用不写盘）
 
 import io
 import os
@@ -154,7 +154,7 @@ def main() -> int:
         committed = MO_PATH.read_bytes() if MO_PATH.exists() else b""
         if committed != fresh:
             print(
-                f"ERROR: {MO_PATH.name} 与 {PO_PATH.name} 不同步，请运行 python scripts/compile_po.py 后提交",
+                f"ERROR: {MO_PATH.name} 与 {PO_PATH.name} 不同步，请运行 python tool/compile_po.py 后提交",
                 file=sys.stderr,
             )
             return 1

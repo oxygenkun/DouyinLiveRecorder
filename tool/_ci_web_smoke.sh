@@ -46,13 +46,13 @@ trap cleanup EXIT
 
 mkdir -p config logs
 # 全注释的 URL 清单 → 待录制房间为空，引擎只跑配置热加载循环，绝不起 ffmpeg、绝不访问
-# 平台接口（与 build_exe.py 冒烟的 _ensure_url_config 同一手法）。
+# 平台接口（与 tool/build_exe.py 冒烟的 _ensure_url_config 同一手法）。
 [ -s config/URL_config.ini ] || echo '#https://live.douyin.com/000000000000' >config/URL_config.ini
 # config/config.ini 不入库（含口令/Cookie），缺失时 read_web_config 回退 WEB_DEFAULTS：
 # 127.0.0.1:8000 + 不开认证，与 smoke_web.json 的 base_url 对齐。
 
 # 启动面板。子 shell + & 让它脱离本脚本的控制终端；PID 记入全局供 cleanup 使用。
-nohup python web.py >"$PANEL_LOG" 2>&1 &
+nohup python -m src.web >"$PANEL_LOG" 2>&1 &
 panel_pid=$!
 echo "$panel_pid" >"$PID_FILE"
 
@@ -78,9 +78,9 @@ if [ -z "$ready" ]; then
   exit 1
 fi
 
-# 断言：与本地用法完全一致（scripts/smoke_web.json），不在此处重复维护期望值。
+# 断言：与本地用法完全一致（tool/smoke_web.json），不在此处重复维护期望值。
 # 报告无条件写出（成功/失败都留一份机读结果），供 workflow 上传为工件。
-python scripts/smoke_test.py -c scripts/smoke_web.json -r "$REPORT" -f json
+python tool/smoke_test.py -c tool/smoke_web.json -r "$REPORT" -f json
 rc=$?
 
 # MIN-2260：rc=0 只代表「已执行的检查全通过」，不代表「执行过检查」。smoke_test.py 现在

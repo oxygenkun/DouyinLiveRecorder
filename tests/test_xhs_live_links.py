@@ -521,9 +521,9 @@ def main_mod() -> Any:
 
     root = Path(__file__).resolve().parent.parent
     old_argv = sys.argv[:]
-    sys.argv = [str(root / "main.py")]
+    sys.argv = [str(root / "src/main.py")]
     try:
-        import main as _main
+        from src import main as _main
 
         return _main
     finally:
@@ -584,7 +584,7 @@ def test_xhs_dispatch_warnings_use_translated_templates() -> None:
     import ast
     from pathlib import Path
 
-    tree = ast.parse((Path(__file__).resolve().parent.parent / "main.py").read_text(encoding="utf-8"))
+    tree = ast.parse((Path(__file__).resolve().parent.parent / "src/main.py").read_text(encoding="utf-8"))
     found: set[str] = set()
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "warning" and node.args):

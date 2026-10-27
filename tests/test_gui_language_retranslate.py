@@ -17,7 +17,7 @@ from typing import Any
 
 import pytest
 
-import i18n
+from src import i18n
 
 # gui.py 的两条导入期副作用（本文件唯一需要隔离的面）：模块级写 os.environ["DLR_GUI_PARENT"]="1"，
 # 以及 _fix_encoding() 就地 reconfigure 宿主进程的 stdout/stderr 编码策略。
@@ -40,7 +40,7 @@ def gui() -> Iterator[ModuleType]:
     # 键才真的从进程环境里消失（上游若已污染则按原值还原，不归本文件管）。
     with pytest.MonkeyPatch.context() as patcher:
         patcher.setenv(_GUI_PARENT_ENV, "")
-        module = importlib.import_module("gui")
+        module = importlib.import_module("src.gui")
     yield module
 
 
@@ -138,6 +138,6 @@ def test_gui_is_not_imported_at_module_level() -> None:
     ]
     assert not top_level, (
         f"本文件模块顶层出现了 gui 的 import（第 {[node.lineno for node in top_level]} 行）："
-        "gui.py 会在收集期就把 DLR_GUI_PARENT 写进整个会话（见 gui fixture 的 MT-05 说明），"
+        "src/gui.py 会在收集期就把 DLR_GUI_PARENT 写进整个会话（见 gui fixture 的 MT-05 说明），"
         "必须保持「导入只发生在会话级夹具内」"
     )

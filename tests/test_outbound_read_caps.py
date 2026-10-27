@@ -71,7 +71,7 @@ _HTTPX_READERS: dict[tuple[str, str], tuple[str, str]] = {
         "探针语义是「可达性判定」，不需要完整 body；限量读不改判定结论（L-11 定稿形态）。",
     ),
     (
-        "main.py",
+        "src/main.py",
         "direct_download_stream",
     ): (
         "边下边写盘，内存里只过一块",

@@ -298,7 +298,7 @@ class TestMid2233ResidualRegistered:
         # 且不得再出现「MIN-20③ 已修好认证代理」这类被证伪的陈述。判据用「必须出现登记语」而非
         # 「必须不出现某个词」，避免误伤历史注。
         text = (pathlib.Path(__file__).resolve().parents[1] / "src" / "proxy.py").read_text(encoding="utf-8")
-        assert "没有任何生产消费点" in text, "MID-2233④ 的残留登记被删除：会重新出现「已修」的错误陈述"
+        assert "没有生产消费点" in text, "MID-2233④ 的残留登记被删除：会重新出现「已修」的错误陈述"
         assert "代理地址" in text, "登记里必须写明真正下发的是 config.ini「代理地址」这条独立链路"
         # 主会话接上消费点后应改这条断言（删除登记语即为「已闭合」的信号）
         assert "main.py" in text

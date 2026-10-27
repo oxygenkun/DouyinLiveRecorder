@@ -31,7 +31,7 @@ from loguru import logger
 
 import src.ffmpeg_install as ffmpeg_install
 
-MAIN_SOURCE = Path(__file__).resolve().parent.parent / "main.py"
+MAIN_SOURCE = Path(__file__).resolve().parent.parent / "src/main.py"
 
 
 def _patch_probes(
@@ -325,7 +325,7 @@ class TestMainWiring:
 
     def test_path_prepend_is_guarded_by_the_single_judgement(self) -> None:
         nodes = self._module_level_path_if_nodes()
-        assert nodes, "main.py 模块级找不到 PATH 注入分支（接线点被移动？）"
+        assert nodes, "src/main.py 模块级找不到 PATH 注入分支（接线点被移动？）"
         guarded = 0
         for node in nodes:
             for call in ast.walk(node.test):
@@ -356,14 +356,14 @@ class TestMainWiring:
 # ---------------------------------------------------------------------------
 # 孪生副本等价锁（R-5，2026-09-22）
 #
-# scripts/douyin_live_recorder_standalone.py 按设计不 import src/（可独立单文件分发），
+# tool/douyin_live_recorder_standalone.py 按设计不 import src/（可独立单文件分发），
 # 因此同一判据在那里有一份**同名同语义副本**（先例：src/scheduler.py 与它的并发副本）。
 # 复制件的通病是「单边修改 → 语义漂移」，而漂移的后果正好是 R-5 登记的那件事：
 # 主程序让位给原生 arm64、单文件版继续吃 Rosetta。所以这里刻意**不重复写一遍期望值**，
 # 而是把两个实现放进同一组桩里逐一比对结果 —— 谁改了判据而另一边没跟上，本用例就红。
 # ---------------------------------------------------------------------------
 
-STANDALONE_SOURCE = Path(__file__).resolve().parent.parent / "scripts" / "douyin_live_recorder_standalone.py"
+STANDALONE_SOURCE = Path(__file__).resolve().parent.parent / "tool" / "douyin_live_recorder_standalone.py"
 
 
 def _load_standalone(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
@@ -512,7 +512,7 @@ def test_standalone_resolves_ffmpeg_through_the_twin(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(standalone, "should_prepend_bundled_ffmpeg_dir", spy)
     # 把「脚本同级」改到 tmp 下并造出包内可执行文件：__file__ 是模块全局名，函数内
     # Path(__file__) 会读到它 —— 不碰 os.name（那是 stdlib 模块本体，改了会影响整个进程）。
-    scripts_dir = tmp_path / "app" / "scripts"
+    scripts_dir = tmp_path / "app" / "tool"
     exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
     (scripts_dir / "ffmpeg").mkdir(parents=True)
     (scripts_dir / "ffmpeg" / exe).write_text("x", encoding="utf-8")

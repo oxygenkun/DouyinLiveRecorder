@@ -173,8 +173,8 @@ def test_douyin_rate_limit_actually_sleeps_and_advances_timestamp(monkeypatch: p
     # 改本体会全进程生效，波及 loguru enqueue 线程 / harness 守护线程 / coverage（R1 会红）。
     import types
 
-    import main
     import src.stream_select as stream_select
+    from src import main
 
     sleeps: list[float] = []
     fake_now = [1000.0]
@@ -204,8 +204,8 @@ def test_douyin_rate_limit_does_not_sleep_when_interval_already_elapsed(monkeypa
     # 同样只换 stream_select 自己的 time 引用（浅拷贝 shim），理由见上一条用例。
     import types
 
-    import main
     import src.stream_select as stream_select
+    from src import main
 
     sleeps: list[float] = []
     time_shim = types.SimpleNamespace(**vars(stream_select.time))
@@ -252,7 +252,7 @@ def _load_build_exe() -> Any:
     # build_exe.py 在 import 期只做常量/函数定义（main() 受 __name__ 守卫），加载安全。
     import importlib.util
 
-    path = ROOT / "build_exe.py"
+    path = ROOT / "tool/build_exe.py"
     spec = importlib.util.spec_from_file_location("_regression_probe_build_exe", path)
     assert spec is not None and spec.loader is not None, f"无法加载 {path}"
     module = importlib.util.module_from_spec(spec)
@@ -377,7 +377,7 @@ def test_make_zip_calls_credential_assertion_before_archiving() -> None:
     # 结构锁：校验与封印的**先后关系**必须写在 make_zip 内（而非靠调用方自觉）——只断言「校验
     # 函数存在」会漏掉「make_zip 没调它」。函数体经 _function_body_source 用 AST 取源码段，
     # 不用字符串 index 找边界（体内嵌套 def 会把边界切错，实测踩过）。
-    src = (ROOT / "build_exe.py").read_text(encoding="utf-8")
+    src = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
     body = _function_body_source(src, "make_zip")
     # 定位一律带括号（调用形态）：get_source_segment 是原文切片、**含函数体内的注释行**，只匹配
     # 裸函数名会先命中 build_exe.py 里的说明注释。
@@ -399,13 +399,13 @@ def _function_body_source(source: str, name: str) -> str:
             segment = ast.get_source_segment(source, node)
             assert segment is not None
             return segment
-    raise AssertionError(f"build_exe.py 里找不到顶层函数 {name}()")
+    raise AssertionError(f"tool.build_exe.py 里找不到顶层函数 {name}()")
 
 
 def test_copy_external_binaries_does_not_copytree_config() -> None:
     # 形态锁：copy_external_binaries 里不得再出现对 config/ 的 copytree
     # （整目录复制正是本次的根因；shutil.copytree 会把 config.ini 原样带过去）。
-    src = (ROOT / "build_exe.py").read_text(encoding="utf-8")
+    src = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
     body = _function_body_source(src, "copy_external_binaries")
     assert "copytree(cfg_src" not in body, "config/ 仍在被整目录 copytree 复制（SEV-2213 复发）"
 
@@ -454,7 +454,7 @@ def test_smoke_fatal_markers_cover_import_failures() -> None:
 def test_version_is_read_from_single_source() -> None:
     # MID-2200 定点锁：版本号必须只经 read_version() 从 pyproject.toml 读一次，
     # 且三个 exe 共享同一个 zip 前缀（避免某入口单独写死版本）。
-    src = (ROOT / "build_exe.py").read_text(encoding="utf-8")
+    src = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
     assert src.count("read_version()") >= 1, "read_version() 不再被调用"
     body = _function_body_source(src, "read_version")
     assert "pyproject.toml" in body, "read_version 不再从 pyproject.toml 读取（事实源被改）"

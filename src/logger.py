@@ -44,13 +44,15 @@ _gui_parent = os.environ.get(GUI_PARENT_ENV) == "1"
 
 
 def _app_root() -> str:
-    # 返回应用程序根目录（exe 同级目录）：源码运行时为主脚本（sys.argv[0]）所在目录；冻结运行
+    # 返回应用程序根目录（exe 同级目录）：源码入口位于 src/ 时返回项目根，其余调用沿用 sys.argv[0] 所在目录；冻结运行
     # （PyInstaller onedir + contents_directory='_internal'）返回 exe 所在目录，即 _internal 的父目录
     # ——src/ 及依赖包都在 _internal 里，而 config/ ffmpeg/ node/ 等运行时资源与 exe 同级，
     # 这样取值才能让它们在打包后被直接读写。
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.realpath(sys.executable))
-    return os.path.split(os.path.realpath(sys.argv[0]))[0]
+    entry_dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+    source_dir = os.path.dirname(os.path.realpath(__file__))
+    return os.path.dirname(source_dir) if entry_dir == source_dir else entry_dir
 
 
 # 移除默认处理器
@@ -105,7 +107,7 @@ _console_sink_id: int | None = None
 
 # 控制台该不该着色：判定口径单点收敛到这里，导入期注册与 rebind_console_sink() 共用一份实现。
 # 原形态是两处各写一份、导入期那份硬编码 colorize=True，于是 stderr 已被重定向到文件时
-# （web.py 后台模式接走 logs/web_console.log、或 `python main.py > x.log` 之类手工重定向）
+# （web.py 后台模式接走 logs/web_console.log、或 `python -m src.main > x.log` 之类手工重定向）
 # ANSI 转义序列照样落进日志文件污染内容，而排障恰恰要看这个文件。getattr 兜底：无 isatty 的
 # 重定向流（测试里的 StringIO、自定义转发对象）一律按非 tty 处理，不得改成裸 `sys.stderr.isatty()`。
 def _console_colorize() -> bool:

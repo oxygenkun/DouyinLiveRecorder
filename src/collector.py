@@ -15,8 +15,7 @@ import threading
 import time
 from typing import Any, Optional, Type, cast
 
-import i18n
-from src import utils
+from src import i18n, utils
 from src.base import DanmakuBase, DanmakuMessage, DanmakuMessageType, spawn_danmaku_task
 from src.danmaku_monitor import DanmakuMonitorHub
 from src.logger import logger

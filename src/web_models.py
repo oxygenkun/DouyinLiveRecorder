@@ -17,7 +17,7 @@ from typing import Any
 
 # 这里的「零依赖」指不引 pydantic/fastapi；422 的 detail 是面板直接展示的文本，故走 i18n 查表
 # （i18n 只依赖 stdlib + loguru，不回指 web_* 任何模块，无环）。
-import i18n
+from src import i18n
 
 
 def _as_str(value: Any, field: str) -> str:

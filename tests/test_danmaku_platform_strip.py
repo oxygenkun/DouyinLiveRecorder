@@ -19,7 +19,7 @@ from typing import Any
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MAIN_FILE = REPO_ROOT / "main.py"
+MAIN_FILE = REPO_ROOT / "src/main.py"
 CONFIG_FILE = REPO_ROOT / "config" / "config.ini"
 # utf-8-sig：与本仓其它直接读 main.py 源码的检查用例同口径（BOM 存在时不污染首行 token）。
 MAIN_SRC = MAIN_FILE.read_text(encoding="utf-8-sig")
@@ -44,7 +44,7 @@ def _assign_nodes(name: str) -> list[ast.Assign]:
 def _assign_segment() -> str:
     # 取 main.py 里 danmaku_platforms 那条赋值语句的**原文**（含被括号包住的续行）。
     found = _assign_nodes("danmaku_platforms")
-    assert found, "main.py 中找不到 danmaku_platforms 的赋值语句（M-12 修复形态已丢失）"
+    assert found, "src/main.py 中找不到 danmaku_platforms 的赋值语句（M-12 修复形态已丢失）"
     assert len(found) == 1, f"danmaku_platforms 应只有一处赋值，实为 {len(found)} 处"
     segment = ast.get_source_segment(MAIN_SRC, found[0])
     assert segment is not None, "无法取到 danmaku_platforms 赋值语句原文"
@@ -53,7 +53,7 @@ def _assign_segment() -> str:
 
 def _value_segment(name: str) -> str:
     found = _assign_nodes(name)
-    assert found, f"main.py 中找不到 {name} 的赋值语句"
+    assert found, f"src/main.py 中找不到 {name} 的赋值语句"
     segment = ast.get_source_segment(MAIN_SRC, found[0].value)
     assert segment is not None, f"无法取到 {name} 赋值右侧原文"
     return segment
@@ -134,7 +134,7 @@ class TestMembershipHits:
                 rights = [ast.unparse(r) for r in node.comparators]
                 if left == "platform" and "danmaku_platforms" in rights:
                     hit = True
-        assert hit, "main.py 里找不到 `platform in danmaku_platforms` 匹配点（接线形态已变化，需复核本锁）"
+        assert hit, "src/main.py 里找不到 `platform in danmaku_platforms` 匹配点（接线形态已变化，需复核本锁）"
 
     def test_production_expression_contains_strip(self) -> None:
         # 与上方行为锁互补的静态形态锁：赋值右侧必须同时出现「逐项 strip」与「空项过滤」。

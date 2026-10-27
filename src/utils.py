@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Callable, ParamSpec, TypeVar, cast
 from urllib.parse import parse_qs, urlparse
 
-import i18n
+from src import i18n
 
 # 工具函数模块 - 提供通用工具函数，包括配置文件读写、文件操作、字符串处理等
 
@@ -735,10 +735,10 @@ _utils_local_write_lock = threading.RLock()
 
 def _url_config_write_lock() -> threading.RLock:
     try:
-        import main as _main
+        from src import main as _main
     except ImportError:  # pragma: no cover - 仅在 main 不可导入的独立脚本环境发生
         return _utils_local_write_lock
-    # main.py 顶部已把 __main__ 注册为 sys.modules["main"]，故这里不会二次执行入口脚本；
+    # main.py 顶部已把 __main__ 注册为 sys.modules["src.main"]，故这里不会二次执行入口脚本；
     # 属性缺失只可能出现在极早期（main 正在执行、尚未定义该锁）→ 同样退化为本地锁。
     return cast("threading.RLock", getattr(_main, "file_update_lock", _utils_local_write_lock))
 

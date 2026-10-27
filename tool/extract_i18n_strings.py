@@ -35,15 +35,7 @@ from typing import cast
 
 ROOT = Path(__file__).resolve().parent.parent
 
-SCAN_FILES = [
-    ROOT / "main.py",
-    ROOT / "gui.py",
-    # [历史注] 原第三条是 gui_legacy.py（2026-09-10 随 v4.1.0-dev 删除，2026-09-21 清掉引用）；
-    # 它此前恒被 main() 的 exists() 兜底跳过，留着只会让人误以为这里仍是扫描入口
-    ROOT / "web.py",
-    ROOT / "msg_push.py",
-    ROOT / "i18n.py",
-] + sorted((ROOT / "src").rglob("*.py"))
+SCAN_FILES = sorted((ROOT / "src").rglob("*.py"))
 
 # 只有这些 logger 方法名的首参被视为「可翻译串」。tests/test_i18n_migration.py 里另有一份
 # 同名集合并注明与之同口径——改这里必须同时改那里，否则检查判的与提取的又是两套。
@@ -62,9 +54,9 @@ LOGGER_METHODS = {
 
 
 def _load_compile_po() -> object:
-    # 按文件路径加载 scripts/compile_po.py 复用它的 parse_po()：.po 的多行 msgid 与转义还原
+    # 按文件路径加载 tool/compile_po.py 复用它的 parse_po()：.po 的多行 msgid 与转义还原
     # 只有那一份实现是对的，本脚本再写一份就会与它漂移（键集合比对随之假红）
-    spec = importlib.util.spec_from_file_location("compile_po_probe", ROOT / "scripts" / "compile_po.py")
+    spec = importlib.util.spec_from_file_location("compile_po_probe", ROOT / "tool" / "compile_po.py")
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

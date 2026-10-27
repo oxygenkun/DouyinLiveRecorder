@@ -10,32 +10,22 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 
-from .node_install import check_node
+JS_SCRIPT_PATH = Path(__file__).resolve().parent / "javascript"
 
-current_file_path = Path(__file__).resolve()
-current_dir = current_file_path.parent
-JS_SCRIPT_PATH = current_dir / "javascript"  # JavaScript 脚本目录（用于签名算法）
 
-# execute_dir 需指向项目根目录（主脚本所在目录），Node.js 装在根目录下的 node/。
-# 冻结后资源统一在 _internal/，故统一取 src.logger.script_path（= _app_root() 的结果），
-# 复用 logger 已导出的公开符号，避免跨模块引用私有符号 _app_root。
-from .logger import script_path
+def initialize_runtime() -> None:
+    # 入口完成编码和日志模式设置后再检查运行时，包导入本身不启动子进程。
+    from .logger import script_path
+    from .node_install import check_node
 
-execute_dir = script_path
-node_execute_dir = Path(execute_dir) / "node"  # Node.js 可执行文件目录
-current_env_path = os.environ.get("PATH", "")
-# 仅在目录存在且未添加时更新 PATH，避免污染或重复追加
-node_dir_str = str(node_execute_dir)
-if node_execute_dir.is_dir() and node_dir_str not in current_env_path.split(os.pathsep):
-    os.environ["PATH"] = node_dir_str + os.pathsep + current_env_path
-
-# 导入期运行时检查开关：测试/CI/静态工具导入 src 包时不应触发 node 子进程检查与自动安装
-# 副作用（受限环境下子进程管道偶发失败还会导致导入崩溃）；生产运行不设置该变量，行为不变。
-if os.environ.get("DOUYIN_SKIP_RUNTIME_CHECK", "").strip().lower() not in ("1", "true", "yes"):
-    # 初始化检查 Node.js 环境（仅为副作用：缺失则自动安装，返回值此处无需处理）
-    _ = check_node()
+    node_dir = Path(script_path) / "node"
+    env_path = os.environ.get("PATH", "")
+    if node_dir.is_dir() and str(node_dir) not in env_path.split(os.pathsep):
+        os.environ["PATH"] = str(node_dir) + os.pathsep + env_path
+    if os.environ.get("DOUYIN_SKIP_RUNTIME_CHECK", "").strip().lower() not in ("1", "true", "yes"):
+        check_node()
 
 
 # ---------------------------------------------------------------------------
@@ -43,9 +33,8 @@ if os.environ.get("DOUYIN_SKIP_RUNTIME_CHECK", "").strip().lower() not in ("1", 
 # ---------------------------------------------------------------------------
 # 移植自 dart_simple_live，为录制工具提供与录像同步、按半小时分片的 SRT 弹幕录制能力。
 
-from src.base import DanmakuBase
-
 if TYPE_CHECKING:
+    from src.base import DanmakuBase
     from src.collector import DanmakuCollector
 
 
@@ -65,7 +54,7 @@ def get_danmaku_class(platform: str) -> Optional[type[DanmakuBase]]:
         "抖音直播": DouyinDanmaku,
         "TwitchTV": TwitchDanmaku,
     }
-    return cast(Optional[type[DanmakuBase]], _DANMAKU_REGISTRY.get(platform))
+    return _DANMAKU_REGISTRY.get(platform)
 
 
 # 工厂函数：平台不支持或 danmaku_args 为空时返回 None（导入放在函数内，避免循环依赖）。

@@ -7,13 +7,13 @@
 #     三个 exe 与 main.py / gui.py / web.py 的对应关系见下方「产物布局」。
 #
 # 用法：
-#     python build_exe.py             # 打包并生成 zip 产物
-#     python build_exe.py --smoke     # 打包后额外运行冒烟测试（CI 推荐）
-#     python build_exe.py --no-zip    # 只打包不压缩
-#     python build_exe.py --no-runtime # 跳过 ffmpeg/node 打包（交由用户运行时自动下载，减小分发体积）
-#     python build_exe.py --dual      # 同时生成 lite（无运行时）与 full（下载并打包 ffmpeg+node）两个 zip
-#     python build_exe.py --require-pinned # 运行时二进制缺 SHA256 钉定即终止构建（CI 默认开启，SEV-10 fail-closed）
-#     python build_exe.py --pin-source verify # 拉取官方清单与内置钉定表比对（默认 off：不联网、行为不变）
+#     python tool/build_exe.py             # 打包并生成 zip 产物
+#     python tool/build_exe.py --smoke     # 打包后额外运行冒烟测试（CI 推荐）
+#     python tool/build_exe.py --no-zip    # 只打包不压缩
+#     python tool/build_exe.py --no-runtime # 跳过 ffmpeg/node 打包（交由用户运行时自动下载，减小分发体积）
+#     python tool/build_exe.py --dual      # 同时生成 lite（无运行时）与 full（下载并打包 ffmpeg+node）两个 zip
+#     python tool/build_exe.py --require-pinned # 运行时二进制缺 SHA256 钉定即终止构建（CI 默认开启，SEV-10 fail-closed）
+#     python tool/build_exe.py --pin-source verify # 拉取官方清单与内置钉定表比对（默认 off：不联网、行为不变）
 #
 # 产物布局（onedir + contents_directory='_internal'）：
 #     dist/DouyinLiveRecorder/
@@ -47,7 +47,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, cast
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APP_NAME = "DouyinLiveRecorder"
 DIST_DIR = PROJECT_ROOT / "dist"
 RELEASE_DIR = DIST_DIR / APP_NAME
@@ -178,7 +178,7 @@ datas = [
 # 故 'PySide6' 只出现在 CLI 的 excludes 上；GUI 与 Web（2026-10-20 托盘迁 QSystemTrayIcon 后）必须收它。
 
 hidden_common = [
-    'i18n',                          # main.py 内部延迟导入
+    'src.i18n',                          # main.py 内部延迟导入
     'src.async_http',              # main.py 经 __import__ 动态导入
     'h2',                            # httpx[http2] 懒加载依赖
     'exejs',                         # PyExecJS 继任者，try/except 条件导入需显式收集
@@ -189,13 +189,13 @@ hidden_web = hidden_common + collect_submodules('uvicorn')
 # 注意：PyInstaller 6.x 已移除 cipher / zipped_data / zipfiles，spec 语法为 v6 风格。
 # excludes 一律以 excludes_bloat 打头：三个入口共用同一个 _internal（COLLECT 合并去重），只在
 # 某一个 Analysis 上排除没有意义——只要 GUI 收了它，CLI 的产物里照样带着。
-a_cli = Analysis(['main.py'], pathex=[], datas=datas, hiddenimports=hidden_common,
+a_cli = Analysis(['src/main.py'], pathex=[SPECPATH], datas=datas, hiddenimports=hidden_common,
                  excludes=excludes_bloat + ['tkinter', 'customtkinter', 'pystray', 'PIL',
                            'fastapi', 'uvicorn', 'starlette', 'brotlicffi', 'PySide6'],
                  noarchive=False)
-a_gui = Analysis(['gui.py'], pathex=[], datas=[], hiddenimports=hidden_common,
+a_gui = Analysis(['src/gui.py'], pathex=[SPECPATH], datas=[], hiddenimports=hidden_common,
                  excludes=excludes_bloat + ['fastapi', 'uvicorn', 'starlette', 'brotlicffi'], noarchive=False)
-a_web = Analysis(['web.py'], pathex=[], datas=[], hiddenimports=hidden_web,
+a_web = Analysis(['src/web.py'], pathex=[SPECPATH], datas=[], hiddenimports=hidden_web,
                  excludes=excludes_bloat + ['tkinter', 'customtkinter', 'pystray', 'brotlicffi'],
                  noarchive=False)
 
@@ -233,8 +233,7 @@ def preflight_syntax_check() -> None:
     # 文件名+行号失败。
     import py_compile
 
-    targets = [PROJECT_ROOT / name for name in ("main.py", "gui.py", "web.py", "i18n.py", "msg_push.py")]
-    targets += sorted((PROJECT_ROOT / "src").rglob("*.py"))
+    targets = sorted((PROJECT_ROOT / "src").rglob("*.py"))
     for path in targets:
         if not path.is_file():
             continue

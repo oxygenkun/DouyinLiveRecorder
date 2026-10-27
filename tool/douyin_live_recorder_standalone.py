@@ -47,11 +47,11 @@
 #
 # 使用
 # -----------------------------------------------------------------------------
-# 本文件位于 scripts/ 下，以下命令均在仓库根目录执行：
-#   python scripts/douyin_live_recorder_standalone.py --selftest
-#   python scripts/douyin_live_recorder_standalone.py --url "https://live.douyin.com/123456" --dry-run
-#   python scripts/douyin_live_recorder_standalone.py --url "https://www.huya.com/660002" --once
-#   python scripts/douyin_live_recorder_standalone.py --config config/config.ini --url-config config/URL_config.ini
+# 本文件位于 tool/ 下，以下命令均在仓库根目录执行：
+#   python tool/douyin_live_recorder_standalone.py --selftest
+#   python tool/douyin_live_recorder_standalone.py --url "https://live.douyin.com/123456" --dry-run
+#   python tool/douyin_live_recorder_standalone.py --url "https://www.huya.com/660002" --once
+#   python tool/douyin_live_recorder_standalone.py --config config/config.ini --url-config config/URL_config.ini
 #
 # 依赖与前置条件见文件末尾 RUN_STEPS 常量(可用 --help-steps 打印)。
 
@@ -1736,7 +1736,7 @@ def find_ffmpeg(explicit: str = "") -> str:
     # 定位 ffmpeg：显式路径 > 脚本同级 ffmpeg/<exe> > 仓库根目录 ffmpeg/<exe> > PATH。
     # 找不到返回空串。注意必须校验**可执行文件**而非 ffmpeg/ 目录本身——目录存在
     # 但里面没有 ffmpeg.exe 时，把目录路径交给子进程只会得到难以理解的
-    # FileNotFoundError。本文件位于 scripts/ 下，仓库自带的 ffmpeg/ 在其上一级；
+    # FileNotFoundError。本文件位于 tool/ 下，仓库自带的 ffmpeg/ 在其上一级；
     # 脚本被单独拷出使用时仍优先找其同目录 ffmpeg/。
     # 唯一例外：Apple Silicon 上系统已装原生 ffmpeg 时让位（见
     # should_prepend_bundled_ffmpeg_dir，与主程序 main.py 的 PATH 策略同源）。
@@ -2576,7 +2576,7 @@ RUN_STEPS = """
 
 【2. FFmpeg 安装(录制必需，--dry-run 可免)】
   Windows: 下载 https://www.gyan.dev/ffmpeg/builds/ 的 essentials 版，
-           解压后把 ffmpeg.exe 放到仓库根目录的 ffmpeg/ 目录(本文件位于 scripts/ 下，
+           解压后把 ffmpeg.exe 放到仓库根目录的 ffmpeg/ 目录(本文件位于 tool/ 下，
            脚本会自动向上查找)，或加入 PATH。
   Linux:   sudo apt install -y ffmpeg
   macOS:   brew install ffmpeg
@@ -2610,12 +2610,12 @@ RUN_STEPS = """
   - 输出目录有写权限(默认 downloads/)；
   - 支持平台：抖音 / 虎牙 / B站 / 斗鱼(其余平台请用原工程完整版)。
 
-【5. 常用命令】(本文件位于 scripts/ 下，以下命令在仓库根目录执行)
-  python scripts/douyin_live_recorder_standalone.py --selftest          # 离线自检
-  python scripts/douyin_live_recorder_standalone.py --help-steps        # 打印本说明
-  python scripts/douyin_live_recorder_standalone.py --url "https://live.douyin.com/xxxx" --dry-run
-  python scripts/douyin_live_recorder_standalone.py --url "https://www.huya.com/660002" --once --duration 30
-  python scripts/douyin_live_recorder_standalone.py --config config.ini --url-config URL_config.ini
+【5. 常用命令】(本文件位于 tool/ 下，以下命令在仓库根目录执行)
+  python tool/douyin_live_recorder_standalone.py --selftest          # 离线自检
+  python tool/douyin_live_recorder_standalone.py --help-steps        # 打印本说明
+  python tool/douyin_live_recorder_standalone.py --url "https://live.douyin.com/xxxx" --dry-run
+  python tool/douyin_live_recorder_standalone.py --url "https://www.huya.com/660002" --once --duration 30
+  python tool/douyin_live_recorder_standalone.py --config config.ini --url-config URL_config.ini
 
 【6. 结果验证方式】
   1) --selftest 全部 [PASS]，退出码 0；

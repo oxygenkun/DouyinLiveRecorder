@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import main
+import src.main as main
 from src import config_io, web_config
 
 

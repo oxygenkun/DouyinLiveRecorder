@@ -22,8 +22,10 @@ import pytest
 from loguru import logger
 from pytest import MonkeyPatch
 
-import main  # noqa: E402  (config_read 不依赖 main，但本文件要核对 main 的模块级解析器接线)
-from src import config_read
+from src import (
+    config_read,
+    main,  # noqa: E402  (config_read 不依赖 main，但本文件要核对 main 的模块级解析器接线)
+)
 from src.config_read import find_duplicate_options, tolerant_config_parser, warn_duplicate_options
 
 # 一份「同节内重复 + 注释里出现同名键 + 跨节同名键」三态并存的样本：
@@ -203,4 +205,4 @@ def test_main_module_level_parser_is_duplicate_tolerant() -> None:
     # 接线锁：main.py 的模块级 config 必须是容错解析器。configparser 只把 strict 存成私有字段
     # _strict（默认解析器为 True、strict=False 构造的为 False），没有公开读回入口；该字段若随
     # CPython 改名，本条以 AttributeError 当场失败而不会静默放行（三参 getattr 绕过 mypy）。
-    assert getattr(main.config, "_strict", None) is False, "main.py 的模块级 config 必须是容错解析器"
+    assert getattr(main.config, "_strict", None) is False, "src/main.py 的模块级 config 必须是容错解析器"

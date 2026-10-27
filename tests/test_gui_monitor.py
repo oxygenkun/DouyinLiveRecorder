@@ -24,12 +24,12 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 
 # 子进程内驱动真实 gui 逻辑；结果以带前缀的单行 JSON 回传（便于与 customtkinter 的
 # 任何杂散输出分离）。
 _SCRIPT = """
-import gui
+from src import gui
 import json
 import sys
 import types

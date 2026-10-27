@@ -12,9 +12,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # 提交时使用的仓库级检查脚本（匹配口径取脚本相对路径子串：
 # entry 可再携带参数，只要脚本本身被调用即视为覆盖，不钉参数顺序与字符串完全相等）。
 REPO_LEVEL_GATE_SCRIPTS: tuple[str, ...] = (
-    "scripts/compile_po.py",
-    "scripts/check_version.py",
-    "scripts/check_skill_agents_consistency.py",
+    "tool/compile_po.py",
+    "tool/check_version.py",
+    "tool/check_skill_agents_consistency.py",
 )
 
 

@@ -1824,7 +1824,7 @@ class TestChildConsoleStartupInfo:
         # 两条 delitem 保证本条与「谁先 import main」无关：整包跑与单文件跑同一结论。
         monkeypatch.setattr(ffmpeg_install, "_HIDE_CHILD_CONSOLE", True)
         monkeypatch.delitem(sys.modules, "src.video_postprocess", raising=False)
-        monkeypatch.delitem(sys.modules, "main", raising=False)
+        monkeypatch.delitem(sys.modules, "src.main", raising=False)
         assert ffmpeg_install._win_startup_info() is None
         assert "src.video_postprocess" not in sys.modules, "不该为取 startupinfo 触发那次循环导入"
         shim, captured = _kwargs_shim()

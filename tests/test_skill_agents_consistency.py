@@ -1,4 +1,4 @@
-# scripts/check_skill_agents_consistency.py 的回归用例。
+# tool/check_skill_agents_consistency.py 的回归用例。
 #
 # 锁的是「检查自身完整性」四条（对应 SR-06，docs/worklog/CODE_REVIEW_2026-10-04.md）：
 #   1) .agents/skills/ 必须入库——该目录缺失时脚本退 2，而它是 required check `ci-summary`
@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _load_checker() -> ModuleType:
     spec = importlib.util.spec_from_file_location(
-        "_skill_consistency_probe", ROOT / "scripts" / "check_skill_agents_consistency.py"
+        "_skill_consistency_probe", ROOT / "tool" / "check_skill_agents_consistency.py"
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

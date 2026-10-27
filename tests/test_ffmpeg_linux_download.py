@@ -25,7 +25,7 @@ import pytest
 import requests
 
 import src.ffmpeg_linux_download as fld
-from build_exe import _FFMPEG_DOWNLOAD_URLS as BUILD_EXE_FFMPEG_URLS
+from tool.build_exe import _FFMPEG_DOWNLOAD_URLS as BUILD_EXE_FFMPEG_URLS
 
 # 两条 URL 一律从被测模块的表里取，**不在本文件复述字面量**：分流/反解用例的锚点必须是「表本身」，
 # 否则改表不改测试就会造出一条假绿的平行副本。URL 与发布链的一致性另有专门一条锁
@@ -343,7 +343,7 @@ class TestUrlParityWithBuildExe:
     def test_runtime_digest_channel_agrees_with_the_release_pin(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # 离线复现「API digest 通道 == 发布期人工核过的钉定值」这一实测结论：
         # 桩掉 requests 返回 build_exe 的 linuxarm64 钉定值，走真实 _fetch_asset_digest 判定链。
-        import build_exe
+        from tool import build_exe
 
         pinned = build_exe._PINNED_RUNTIME_SHA256["linux-arm64"]["ffmpeg"]
 

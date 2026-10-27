@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-import i18n
+from src import i18n
 
 ROOT = Path(__file__).resolve().parents[1]
 MO_PATH = ROOT / "i18n" / "zh_CN" / "LC_MESSAGES" / "zh_CN.mo"
@@ -27,7 +27,7 @@ class TestInitGettext:
         for key in [k for k in os.environ if k.startswith(("LANG", "LC_"))]:
             monkeypatch.delenv(key, raising=False)
         before = {k: v for k, v in os.environ.items() if k.startswith(("LANG", "LC_"))}
-        spec = importlib.util.spec_from_file_location("i18n_body_probe", ROOT / "i18n.py")
+        spec = importlib.util.spec_from_file_location("i18n_body_probe", ROOT / "src/i18n.py")
         assert spec is not None and spec.loader is not None
         probe = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(probe)
@@ -63,15 +63,15 @@ class TestMoCatalog:
 
     def test_po_and_mo_in_sync(self) -> None:
         # .po 与 .mo 字节级同步，改动 .po 忘记重编译时在此失败；
-        # 以 import 方式复用 scripts/compile_po.py 的编译逻辑（与 CI --check 同源）。
-        spec = importlib.util.spec_from_file_location("compile_po_check", ROOT / "scripts" / "compile_po.py")
+        # 以 import 方式复用 tool/compile_po.py 的编译逻辑（与 CI --check 同源）。
+        spec = importlib.util.spec_from_file_location("compile_po_check", ROOT / "tool" / "compile_po.py")
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         entries = mod.parse_po(mod.PO_PATH)
         # write_mo 纯内存产出不落盘（CI --check 的零副作用语义依赖此约定），取返回值直接比对
         fresh_bytes = mod.write_mo(entries)
-        assert fresh_bytes == MO_PATH.read_bytes(), ".po 已修改但 .mo 未重编译，请运行 python scripts/compile_po.py"
+        assert fresh_bytes == MO_PATH.read_bytes(), ".po 已修改但 .mo 未重编译，请运行 python tool/compile_po.py"
 
 
 class TestTranslatedPrint:

@@ -27,8 +27,8 @@ from typing import Any
 
 import pytest
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
 import src.cookie_cache as cookie_cache
+import src.main as main
 import src.stream_select as stream_select
 import src.ttwid as ttwid_module
 

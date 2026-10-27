@@ -9,8 +9,8 @@ import pytest
 from loguru import logger
 from pytest import MonkeyPatch
 
-import main  # noqa: E402,F401  (打破 config_io ↔ main 导入环)
-from src import config_io  # noqa: E402
+import src.main as main
+from src import config_io
 
 
 def test_read_config_value_missing_key_readonly_ok(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:

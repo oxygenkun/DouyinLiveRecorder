@@ -21,7 +21,7 @@ from typing import TypeGuard
 
 # 项目根：本文件位于 tests/ 下，取上级目录；后续所有路径都相对它解析
 ROOT = Path(__file__).resolve().parent.parent
-# 与 scripts/extract_i18n_strings.py 的 LOGGER_METHODS 保持同口径：
+# 与 tool/extract_i18n_strings.py 的 LOGGER_METHODS 保持同口径：
 # 只有 logger.<这些方法>(...) 的首参才被提取器视为「可翻译串」
 LOGGER_METHODS = {
     "debug",
@@ -38,9 +38,9 @@ LOGGER_METHODS = {
 
 
 def _load_extractor() -> object:
-    # 提取器是 scripts/ 下的独立脚本（不在包内），按文件路径加载并复用其 SCAN_FILES /
+    # 提取器是 tool/ 下的独立脚本（不在包内），按文件路径加载并复用其 SCAN_FILES /
     # scan_file / is_valuable：复制一份扫描口径一旦漂移，回归结论就会与真实提取器不同（假绿/假红）
-    spec = importlib.util.spec_from_file_location("_extract_i18n_probe", ROOT / "scripts" / "extract_i18n_strings.py")
+    spec = importlib.util.spec_from_file_location("_extract_i18n_probe", ROOT / "tool" / "extract_i18n_strings.py")
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -216,7 +216,7 @@ def test_runtime_templates_covered_by_catalog() -> None:
 
     # 直接复用 compile_po 的权威 .po 解析（多行 msgid / 转义还原均正确），
     # 不自己写解析器，避免两套解析口径不一致导致误判
-    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "scripts" / "compile_po.py")
+    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "tool" / "compile_po.py")
     assert spec is not None and spec.loader is not None
     cp = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cp)

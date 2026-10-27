@@ -19,12 +19,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-sys.argv = [str(ROOT / "main.py")]
+sys.argv = [str(ROOT / "src/main.py")]
 os.environ["DOUYIN_SKIP_RUNTIME_CHECK"] = "1"
 os.environ["DOUYIN_LOG_NO_ENQUEUE"] = "1"
 os.environ["DOUYIN_DISABLE_LOG_ARCHIVE"] = "1"
 
-import main
+from src import main
 
 
 def run(output: Path) -> None:

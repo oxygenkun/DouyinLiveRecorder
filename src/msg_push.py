@@ -14,7 +14,7 @@ from typing import cast
 
 from loguru import logger
 
-import i18n
+from src import i18n
 
 # 消息推送模块：钉钉 / 微信(Server酱、息知) / Telegram / Bark / ntfy / PushPlus 推送及 SMTP 邮件。
 # 各推送函数接收地址与内容，返回 {"success": [...], "error": [...]}；单地址失败只计入 error，
@@ -27,7 +27,7 @@ no_proxy_handler: urllib.request.ProxyHandler = urllib.request.ProxyHandler({})
 # 集合 + 指定 ProxyHandler」，默认集合含 FileHandler / FTPHandler / DataHandler；而推送地址来自
 # config.ini，Web 面板可写全部配置，写成 file:///C:/Users/x/.ssh/id_rsa 就能让本模块读本地文件，
 # 读到的内容随后经 ntfy 分支的 error 键原样进日志（logs/ 按轮转保留多份，求助时常整包上传）。
-# 白名单形态与 scripts/douyin_live_recorder_standalone.py 的 _build_opener 同源：只注册 http/https
+# 白名单形态与 tool/douyin_live_recorder_standalone.py 的 _build_opener 同源：只注册 http/https
 # 所需处理器，file/ftp/data 三类协议入口彻底不存在。
 _PUSH_HTTP_HANDLERS: tuple[type[urllib.request.BaseHandler], ...] = (
     urllib.request.UnknownHandler,

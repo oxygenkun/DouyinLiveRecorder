@@ -11,8 +11,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
-from src import spider
+from src import (
+    main,  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
+    spider,
+)
 from src.stream_select import get_record_headers
 
 # 真实 B站 wbi key 各 32 hex 字符（img_key + sub_key 共 64，混排表索引到 63）

@@ -16,7 +16,7 @@ from typing import Iterator
 from tests.test_i18n_catalog_coverage import _cached_catalog_key_sets
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCAN_FILES = ("main.py", "src/spider.py", "src/web_models.py")
+SCAN_FILES = ("src/main.py", "src/spider.py", "src/web_models.py")
 _HAS_CN = re.compile(r"[一-鿿]")
 
 # 刻意不接 tr() 的站点，键为「相对路径|消息里第一个中文常量」；每条须写明「为什么不接、谁在管」。

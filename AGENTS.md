@@ -8,11 +8,11 @@
 
 ## 项目结构
 
-[目录参考](docs/agent-reference/project-structure.md)。CLI / GUI / Web 入口分别为 `main:main`、`gui:main`、`web:main`。
+[目录参考](docs/agent-reference/project-structure.md)。运行时代码统一在 `src/`，维护与构建工具统一在 `tool/`；CLI / GUI / Web 入口分别为 `src.main:main`、`src.gui:main`、`src.web:main`，源码使用 `python -m src.main` / `src.gui` / `src.web` 启动。
 
 ## 项目级 Skill
 
-下表与 `.agents/skills/` 的一级技能目录一一对应；触发场景与各 skill 的 description 同步。新增、删除或改名时同批更新，运行 `python scripts/check_skill_agents_consistency.py`。
+下表与 `.agents/skills/` 的一级技能目录一一对应；触发场景与各 skill 的 description 同步。新增、删除或改名时同批更新，运行 `python tool/check_skill_agents_consistency.py`。
 
 | Skill | 路径 | 触发词 / 场景 | 覆盖领域 |
 | --- | --- | --- | --- |
@@ -34,7 +34,7 @@
 ## 测试
 
 - 测试配置在 `pyproject.toml`；pytest 要求 warnings summary 为空。只在全局配置中有来源说明地忽略第三方告警，不过滤项目自身告警；协程 RuntimeWarning 修根因。
-- pytest 与 `scripts/check_coverage.py` 仅在需要 commit 时执行；日常编辑和交付不自动运行测试或覆盖率检查。测试可以随改动编写，待提交前运行；未执行项如实报告。
+- pytest 与 `tool/check_coverage.py` 仅在需要 commit 时执行；日常编辑和交付不自动运行测试或覆盖率检查。测试可以随改动编写，待提交前运行；未执行项如实报告。
 - 新测试优先放在对应模块的 `tests/test_<module>.py`；跨模块行为用清楚的专题名。测试必须驱动生产实现，不在测试中重写锁、缓存或限流逻辑。
 - 安全测试验证行为或稳定不变量，不用钉旧变量名/旧文案的否定正则冒充安全保障。
 - 前端测试使用 Node 内置 `node:test`，无需 npm。新增 `tests/frontend/*.mjs` 同批添加 Python 包装，并登记 `.github/workflows/ci.yml` 的「Gate frontend tests not skipped」node-id 清单；不另建清单。
@@ -60,13 +60,13 @@
 
 ```bash
 uv sync --locked --extra build --extra gui
-uv run --locked --extra build --extra gui python build_exe.py --smoke
-uv run --locked --extra build --extra gui python build_exe.py --dual
+uv run --locked --extra build --extra gui python tool/build_exe.py --smoke
+uv run --locked --extra build --extra gui python tool/build_exe.py --dual
 ```
 
-其他参数先看 `build_exe.py --help`。镜像通过 APP_VERSION 注入 pyproject 版本，`docker compose up -d` 本地构建；不提交运行时配置。
+其他参数先看 `tool/build_exe.py --help`。镜像通过 APP_VERSION 注入 pyproject 版本，`docker compose up -d` 本地构建；不提交运行时配置。
 
-### 打包与冒烟测试语义（build_exe.py）
+### 打包与冒烟测试语义（tool/build_exe.py）
 
 - CLI / GUI / Web 三入口共享 `_internal/`；config、ffmpeg、node 与 exe 同级。JS 签名资源按模块路径打入 `_internal/`。
 - 冒烟结果按 `FATAL_MARKERS` 与进程状态判定；headless 特定良性报错只允许精确豁免，不宽泛吞异常。
@@ -80,7 +80,7 @@ uv run --locked --extra build --extra gui python build_exe.py --dual
 - 多架构镜像用原生双 runner 构建，再按提升到 job outputs 的 digest 合成；不用 QEMU 承担全量跨架构构建。只由版本 tag 发布，凭据仅 GITHUB_TOKEN，不增加重写 latest 的调度入口。
 - 发布失败由 release-guard 回收空 Release，不删 tag、不关闭产物缺失检查。
 - 本地工具、运行期数据排除项同步 gitignore / dockerignore / Ruff / coverage；`.agents/skills/` 入库例外见技能节。覆盖率主任务与 concurrency 配置均用 exclude_also 并保持同源。
-- Docker 只支持 CLI / Web：不加 gui extra、Qt/X11 系统库、GUI 目标或 compose profile；dockerignore 排除 gui.py 与 src/gui_qt/，uv.lock 必须进上下文。uv 固定版本及摘要，锁定安装，运行阶段不带构建工具，FFmpeg 独立阶段构建。
+- Docker 只支持 CLI / Web：不加 gui extra、Qt/X11 系统库、GUI 目标或 compose profile；dockerignore 排除 src/gui.py 与 src/gui_qt/，uv.lock 必须进上下文。uv 固定版本及摘要，锁定安装，运行阶段不带构建工具，FFmpeg 独立阶段构建。
 - deps-audit 阻断 Python 依赖漏洞；Trivy 镜像审计维持 advisory，升级阻断需维护者明确决定。
 - 跑 pytest 的 job 安装基础依赖与 dev extra；Qt 测试补 gui extra 和系统库。维护脚本缺可执行文件时明确降级，不阻断后续独立步骤。
 
@@ -92,7 +92,7 @@ uv run --locked --extra build --extra gui python build_exe.py --dual
 
 ```bash
 uv run --locked --extra dev --extra gui python -m pytest --cov=src
-uv run --locked --extra dev --extra gui python scripts/check_coverage.py
+uv run --locked --extra dev --extra gui python tool/check_coverage.py
 ```
 
 - 静态检查按需直接运行 Ruff、翻译同步、版本或技能一致性检查；pre-commit 与 CI 保留各自的提交检查入口。Windows 检查使用 `PYTHONUTF8=1`。
@@ -122,7 +122,7 @@ uv run --locked --extra dev --extra gui python scripts/check_coverage.py
 - host 熔断 open→half-open 只放一个带租约探针，超时可重授，避免未上报轮次永久占住探针。计数增量维护，不在持锁热路径反复 sum(deque)。
 - start_record 先初始化 record_host，再在平台分派前 allow 预检；网络与录制信号量保持分工，录制槽必须在 Popen 前 acquire，启动及运行全部包在 try/finally 中释放。
 
-### 录制结果反馈约定（main.py / src/stream_select.py）
+### 录制结果反馈约定（src/main.py / src/stream_select.py）
 
 ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成功和直下成功也须反馈 host 样本；快速失败按实际 `-i` 地址标记退避，成功只清实际成功地址，白名单由 stream_select 维护，不扩大到斗鱼。
 
@@ -136,7 +136,7 @@ ffmpeg 按退出码上报成功/失败，禁止轮末无条件成功。解析成
 
 - 版本唯一声明在 pyproject；入口经 importlib.metadata 动态读取，Docker 经 APP_VERSION 注入；文档版本按需同步。
 - 布尔解析复用 config_bool.parse_config_bool，读取写回复用 config_io.read_config_bool；前端 parseConfigBool 保持同一 token 集合，未知值走默认且不覆写用户原文。
-- 改公共符号前用 rg 搜索调用点、测试、资源和 standalone 孪生实现；删符号后不留悬空调用。main.py 内部的 main 是函数，不作模块前缀使用。
+- 改公共符号前用 rg 搜索调用点、测试、资源和 standalone 孪生实现；删符号后不留悬空调用。src/main.py 内部的 main 是函数，不作模块前缀使用。
 - JS 文件增删与 utils._JS_SHA256_EXPECTED 同步；migu.js 返回完整签名 URL，调用方不再拼过时参数。
 - 启动缓存清理只限程序顶层与 src 直接含 .py 的目录下 pyc/pyo；不递归全仓。基线用版本 + 路径/源码内容哈希，不能用 size/mtime；冻结或开关关闭时零 I/O，基线失败仍清理并告警。
 - 停止时日志归档复用 log_archive.archive_runtime_logs；Windows 改名前关闭句柄，GUI 子进程及测试按现有开关早退，不重开测试对真实日志的副作用。

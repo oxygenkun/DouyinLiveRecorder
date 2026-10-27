@@ -129,7 +129,7 @@ def _install_crash_sink() -> None:
         threading.excepthook = _thread_dump  # type: ignore[assignment]
 
 
-# 仅作为入口脚本（pythonw gui.py / GUI 冻结 exe）时才劫持进程级钩子；安排在重活导入
+# 仅作为入口脚本（pythonw -m src.gui / GUI 冻结 exe）时才劫持进程级钩子；安排在重活导入
 # 之前，使 tkinter/ttk、src 包及 PySide6 缺失这类导入期崩溃也纳入兜底。被当作模块导入时
 # 不安装：那时钩子属于宿主进程，而 pytest 收集会 import 本模块——接管后会把会话收尾的
 # 未捕获异常弹成「GUI 启动失败」并吞掉原始堆栈（2026-09-23 事故，见 DIAGNOSIS 文档）。
@@ -168,7 +168,7 @@ os.environ["DLR_GUI_PARENT"] = "1"
 # i18n：侧边栏语言菜单即时热切换（set_language 重载翻译目录，后续 print/日志即时换语言），
 # 界面静态标签经 ui_i18n.T 登记、由 retranslate_all 回填；config 写回经
 # web_config.update_config_line（与 Web 面板同款行级更新，保留注释）。
-import i18n as i18n_module
+from src import i18n as i18n_module
 from src.config_bool import parse_config_bool
 from src.logger import child_process_env, logger
 from src.ui_fonts import (
@@ -1025,7 +1025,7 @@ class AdvancedSettingsWindow:
             # 末尾换行，直接用 editor_text 会少一个 \n，监听器下一轮据此判成外部改动
             self._disk_snapshot, self._disk_mtime = _read_config_snapshot(self.config_file)
             self._conflict_hint_shown = False
-            # messagebox 正文不经 i18n.tr 就永远查不到目录（scripts/extract_i18n_strings.py
+            # messagebox 正文不经 i18n.tr 就永远查不到目录（tool/extract_i18n_strings.py
             # 扫不到 messagebox.*，见 AGENTS「i18n 提取器盲区」条），英文用户只拿到中文；
             # 标题与正文一并走 tr。
             messagebox.showinfo(i18n_module.tr("成功"), i18n_module.tr("配置文件已保存！"))
@@ -1454,7 +1454,7 @@ class LiveRecorderGUI:
         self.root = root
         apply_title(root, T("直播录制控制台"))
 
-        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         # 冻结后 GUI 模块位于 exe 同级的 _internal/，而 config/ ffmpeg/ node/ downloads/
         # 等运行时资源保持在 exe 同级目录（_internal 的父目录）。源码运行时
         # self.script_dir 即项目根，无需回退。
@@ -3437,7 +3437,6 @@ class LiveRecorderGUI:
                     raise FileNotFoundError(i18n_module.tr("未找到录制核心程序: {path}", path=cli_exe))
                 record_cmd = [cli_exe]
             else:
-                main_py = os.path.join(self.script_dir, "main.py")
                 exe = sys.executable
                 if sys.platform == "win32" and os.path.basename(exe).lower().startswith("pythonw"):
                     # pythonw.exe 是没有控制台的 GUI 子系统进程：CREATE_NEW_CONSOLE 对它无效，
@@ -3451,7 +3450,7 @@ class LiveRecorderGUI:
                             i18n_module.tr("未找到 console 解释器 {path}，优雅停止将不可用", path=console_exe),
                             "warn",
                         )
-                record_cmd = [exe, main_py]
+                record_cmd = [exe, "-m", "src.main"]
 
             startupinfo = None
             # 经 child_process_env() 构建子进程环境：剔除 GUI 父进程标记，否则录制子进程

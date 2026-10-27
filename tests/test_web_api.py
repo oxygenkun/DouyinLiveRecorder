@@ -67,20 +67,23 @@ def _install_fake_main() -> types.ModuleType:
     setattr(fake, "text_encoding", "utf-8-sig")
     setattr(fake, "url_config_file", "")
     setattr(fake, "ini_URL_content", "")
-    sys.modules["main"] = fake
+    sys.modules["src.main"] = fake
     return fake
 
 
 @pytest.fixture(scope="function")
-def fake_main() -> Generator[types.ModuleType, None, None]:
+def fake_main(monkeypatch: pytest.MonkeyPatch) -> Generator[types.ModuleType, None, None]:
     # function 级 fixture：每个用例用独立假 main，避免模块级状态串扰。
-    old = sys.modules.get("main")
+    old = sys.modules.get("src.main")
     fake = _install_fake_main()
+    import src
+
+    monkeypatch.setattr(src, "main", fake, raising=False)
     yield fake
     if old is not None:
-        sys.modules["main"] = old
+        sys.modules["src.main"] = old
     else:
-        sys.modules.pop("main", None)
+        sys.modules.pop("src.main", None)
 
 
 def _write_web_section(
@@ -266,7 +269,7 @@ class TestSecurityHeaders:
 
 class TestHealthEndpoint:
     # 守护探活端点契约：CI 冒烟步骤（.github/workflows/ci.yml 的 test job）与
-    # scripts/smoke_web.json 都靠它判定「面板已可用」，断言形状必须与配置一致。
+    # tool/smoke_web.json 都靠它判定「面板已可用」，断言形状必须与配置一致。
     def test_health_ok_when_auth_enabled(self, app_env: types.SimpleNamespace) -> None:
         # 认证开启（app_env 固定 auth=true）时 /health 仍须 200：探活方不持凭据，
         # 若被中间件的 fail-closed 命中会返回 401，CI 会把「服务好好的」误判成挂了。
@@ -1287,13 +1290,13 @@ class TestHostHeaderAllowList:
         # 否则 uvicorn 的 ProxyHeaders 中间件会在鉴权中间件之前用 XFF 最左值覆盖
         # scope["client"]，_get_client_ip 的「只信直连对端」就变成「只信伪造值」。
         # 本用例锁源码事实（与仓库既有的 AST/文本级防回归断言同口径）。
-        source = (Path(__file__).resolve().parent.parent / "web.py").read_text(encoding="utf-8")
-        assert "proxy_headers=False" in source, "web.py 未关闭 uvicorn proxy_headers → XFF 限流可被绕过"
+        source = (Path(__file__).resolve().parent.parent / "src/web.py").read_text(encoding="utf-8")
+        assert "proxy_headers=False" in source, "src/web.py 未关闭 uvicorn proxy_headers → XFF 限流可被绕过"
         # SEV-N03 的结构性前提：判定基准是**实际绑定地址**，它只有一个来源——web.py 把
         # 自己用来起 uvicorn 的那个 host/port 传给 create_app。接线被摘掉时 app.state 退回
         # 「未接线」，判定会静默回落到可被 PUT /api/config 改写的配置值（即回到旧的可旁路形态），
         # 而单侧的 HTTP 用例发现不了。故与 proxy_headers 同口径锁源码事实。
-        assert "bind_host=host" in source and "bind_port=port" in source, "web.py 未把实际绑定地址传给 create_app"
+        assert "bind_host=host" in source and "bind_port=port" in source, "src/web.py 未把实际绑定地址传给 create_app"
 
 
 class TestInsecureBindInvariantUsesRealAddress:
@@ -1548,7 +1551,7 @@ class TestInsecureBindInvariantUsesRealAddress:
         # update_config 的 403 走 _insecure_bind_detail 组合模板（非中间件机器码分支）：
         # 组合四段（bind/context/action/tail）全部经 tr 渲染，断言标记出现在组合结果里。
         # 把任一段改回裸字面量拼接会让对应断言转红（变异验证）。
-        import i18n
+        from src import i18n
         from src import web_api as wa
 
         client = self._client(tmp_path, wa, cfg_host="0.0.0.0", auth="true", bind_host="0.0.0.0", bind_port=8000)
@@ -1575,7 +1578,7 @@ class TestInsecureBindInvariantUsesRealAddress:
     ) -> None:
         # 中间件分支（SEV-04 每请求检查）：配置已「无认证 + 非回环」时 /api/* 被 403 拦截；
         # detail 是机器码契约（不翻），message 是展示文案（必须翻）。
-        import i18n
+        from src import i18n
         from src import web_api as wa
 
         client = self._client(tmp_path, wa, cfg_host="0.0.0.0", auth="false", bind_host="0.0.0.0", bind_port=8000)
@@ -2457,7 +2460,7 @@ class TestLanguageApi:
         assert set(data["available"].keys()) == {"zh_CN", "en_US", "en_GB", "zh_TW"}
 
     def test_put_language_switches_and_persists(self, app_env: types.SimpleNamespace) -> None:
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         saved = i18n_module.get_language()
         try:
@@ -2479,7 +2482,7 @@ class TestLanguageApi:
         # 方言码 "zh-TW" 须被规整为内部键 "zh_TW"；锁住别名归一契约，
         # 归一后的内部键须同时体现在应答与落盘两处；本条只断应答，落盘侧的
         # "language = en_US" 由 test_put_language_switches_and_persists 负责，两条不互相顶替。
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         saved = i18n_module.get_language()
         try:
@@ -2507,7 +2510,7 @@ class TestLanguageApi:
     def test_put_language_missing_key_appends_and_succeeds(self, app_env: types.SimpleNamespace) -> None:
         # 历史 config.ini 无 [录制设置]/language 键时不得恒 500：行级替换失败须降级为节末追加补建
         # （此前 update_config_line 对缺键返回 False 直接抛 500，测试为求绿先手工写键、掩盖了真实路径）
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         saved = i18n_module.get_language()
         try:
@@ -2565,7 +2568,7 @@ class TestLanguageApi:
         # resolve_language 的口径查 has_catalog，目录缺失（PyYAML 未装 → zh_TW.yaml 加载不了、
         # 发行包漏装某语言文件）时回退。端点必须落盘并应答这个生效码：写请求值会让
         # 面板进程装载着回退语言的译文、而录制子进程每轮重解析到另一码 → 同一部署两种语言。
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         saved = i18n_module.get_language()
         try:
@@ -2596,7 +2599,7 @@ class TestLanguageApi:
     def test_put_language_reports_no_fallback_when_catalog_present(self, app_env: types.SimpleNamespace) -> None:
         # 正常路径的对称断言：目录在位时 fallback 必须为 False 且无提示语，
         # 否则「回退告警」会变成常态噪音、失去判定价值。
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         saved = i18n_module.get_language()
         try:
@@ -2619,7 +2622,7 @@ class TestLanguageApi:
         # 「先切换再落盘」换来的语义必须有回滚兜底：写回失败若不回滚内存态，
         # 面板/本进程说新码、config.ini（及重启后的录制子进程）仍说旧码 ——
         # 与 MID-52 要消灭的「两进程两种语言」是同一形态，只是换了达成路径。
-        import i18n as i18n_module
+        from src import i18n as i18n_module
         from src import web_api as wa
 
         saved = i18n_module.get_language()
@@ -2701,7 +2704,7 @@ class TestErrorDetailI18n:
     def test_login_failure_detail_translated(
         self, app_env: types.SimpleNamespace, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import i18n
+        from src import i18n
 
         monkeypatch.setattr(i18n, "_tr", lambda text: f"<<{text}>>")
         resp = app_env.client.post("/api/login", json={"password": "wrong"})
@@ -2711,7 +2714,7 @@ class TestErrorDetailI18n:
     def test_files_endpoint_detail_translated(
         self, app_env: types.SimpleNamespace, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import i18n
+        from src import i18n
 
         token = _login(app_env.client)
         monkeypatch.setattr(i18n, "_tr", lambda text: f"<<{text}>>")
@@ -2724,7 +2727,7 @@ class TestErrorDetailI18n:
     def test_room_not_found_detail_translated(
         self, app_env: types.SimpleNamespace, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import i18n
+        from src import i18n
 
         token = _login(app_env.client)
         monkeypatch.setattr(i18n, "_tr", lambda text: f"<<{text}>>")

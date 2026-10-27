@@ -20,9 +20,8 @@ from typing import Any
 
 import pytest
 
-import main
-from douyin_follow import DouyinFollowMonitor
-from src import notify
+from src import main, notify
+from src.douyin_follow import DouyinFollowMonitor
 
 
 @pytest.mark.parametrize(

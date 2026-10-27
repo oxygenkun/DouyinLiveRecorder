@@ -26,7 +26,7 @@ from typing import Any
 
 import pytest
 
-import web
+from src import web
 
 # web.py 的导入期副作用只有 _fix_encoding()（就地 reconfigure 宿主 stdio）：模块顶层导入即落在
 # pytest 收集期、早于 conftest 的函数级 stdio 快照，与 tests/test_web_background_gate_order.py 同形态。
@@ -40,7 +40,7 @@ def gui() -> Iterator[ModuleType]:
     # 导入又把前者永久留给整个会话——故会话级导入 + 导入完立刻还原标记（同 MT-05 手法）。
     with pytest.MonkeyPatch.context() as patcher:
         patcher.setenv(_GUI_PARENT_ENV, "")
-        module = importlib.import_module("gui")
+        module = importlib.import_module("src.gui")
     yield module
 
 
@@ -147,7 +147,7 @@ def test_console_log_cap_is_called_before_the_append_stream_opens() -> None:
         ),
         None,
     )
-    assert fn is not None, "web.py 里找不到 _enter_background_mode，本判据失去基准（不得当成通过）"
+    assert fn is not None, "src/web.py 里找不到 _enter_background_mode，本判据失去基准（不得当成通过）"
     cap_at: int | None = None
     open_at: int | None = None
     for node in ast.walk(fn):

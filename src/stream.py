@@ -7,7 +7,7 @@ from typing import TypedDict, TypeVar, cast
 
 from loguru import logger
 
-import i18n
+from src import i18n
 
 from .async_http import get_response_status
 from .spider import get_bilibili_stream_data, get_douyu_stream_data
@@ -442,7 +442,7 @@ def _probe_headers(platform: str) -> dict[str, str]:
     # CDN 风控误判的概率显著高于录制侧（表现为「判不可达 → 相邻档降级」而 ffmpeg 其实录得上）。
     # UA 唯一事实源在 stream_select，此处只转发。
     # 就地延迟导入而非模块级：src.stream_select 顶层 import main、main 又 import 本模块，模块级
-    # 导入会在 python main.py（__main__ 之外二次执行 main）下形成环，实测抛 ImportError。
+    # 导入会在 python -m src.main（__main__ 之外二次执行 main）下形成环，实测抛 ImportError。
     from .stream_select import MOBILE_UA, get_record_user_agent
 
     return {"User-Agent": get_record_user_agent(platform) or MOBILE_UA}

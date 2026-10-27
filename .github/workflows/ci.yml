@@ -12,7 +12,7 @@
 #     [project.optional-dependencies]（dev / gui / build）。**没有 lock 文件**
 #     （uv.lock 仅随仓库分发，镜像/CI 均用 pip 走 requirements.txt，不消费它），
 #     故 pip 缓存 key 以这两个文件的 hash 为准。
-#   · 打包由根目录 build_exe.py（PyInstaller）承担，本地与 CI 行为一致。
+#   · 打包由根目录 tool/build_exe.py（PyInstaller）承担，本地与 CI 行为一致。
 #
 # Job 拓扑（lint / audit / type / test / build 七路并行，收尾串行汇总）：
 #
@@ -141,7 +141,7 @@ jobs:
       # skipped 为通过，于是「手动点了全量检查、实际一个检查都没跑」还显示绿——与 AGENTS.md
       # 「skipped 与 passed 在汇总里不可区分」同一形态的假绿，必须消灭。手动触发的语义本来
       # 就是「跑全量」，故不再做路径过滤。
-      # [历史注] 原过滤口径（2026-09-20 定稿）为：src/**、tests/**、scripts/**、i18n/**、
+      # [历史注] 原过滤口径（2026-09-20 定稿）为：src/**、tests/**、tool/**、i18n/**、
       # web/**、根五个入口（main/gui/web/i18n/msg_push.py）、requirements.txt、pyproject.toml、
       # uv.lock、DouyinLiveRecorder.egg-info/**、.coveragerc-concurrency、Dockerfile、
       # docker-compose.yaml、.github/workflows/**、.github/actions/** 归入 python 组。
@@ -194,24 +194,24 @@ jobs:
       # main.py / src/web_api.py 动态读取、Dockerfile 经 APP_VERSION 注入
       # （纯标准库实现，无需安装项目依赖）
       - name: Check version consistency
-        run: python scripts/check_version.py
+        run: python tool/check_version.py
 
       # 校验 ci.yml 与 build-release.yml 的版本常量一致性（python_build / node_version）：
       # 两份 workflow 各自在 consts 步骤声明同一组常量，改一处须同步另一处
       # （AGENTS.md「CI / workflow 约定」）。纯标准库实现，无需安装项目依赖。
       - name: Check workflow version constants consistency
-        run: python scripts/check_workflow_constants.py
+        run: python tool/check_workflow_constants.py
 
       # 校验 gettext 翻译同步：改 .po 忘记重编译 .mo 时拦截
       # （.mo 随仓库分发，gettext 运行时只读 .mo；纯标准库实现）
       - name: Check i18n po/mo sync
-        run: python scripts/compile_po.py --check
+        run: python tool/compile_po.py --check
 
       # 校验 Skill 目录与 AGENTS.md「项目级 Skill」表格一致性：
       # 表格条目必须指向存在的目录与 SKILL.md，frontmatter name 必须与目录名一致，
       # SKILL.md 引用的 AGENTS.md 章节必须实际存在。纯标准库实现，无需装项目依赖。
       - name: Check skill-AGENTS.md consistency
-        run: python scripts/check_skill_agents_consistency.py
+        run: python tool/check_skill_agents_consistency.py
 
   # ── 1.5 依赖漏洞审计（pip-audit，补-05）────────────────────────────────
   # 本仓运行时清单刻意「只有下限、无上限」（唯一例外 protobuf<8），且 uv.lock 不参与
@@ -383,7 +383,7 @@ jobs:
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
 
       # pytest-asyncio 由 pyproject [tool.pytest.ini_options] asyncio_mode = "auto" 驱动；
-      # pytest-cov 必装：scripts/check_coverage.py 依赖其产出的 .coverage 数据文件。
+      # pytest-cov 必装：tool/check_coverage.py 依赖其产出的 .coverage 数据文件。
       #
       # 测试会实际调用 Ruff 验证坏文件退出码。
       # 工具和运行时依赖均由同一锁文件安装，不能把缺工具改成 skip。
@@ -507,7 +507,7 @@ jobs:
       # 固定在最低支持版本上执行，避免矩阵内重复且结论歧义。
       - name: Per-module coverage gate
         if: matrix.python-version == needs.setup.outputs.python_min
-        run: python scripts/check_coverage.py
+        run: python tool/check_coverage.py
 
       - name: Upload coverage report
         if: matrix.python-version == needs.setup.outputs.python_min
@@ -540,10 +540,10 @@ jobs:
       # 「面板进程能否真的起来并应答」这条链路（import 期崩溃、路由未注册、鉴权中间件
       # 误挡探活、静态资源目录缺失、uvicorn 绑定失败）此前完全没有检查。
       # 位置：排在覆盖率相关步骤之后（而非之前），避免冒烟变红时反而压制掉 coverage.xml / Codecov 上报。
-      # 与路径过滤同源（scripts/** 与 web.py 变更都会触发 python 过滤），不改变其它 job 的触发语义。
-      # 探活目标与断言形态：scripts/smoke_web.json（默认 http://127.0.0.1:8000 的 / 与
+      # 与路径过滤同源（tool/** 与 web.py 变更都会触发 python 过滤），不改变其它 job 的触发语义。
+      # 探活目标与断言形态：tool/smoke_web.json（默认 http://127.0.0.1:8000 的 / 与
       # /health，后者断言 {"status": "ok"}），与 README「Web/接口冒烟测试」章节一致。
-      # 启动/就绪等待/断言/收尾均在 scripts/_ci_web_smoke.sh 内，脚本以冒烟退出码退出；
+      # 启动/就绪等待/断言/收尾均在 tool/_ci_web_smoke.sh 内，脚本以冒烟退出码退出；
       # 失败时本步骤直接变红（= job 变红），retry 每一轮都会重跑脚本→从零起一个干净面板，
       # 因此重试真能处理「冷启动慢 / 瞬时 HTTP 抖动」这类网络型原因，而不内联 for 循环。
       # 两个环境变量直接写在命令前缀而非 step env：复合动作对调用方 step 级 env 的可见性
@@ -560,14 +560,14 @@ jobs:
           label: Web 面板 HTTP 冒烟（启动 + 就绪等待 + 接口断言）
           attempts: "2"
           backoff: "5"
-          # 2-A：scripts/_ci_web_smoke.sh 忠实透传 smoke_test.py 的退出码（0 通过 / 1 面板故障
+          # 2-A：tool/_ci_web_smoke.sh 忠实透传 smoke_test.py 的退出码（0 通过 / 1 面板故障
           # 可重试 / 2 配置形态畸形）。配置类错误重试无意义（下一轮仍读到同一份坏配置），
           # 命中 2 即带原退出码立刻失败；1（冷启动慢 / 瞬时 HTTP 抖动）仍按上面的 attempts
           # 重试。本文件其余 retry 调用点不传该 input → 列表恒空 → 行为与改动前逐字一致。
           fail_fast_codes: "2"
           command: >-
             DOUYIN_SKIP_RUNTIME_CHECK=1 DOUYIN_DISABLE_LOG_ARCHIVE=1
-            bash scripts/_ci_web_smoke.sh
+            bash tool/_ci_web_smoke.sh
 
       # 无论冒烟通过与否都留一份机读报告（含实际状态码/耗时/错误行）与面板启动输出：
       # if: always() 保证冒烟步骤变红时工件仍能上传（否则红了看不到断言细节）。
@@ -704,10 +704,10 @@ jobs:
           python -c "from src.node_install import check_nodejs_installed; assert check_nodejs_installed(), 'node not detected'; print('check_nodejs_installed() passed')"
 
   # ── 6. 构建验证（PyInstaller 打包 + 三入口冒烟）──────────────────────────
-  # 与 build-release.yml 共用同一 build_exe.py，但用 --no-runtime --no-zip 跳过
+  # 与 build-release.yml 共用同一 tool/build_exe.py，但用 --no-runtime --no-zip 跳过
   # ffmpeg/node 下载（约 300MB）与压缩，只验证「能否打出可启动的 exe」，
   # 把发布级别的完整打包留给 build-release.yml，避免每个 PR 付出全量成本。
-  # xvfb-run 提供虚拟显示：否则 build_exe.py 的 smoke_gui() 会因无 DISPLAY 跳过，
+  # xvfb-run 提供虚拟显示：否则 tool/build_exe.py 的 smoke_gui() 会因无 DISPLAY 跳过，
   # GUI 入口就得不到验证。
   build-verify:
     name: Build Verify (PyInstaller + smoke)
@@ -741,7 +741,7 @@ jobs:
       # xvfb：GUI（Qt/pystray）冒烟需要虚拟显示。
       # Qt 运行库与 test job 同一组：smoke_gui() 起的正是带 PySide6 窗口层的打包产物，
       # 缺 libEGL.so.1 时进程一起来就崩（与 test job 那次 collection error 同源故障面），
-      # 而 build_exe.py 的冒烟对「产物打出来了但跑不起来」是宽松的，故在环境侧先补齐。
+      # 而 tool/build_exe.py 的冒烟对「产物打出来了但跑不起来」是宽松的，故在环境侧先补齐。
       - name: Install ffmpeg + xvfb + Qt runtime libs (apt)
         uses: ./.github/actions/retry
         with:
@@ -764,7 +764,7 @@ jobs:
             uv sync --locked --no-dev --extra build --extra gui
 
       - name: Build (lite) + smoke test CLI/Web/GUI
-        run: xvfb-run -a python build_exe.py --smoke --no-runtime --no-zip
+        run: xvfb-run -a python tool/build_exe.py --smoke --no-runtime --no-zip
 
   # ── 7. 汇总检查 ─────────────────────────────────────────────────────────
   # [2026-10-17 修订] 路径过滤移除后已无 job 会被跳过，「skipped → 通过」通道实际空转；

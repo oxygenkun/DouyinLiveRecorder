@@ -28,10 +28,10 @@
 import os
 import sys
 
-# `python main.py` 时本模块叫 `__main__`；src 子模块若 `import main` 会再次执行整个文件
+# `python -m src.main` 时本模块叫 `__main__`；src 子模块若 `import main` 会再次执行整个文件
 # （双重初始化、配置重读）。先把 `main` 指向当前模块，避免重执行。
-if sys.modules.get("main") is None:
-    sys.modules["main"] = sys.modules["__main__"]
+if __name__ == "__main__":
+    sys.modules["src.main"] = sys.modules[__name__]
 
 
 # 把 stdout/stderr 重配置为 UTF-8；Windows 另外切控制台代码页，否则 UTF-8 字节在 GBK 控制台仍乱码
@@ -70,6 +70,10 @@ def _fix_encoding() -> None:
 
 _fix_encoding()
 
+from src import initialize_runtime
+
+initialize_runtime()
+
 import asyncio
 import atexit
 import builtins
@@ -95,10 +99,7 @@ from loguru import logger
 
 # 推送模板渲染（占位符永不翻译）的唯一实现：main 与 src.notify 共用，故在模块级导入。
 # 位置刻意放在 src.notify 之前——notify 内部 `import msg_push` 会命中已加载的这份模块。
-import msg_push
-from douyin_follow import DouyinFollowMonitor
-from graceful_shutdown import shutdown_manager
-from src import get_danmaku_collector, spider, stream, utils
+from src import get_danmaku_collector, msg_push, spider, stream, utils
 from src.config_io import (
     _safe_float,
     _safe_int,
@@ -112,6 +113,7 @@ from src.config_io import (
 )
 from src.config_read import tolerant_config_parser, warn_duplicate_options
 from src.douyin_dm import DouyinDmMonitor
+from src.douyin_follow import DouyinFollowMonitor
 from src.ffmpeg_install import check_ffmpeg, ffmpeg_path, should_prepend_bundled_ffmpeg_dir
 
 # ---- 重构：以下函数已抽离至 src 子模块，此处重新导出以保持 main.<name> 命名空间兼容 ----
@@ -122,6 +124,7 @@ from src.ffmpeg_proc import (
     register_ffmpeg_process,
     unregister_ffmpeg_process,
 )
+from src.graceful_shutdown import shutdown_manager
 from src.log_archive import archive_runtime_logs
 from src.logger import set_room_context
 from src.notify import (
@@ -175,7 +178,7 @@ def _read_version_from_pyproject() -> str:
         return f"v{get_version('DouyinLiveRecorder')}"
     except Exception:
         pass
-    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
     if pyproject_path.exists():
         text = pyproject_path.read_text(encoding="utf-8")
         m = re.search(r'^version\s*=\s*["\'](.+?)["\']', text, re.MULTILINE)
@@ -3608,7 +3611,7 @@ def _build_ffmpeg_input_args(
     # 进程永不退出。FLV 必须保留：CDN 掐断长连接时在 EOF 处重连续写同一文件（斗鱼游客态缓解）。
     # 判据必须「小写 + 只看 path」：整串匹配会把 query 带 .m3u8 的 FLV 误删；大小写敏感
     # 会让 .M3U8 漏配。删除用 del 而非置 "0"，保证命令行干净。
-    # 孪生副本 scripts/douyin_live_recorder_standalone.py 仍是 `".m3u8" in url.lower()`，
+    # 孪生副本 tool/douyin_live_recorder_standalone.py 仍是 `".m3u8" in url.lower()`，
     # 改判据时须一并核对。
     if _stream_path_suffix(real_url) == ".m3u8":
         _eof_idx = command.index("-reconnect_at_eof")
@@ -4565,7 +4568,7 @@ def check_ffmpeg_existence() -> bool:
 # --------------------------初始化程序-------------------------------------
 # i18n 必须先于 banner 的 tr 导入（模块级顺序执行）；此时仍是默认 zh_CN 目录，
 # banner 保持中文原文，与「banner 先于语言解析打印」的既有行为一致。
-import i18n
+from src import i18n
 
 print("-----------------------------------------------------")
 print("|                DouyinLiveRecorder                 |")
@@ -4627,8 +4630,8 @@ def _read_language_config(config_parser: configparser.RawConfigParser) -> str:
 language = _read_language_config(config)
 
 # i18n 初始化：空 → 系统语言；不可识别/目录缺失 → en_US；随后加载翻译目录并即时生效。
-from i18n import resolve_language as _i18n_resolve
-from i18n import set_language as _i18n_set_language
+from src.i18n import resolve_language as _i18n_resolve
+from src.i18n import set_language as _i18n_set_language
 
 language = _i18n_resolve(language)
 _i18n_set_language(language)
@@ -4709,7 +4712,7 @@ _ssl_disable_platforms = _apply_ssl_platform_exempt(config)
 # 热加载时判定「禁用SSL证书验证的平台」是否变化，初值取 import 时的内存态
 _last_ssl_disable_platforms_raw = ",".join(sorted(_ssl_disable_platforms))
 # translated_print 在所有语言下安装：中英互译，未知串恒等返回；语言经 set_language 热切换。
-from i18n import translated_print
+from src.i18n import translated_print
 
 builtins.print = translated_print  # type: ignore[assignment]
 

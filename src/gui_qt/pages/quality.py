@@ -12,7 +12,7 @@ from typing import Callable
 from PySide6.QtGui import QColor, QFont, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QHBoxLayout, QHeaderView, QLabel, QTableView, QVBoxLayout, QWidget
 
-import i18n
+from src import i18n
 from src.ui_i18n import T, set_text
 
 from ..quality_monitor import QualityMonitor

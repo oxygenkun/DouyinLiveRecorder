@@ -15,10 +15,10 @@
 import ast
 from pathlib import Path
 
-_MAIN_PATH = Path(__file__).resolve().parent.parent / "main.py"
-# 同类回归的第二处定义点：scripts/douyin_live_recorder_standalone.py 的两处录制命令
+_MAIN_PATH = Path(__file__).resolve().parent.parent / "src/main.py"
+# 同类回归的第二处定义点：tool/douyin_live_recorder_standalone.py 的两处录制命令
 # 同样拼接 -reconnect*，与 main.py 保持一字不差是对它的既有要求，一并纳入防线。
-_STANDALONE_PATH = Path(__file__).resolve().parent.parent / "scripts" / "douyin_live_recorder_standalone.py"
+_STANDALONE_PATH = Path(__file__).resolve().parent.parent / "tool" / "douyin_live_recorder_standalone.py"
 
 
 # 取「-reconnect* 选项常量在其所属 List 字面量中的位置」清单：
@@ -43,7 +43,7 @@ class TestReconnectOptionsHaveValues:
     def test_scan_finds_all_definition_points(self) -> None:
         # 扫描必须命中预期条目（main.py 3 个选项、standalone 2 处命令 × 3 选项），
         # 否则下面的断言会退化成空跑的假绿
-        assert len(_reconnect_entries(_MAIN_PATH)) == 3, "main.py 的 -reconnect* 选项数量变化"
+        assert len(_reconnect_entries(_MAIN_PATH)) == 3, "src/main.py 的 -reconnect* 选项数量变化"
         assert len(_reconnect_entries(_STANDALONE_PATH)) == 6, "standalone 的 -reconnect* 选项数量变化"
 
     def test_every_reconnect_option_has_literal_value(self) -> None:
@@ -124,7 +124,7 @@ class TestReconnectAtEofDroppedForHls:
 
     def test_main_py_drops_reconnect_at_eof_for_hls(self) -> None:
         guards = _hls_drop_guards(_MAIN_PATH)
-        assert guards, "main.py 缺少「m3u8 输入移除 -reconnect_at_eof」守卫（HLS 录制会无限挂起）"
+        assert guards, "src/main.py 缺少「m3u8 输入移除 -reconnect_at_eof」守卫（HLS 录制会无限挂起）"
 
     def test_standalone_drops_reconnect_at_eof_for_hls_both_sites(self) -> None:
         guards = _hls_drop_guards(_STANDALONE_PATH)

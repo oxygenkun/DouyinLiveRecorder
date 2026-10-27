@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入（同 test_stream_select.py）
+from src import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入（同 test_stream_select.py）
 from src import stream as stream_mod
 from src import stream_select as ss
 from src.stream import (

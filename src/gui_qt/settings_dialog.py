@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-import i18n
+from src import i18n
 
 from .shared import config_change_verdict, normalize_editor_text, read_config_snapshot, save_text_to_file
 from .widgets import fixed_font

@@ -37,7 +37,7 @@ from typing import Any, cast
 
 import pytest
 
-import main
+import src.main as main
 import src.video_postprocess as vp
 
 

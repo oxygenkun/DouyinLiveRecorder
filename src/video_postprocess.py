@@ -8,10 +8,8 @@ import time
 
 from loguru import logger
 
-import i18n
-import main
-from graceful_shutdown import ShutdownRequested, shutdown_manager
-from src import utils
+from src import i18n, main, utils
+from src.graceful_shutdown import ShutdownRequested, shutdown_manager
 
 # 视频后处理（独立模块）：FFmpeg 分段 / 转封装 / 转码 / 时间字幕生成
 #

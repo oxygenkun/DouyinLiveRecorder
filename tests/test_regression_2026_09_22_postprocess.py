@@ -27,7 +27,7 @@ from typing import Any
 
 import pytest
 
-import main
+import src.main as main
 import src.video_postprocess as vp
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -367,8 +367,8 @@ def _tr_templates_in_module() -> set[str]:
 
 
 def _catalog_keys() -> set[str]:
-    # 直接复用 scripts/compile_po.py 的权威 .po 解析（多行 msgid / 转义还原均正确），不写第二套口径
-    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "scripts" / "compile_po.py")
+    # 直接复用 tool/compile_po.py 的权威 .po 解析（多行 msgid / 转义还原均正确），不写第二套口径
+    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "tool" / "compile_po.py")
     assert spec is not None and spec.loader is not None
     cp = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cp)
@@ -380,7 +380,7 @@ def _four_catalogs() -> dict[str, dict[str, str]]:
     # 复用 i18n 自己的三个加载器，不写第二套解析口径。
     from pathlib import Path
 
-    import i18n
+    from src import i18n
 
     cats = {
         "zh_CN": i18n._load_mo_catalog(i18n.locale_path, "zh_CN"),

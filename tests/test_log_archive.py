@@ -307,7 +307,7 @@ class TestLoggerFileSinkOps:
     def reload_logger(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
         # 复用 test_logger_gui_parent 的隔离模式：argv 指向 tmp 隔离 script_path，
         # stderr 置 None 跳过控制台 sink；重载产生的全局 sink 在退出时统一清空复位
-        monkeypatch.setattr(sys, "argv", [str(tmp_path / "main.py")])
+        monkeypatch.setattr(sys, "argv", [str(tmp_path / "entry.py")])
         monkeypatch.setattr(sys, "stderr", None)
         yield tmp_path
         logger.complete()
@@ -356,11 +356,11 @@ class TestLoggerFileSinkOps:
 def test_main_registers_archive_before_cleanup_atexit() -> None:
     # 静态回归锁：atexit 为 LIFO，归档必须先于两个 cleanup 注册，
     # 才能在 ffmpeg 清理等收尾日志落盘之后最后执行（close_all_clients → cleanup → archive）
-    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    source = (Path(__file__).resolve().parents[1] / "src/main.py").read_text(encoding="utf-8")
     archive_pos = source.find("atexit.register(archive_runtime_logs")
     cleanup_pos = source.find("atexit.register(cleanup_all_ffmpeg_processes)")
     clients_pos = source.find("atexit.register(close_all_clients_sync)")
-    assert archive_pos != -1, "main.py 缺少归档 atexit 注册"
+    assert archive_pos != -1, "src/main.py 缺少归档 atexit 注册"
     assert cleanup_pos != -1 and clients_pos != -1
     assert archive_pos < cleanup_pos < clients_pos, "归档必须先于 cleanup 注册（LIFO 后执行）"
     register_line = source[archive_pos : source.find("\n", archive_pos)]

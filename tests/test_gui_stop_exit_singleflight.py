@@ -38,7 +38,7 @@ from typing import Any, cast
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 # 载荷锚点：Tk 初始化期会往 stdout 写非受控行，整段 parse 必炸；前置换行保证 marker
 # 不落在某行中间（GUI 导入期打印可能不带结尾换行）。父侧只按字节找这个串。
 _MARKER = "\n@@WP_E_STOPFLIGHT@@ "
@@ -54,7 +54,7 @@ import threading
 import time
 import types
 
-import gui
+from src import gui
 
 G = gui.LiveRecorderGUI
 out = {}

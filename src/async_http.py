@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-import i18n
+from src import i18n
 
 from . import http_config as config
 from . import utils

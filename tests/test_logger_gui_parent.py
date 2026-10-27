@@ -24,7 +24,7 @@ def reload_logger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     # 把 _app_root() 的落点（sys.argv[0] 所在目录）指到 tmp_path，隔离 config/ logs/ 读写；
     # sys.stderr 置 None 跳过控制台 sink，用例仅关注文件 sink 的创建与否（add() 即建文件）。
     # 重载会清空全局 sink，退出时一并复位，避免 tmp 句柄/异步写线程泄漏给其他用例
-    monkeypatch.setattr(sys, "argv", [str(tmp_path / "main.py")])
+    monkeypatch.setattr(sys, "argv", [str(tmp_path / "entry.py")])
     monkeypatch.setattr(sys, "stderr", None)
     yield tmp_path
     logger.complete()
@@ -75,11 +75,11 @@ def test_gui_parent_respects_log_file_disabled(reload_logger: Path, monkeypatch:
 def test_import_time_console_sink_colorize_follows_isatty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # L-16 回归锁：导入期控制台 sink 的 colorize 必须按 isatty 判定，并与 rebind_console_sink()
     # 共用 src/logger.py::_console_colorize。旧形态导入期硬编码 colorize=True，stderr 被重定向到
-    # 文件/管道时（web.py 后台模式、`python main.py > x.log`）ANSI 转义序列照样写进日志内容，
+    # 文件/管道时（web.py 后台模式、`python -m src.main > x.log`）ANSI 转义序列照样写进日志内容，
     # 而排障恰恰要看这个文件。两侧都钉：非 tty 不得有 ESC、真 tty 仍须有 ESC（防「恒 False」退化）。
     # 关掉文件 sink（配置「否」），本用例只观察控制台这一路，也不往 tmp_path 外落文件。
     monkeypatch.delenv(logger_mod.GUI_PARENT_ENV, raising=False)
-    monkeypatch.setattr(sys, "argv", [str(tmp_path / "main.py")])
+    monkeypatch.setattr(sys, "argv", [str(tmp_path / "entry.py")])
     _write_config(tmp_path, "否")
     redirected = io.StringIO()  # StringIO.isatty() 恒 False = 重定向形态
     monkeypatch.setattr(sys, "stderr", redirected)
@@ -129,10 +129,10 @@ def test_gui_entry_sets_marker_before_src_import() -> None:
     # 若先导入 src 再设标记，GUI 进程照样持有录制日志句柄，修复失效），
     # 且拉起子进程的 env 必须经 child_process_env() 构建
     marker_line = f'os.environ["{logger_mod.GUI_PARENT_ENV}"] = "1"'
-    source = (Path(__file__).resolve().parents[1] / "gui.py").read_text(encoding="utf-8")
+    source = (Path(__file__).resolve().parents[1] / "src/gui.py").read_text(encoding="utf-8")
     marker_pos = source.find(marker_line)
     src_candidates = [pos for pos in (source.find("from src."), source.find("import src")) if pos != -1]
-    assert marker_pos != -1, "gui.py 缺少 GUI 父进程标记设置"
-    assert src_candidates, "gui.py 未找到 src 导入"
-    assert marker_pos < min(src_candidates), "gui.py 的标记设置必须先于任何 src 导入"
-    assert "child_process_env()" in source, "gui.py 拉起录制子进程必须经 child_process_env() 构建 env"
+    assert marker_pos != -1, "src/gui.py 缺少 GUI 父进程标记设置"
+    assert src_candidates, "src/gui.py 未找到 src 导入"
+    assert marker_pos < min(src_candidates), "src/gui.py 的标记设置必须先于任何 src 导入"
+    assert "child_process_env()" in source, "src/gui.py 拉起录制子进程必须经 child_process_env() 构建 env"

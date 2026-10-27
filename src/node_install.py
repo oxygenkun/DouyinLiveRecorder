@@ -14,7 +14,7 @@ import requests
 from loguru import logger
 from tqdm import tqdm
 
-import i18n
+from src import i18n
 
 # 应用根目录复用 src.logger 公开导出的 script_path（等价原私有 _app_root() 的返回值）
 from . import utils

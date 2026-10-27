@@ -273,7 +273,7 @@ def test_packages_write_only_where_images_are_pushed(data: dict[Any, Any]) -> No
 
 
 def test_image_version_still_comes_from_build_arg(data: dict[Any, Any]) -> None:
-    # Dockerfile 的 ARG 行序约束（MIN-14）与 scripts/check_version.py 的断言都不动，
+    # Dockerfile 的 ARG 行序约束（MIN-14）与 tool/check_version.py 的断言都不动，
     # 本工作流的职责只是把版本传进去；漏传会让镜像内版本固化成空串且构建期不报错。
     for name in ("docker-build-amd64", "docker-build-arm64"):
         build = _build_step(_job(data, name), name)

@@ -14,7 +14,7 @@
 #   5. .agents/skills/ 下存在但未被 AGENTS.md 表登记的项目级 Skill 目录（告警）
 #
 # 用法：
-#   python scripts/check_skill_agents_consistency.py
+#   python tool/check_skill_agents_consistency.py
 #
 # 退出码：0 一致；1 存在不一致；2 脚本自身失效（文件缺失 / 解析失败）。
 
@@ -24,7 +24,7 @@ import re
 import sys
 from pathlib import Path
 
-# 项目根目录（脚本在 scripts/ 下，上一级即根）
+# 项目根目录（脚本在 tool/ 下，上一级即根）
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _AGENTS_MD = _REPO_ROOT / "AGENTS.md"
 _SKILLS_DIR = _REPO_ROOT / ".agents" / "skills"

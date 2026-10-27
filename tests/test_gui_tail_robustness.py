@@ -30,7 +30,7 @@ from typing import Any, cast
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 # 结果载荷与杂散 stdout 的分隔锚点：Tk 初始化期会往 stdout 写非受控行，整段 parse 必
 # JSONDecodeError。约定「marker 之后才是载荷」，父侧只按字节 find 锚点，其余输出一律忽略。
 _MARKER = "\n@@WP_E_TAIL@@ "
@@ -50,7 +50,7 @@ import time
 import types
 from pathlib import Path
 
-import gui
+from src import gui
 
 out = {}
 
@@ -519,7 +519,7 @@ def test_rearm_lives_in_finally_for_every_chain() -> None:
     tree = ast.parse(GUI_SOURCE)
     for name, helper in _CHAINS.items():
         fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == name), None)
-        assert fn is not None, f"gui.py 缺少 {name}"
+        assert fn is not None, f"src/gui.py 缺少 {name}"
         arms = [
             node
             for node in ast.walk(fn)

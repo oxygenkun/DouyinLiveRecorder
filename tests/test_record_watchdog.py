@@ -35,9 +35,9 @@ def main_mod() -> Any:
     # main.py 的 _app_root() 基于 sys.argv[0] 定位 config/，pytest 下 argv[0] 指向 pytest 自身，
     # 需在导入前修正为项目 main.py（与 tests/test_danmaku_wiring.py 同一模式）。
     old_argv = sys.argv[:]
-    sys.argv = [str(_REPO_ROOT / "main.py")]
+    sys.argv = [str(_REPO_ROOT / "src/main.py")]
     try:
-        import main
+        from src import main
 
         return main
     finally:

@@ -26,9 +26,9 @@ def main_mod() -> Any:
     from pathlib import Path
 
     old_argv = sys.argv[:]
-    sys.argv = [str(Path(__file__).resolve().parent.parent / "main.py")]
+    sys.argv = [str(Path(__file__).resolve().parent.parent / "src/main.py")]
     try:
-        import main
+        from src import main
 
         return main
     finally:
@@ -59,7 +59,7 @@ class TestErrorWindow:
 
     def setup_method(self) -> None:
         # 每个用例前清空模块级 error_window（防止 record_error/record_success 跨用例累积污染）。
-        import main
+        from src import main
 
         main.error_window.clear()
 

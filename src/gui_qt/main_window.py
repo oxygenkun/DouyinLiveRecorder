@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import i18n
+from src import i18n
 from src.config_bool import parse_config_bool
 from src.config_read import tolerant_config_parser, warn_duplicate_options
 from src.logger import logger

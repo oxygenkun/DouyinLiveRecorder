@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 
-import web
+from src import web
 
 _REJECT_MARKER = "拒绝启动"
 _INSECURE_MARKER = "严重安全警告"
@@ -114,7 +114,10 @@ def _drive_web_main(
     cfg = _write_web_config(tmp_path, host)
     engine = _FakeEngineModule(tmp_path, cfg)
 
-    monkeypatch.setitem(sys.modules, "main", engine)
+    monkeypatch.setitem(sys.modules, "src.main", engine)
+    import src
+
+    monkeypatch.setattr(src, "main", engine, raising=False)
     monkeypatch.setitem(sys.modules, "uvicorn", types.SimpleNamespace(Server=object, Config=object))
     monkeypatch.setitem(sys.modules, "src.web_api", types.SimpleNamespace(create_app=lambda **kwargs: None))
     monkeypatch.setattr(web, "logger", _RecordingLogger(res.warnings))
@@ -206,7 +209,7 @@ def test_security_gate_precedes_backgrounding_in_source() -> None:
     source = Path(str(web.__file__)).read_text(encoding="utf-8")
     tree = ast.parse(source)
     fn = next((node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main"), None)
-    assert fn is not None, "web.py 的入口函数 main 结构变化，本锁需同步"
+    assert fn is not None, "src/web.py 的入口函数 main 结构变化，本锁需同步"
 
     gate_line, exit_line, background_line = _call_sites(fn)
     assert gate_line > 0 and exit_line > 0 and background_line > 0, "找不到闸门判定/退出/背景化三个调用点"

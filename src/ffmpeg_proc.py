@@ -15,8 +15,8 @@ import time
 
 from loguru import logger
 
-import i18n
-from graceful_shutdown import shutdown_manager
+from src import i18n
+from src.graceful_shutdown import shutdown_manager
 
 # 全局登记/注销正在运行的 ffmpeg 子进程
 _ffmpeg_processes: list[subprocess.Popen[bytes]] = []

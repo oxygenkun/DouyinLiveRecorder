@@ -19,7 +19,7 @@ from typing import Any, cast
 
 import pytest
 
-import web
+from src import web
 
 
 class _FakeTray:

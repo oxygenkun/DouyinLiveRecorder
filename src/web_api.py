@@ -70,7 +70,7 @@ from starlette.staticfiles import StaticFiles
 
 # 错误文案随语言热切换：在产生点按当前目录渲染（tr 调用时查表，模块导入期不定型）。
 # 稳定机器码 detail（如 "unauthorized" / "rate_limited" / "host_not_allowed"）是前端契约，刻意不经 tr。
-import i18n as i18n_module
+from src import i18n as i18n_module
 from src.logger import logger
 from src.web_models import (
     ConfigUpdate,
@@ -700,7 +700,7 @@ def create_app(
         if not is_hashed_web_password(cast(str, cfg["web_password"])):
             hashed = hash_web_password(cast(str, cfg["web_password"]).strip())
             # H-6：持引擎配置锁写 config.ini，避免与主循环热加载读/其他写并发交错
-            import main as _main
+            from src import main as _main
 
             with _main.file_update_lock:
                 _ = update_config_line(cast(str, app.state.config_file), "Web", "web_password", hashed)
@@ -772,7 +772,7 @@ def create_app(
     # 探活端点：进程存活 + ASGI/路由已就绪 + 应用版本可读（_APP_VERSION 在模块导入期即从
     # pyproject.toml 解析，读不到会回退 "0.0.0" 而非抛异常），故本端点**不**探测录制引擎、磁盘、
     # 平台接口等外部依赖——那些不健康时面板仍应可访问（用户需进面板改配置），把它们纳入探活只会让
-    # 检查误红。字段为对外契约：scripts/smoke_web.json 与 CI 冒烟步骤按 {"status": "ok"} 断言，
+    # 检查误红。字段为对外契约：tool/smoke_web.json 与 CI 冒烟步骤按 {"status": "ok"} 断言，
     # 新增字段可以、改名或改值不行。
     @_route(app, ["GET"], "/health")
     async def health() -> dict[str, str]:
@@ -813,7 +813,7 @@ def create_app(
         # 开启 → 主循环下一轮（≤3s）自动拉起全部已配置房间线程；
         # 关闭 → 各房间线程在检测点（内层循环顶/ffmpeg 轮询/直下分片/循环等待）自行退出，
         #         进行中的 ffmpeg 录制被终止，退出线程从运行列表移除，可随时重新开始。
-        import main
+        from src import main
 
         main.recording_enabled = req.enable
         if not req.enable:
@@ -833,7 +833,7 @@ def create_app(
         )
         running: list[str] | None
         try:
-            import main
+            from src import main
 
             with main.record_state_lock:
                 running = list(main.running_list)
@@ -874,7 +874,7 @@ def create_app(
         # 持有 file_update_lock 与录制主循环的 update_file/delete_line 互斥，
         # 避免热重载的 read→rewrite 窗口内追加行丢失（I2）；
         # _rooms_config_lock 将「查重 + 追加」原子化，杜绝并发 TOCTOU 重复写入。
-        import main as _main
+        from src import main as _main
 
         with _rooms_config_lock, _main.file_update_lock:
             existing = parse_url_config(cast(str, app.state.url_config_file))
@@ -925,7 +925,7 @@ def create_app(
             new_line = format_url_line(normalize_url(req.url), req.quality, req.name)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
-        import main as _main
+        from src import main as _main
 
         # 2026-09-12 审查 6.6：与 add_room 同款双锁保护读改写窗口——无锁时并发「改房间/删房间/
         # 切开关」可 TOCTOU 静默失败或改错行
@@ -966,7 +966,7 @@ def create_app(
     @_route(app, ["DELETE"], "/api/rooms")
     def delete_room(url: str = "") -> dict[str, object]:
         url = normalize_url(url)
-        import main as _main
+        from src import main as _main
 
         # 2026-09-12 审查 6.6：与 add_room 同款双锁保护「查行 + 删行」窗口
         with _rooms_config_lock, _main.file_update_lock:
@@ -989,7 +989,7 @@ def create_app(
     @_route(app, ["POST"], "/api/rooms/toggle")
     def toggle_room(req: RoomToggle) -> dict[str, object]:
         url = normalize_url(req.url)
-        import main as _main
+        from src import main as _main
 
         # 2026-09-12 审查 6.6：与 add_room 同款双锁保护「查行 + 改注释前缀」窗口
         with _rooms_config_lock, _main.file_update_lock:
@@ -1028,7 +1028,7 @@ def create_app(
         # （SEV-02 后 validate_room_target 内已含同款判定，此处保留以给出本端点的 422 文案）
         if quality and quality not in BUILTIN_QUALITIES:
             raise HTTPException(422, i18n_module.tr("未知画质档位: {quality}", quality=quality))
-        import main as _main
+        from src import main as _main
 
         # 持锁与 add_room / 录制主循环的 update_file 互斥，避免「查房间 + 改画质段」的读改写窗口内
         # 被他方写回覆盖（update_room_quality 自身无锁，依赖调用方串行化）
@@ -1057,7 +1057,7 @@ def create_app(
             raise HTTPException(422, str(e)) from e
         # H-6：持引擎配置锁写 config.ini（write_quality_options 内部另有串行锁），
         # 避免与主循环热加载读/其他 Web 写并发交错
-        import main as _main
+        from src import main as _main
 
         with _main.file_update_lock:
             options = write_quality_options(cast(str, app.state.config_file), req.options)
@@ -1236,7 +1236,7 @@ def create_app(
             else:
                 value = normalized_password
         # H-6：持引擎配置锁写 config.ini，避免与主循环热加载读/其他 Web 写并发交错
-        import main as _main
+        from src import main as _main
 
         with _main.file_update_lock:
             ok = update_config_line(cast(str, app.state.config_file), section, key, value)
@@ -1271,7 +1271,7 @@ def create_app(
     @_route(app, ["GET"], "/api/language")
     def get_language() -> dict[str, object]:
         # 当前语言 + 受支持语言列表（供前端语言选择器渲染）
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         return {
             "language": i18n_module.get_language(),
@@ -1284,7 +1284,7 @@ def create_app(
         # **实际生效**语言码（目录缺失时回退，如 PyYAML 未装则 zh_TW 回退 en_US）。写请求值会把一个
         # 「本进程装载不到译文」的码落盘：录制子进程重解析后落到 en_US，两进程各说一种语言，
         # 且响应里的 language 是虚假成功。现改为「先热切换 → 按生效码落盘 → 按生效码应答 + 回退提示」。
-        import i18n as i18n_module
+        from src import i18n as i18n_module
 
         if not req.language.strip() or not i18n_module.is_recognized_language(req.language):
             # 无法识别的语言值（既非受支持码也非已知别名）→ 400 而非静默回退
@@ -1294,7 +1294,7 @@ def create_app(
         effective = i18n_module.set_language(normalized)
         # H-6：替换+补建两步经 update_or_append_config_line 持锁原子化，
         # 并持引擎配置锁与主循环热加载读互斥
-        import main as _main
+        from src import main as _main
 
         with _main.file_update_lock:
             written = update_or_append_config_line(cast(str, app.state.config_file), "录制设置", "language", effective)
@@ -1442,7 +1442,7 @@ def _read_engine_status() -> dict[str, object]:
     # 状态采样的唯一 seam：保留本函数而不是内联进 _status_worker，就是给未来的轮次探针留接线点——
     # 一旦 main.py 侧补上轮次计数，在此按「非 None 才挂键」的口径重新接上，并同时恢复前端
     # updateStatusWarning 里对应的 === false 判定与四语目录键。
-    import main
+    from src import main
 
     return cast("dict[str, object]", main.get_status())
 

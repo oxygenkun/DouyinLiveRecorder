@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 GUI_TREE = ast.parse(GUI_SOURCE)
 
 _MARKER = "\n@@WRAP@@ "
@@ -39,8 +39,8 @@ from tkinter import ttk
 
 out = {"skipped": None, "ok": False}
 try:
-    import gui
-    import i18n as i18n_module
+    from src import gui
+    from src import i18n as i18n_module
 
     # 语言钉定：gui 静态标签经 ui_i18n.T 建时查表（2026-10-04 起），译文形态取决于
     # config.ini 的 language 与宿主 locale（本探针子进程不经过 conftest 的恒等映射）。

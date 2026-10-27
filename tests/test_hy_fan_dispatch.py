@@ -28,9 +28,9 @@ def main_mod() -> Any:
     # 与 test_platform_dispatch 一致：导入前把 sys.argv[0] 钉到 main.py，
     # 否则 _app_root() 解析出的配置/日志目录会落到别处。
     old_argv = sys.argv[:]
-    sys.argv = [str(_REPO_ROOT / "main.py")]
+    sys.argv = [str(_REPO_ROOT / "src/main.py")]
     try:
-        import main
+        from src import main
 
         return main
     finally:

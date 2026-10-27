@@ -28,9 +28,11 @@ from typing import IO, Any, cast
 
 import pytest
 
-import i18n  # noqa: F401  与 conftest 的恒等翻译 fixture 同源，确保断言与语言配置解耦
-import msg_push
 import src.utils as utils_module
+from src import (
+    i18n,  # noqa: F401  与 conftest 的恒等翻译 fixture 同源，确保断言与语言配置解耦
+    msg_push,
+)
 from src import web_config as web_config_module
 from src.utils import _SECRET_KEYS, mask_credentials
 
@@ -197,8 +199,8 @@ class TestWebConfigDelegatesToUtilsAtomicWrite:
         # 注意：main 必须先导入——直接 `import src.config_io` 会在其 `import main` 处触发循环导入。
         import ast
 
-        import main  # noqa: F401  先完整初始化 main，打破 config_io<->main 的循环导入
         import src.config_io as config_io
+        from src import main  # noqa: F401  先完整初始化 main，打破 config_io<->main 的循环导入
 
         for module in (web_config_module, config_io):
             tree = ast.parse(inspect.getsource(module))

@@ -43,7 +43,7 @@ import sys
 import webbrowser
 from typing import TYPE_CHECKING, Callable, cast
 
-import i18n
+from src import i18n
 
 if TYPE_CHECKING:
     import ctypes

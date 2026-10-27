@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-import main
+import src.main as main
 import src.video_postprocess as vp
 
 

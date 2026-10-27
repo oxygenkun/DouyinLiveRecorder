@@ -48,8 +48,7 @@ import requests
 from loguru import logger
 from tqdm import tqdm
 
-import i18n
-from src import utils
+from src import i18n, utils
 
 # 与 ffmpeg_install 一致的依赖：zip 形态校验、哈希、解压炸弹防护走同一份实现。
 from src.utils import is_valid_zip, sha256_of_file, unzip_file
@@ -298,7 +297,7 @@ def _win_startup_info() -> object | None:
     # video_postprocess 的循环导入并半程执行 main 的模块体；拿不到就退回改动前的闪窗行为）。
     # 本模块更极端：连「模块级 import video_postprocess」都不可能是选项——那条环在导入本模块的
     # 那一刻就会闭合。
-    if "src.video_postprocess" not in sys.modules and "main" not in sys.modules:
+    if "src.video_postprocess" not in sys.modules and "src.main" not in sys.modules:
         return None
     from src.video_postprocess import get_startup_info
 

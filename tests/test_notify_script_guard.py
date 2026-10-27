@@ -40,8 +40,8 @@ _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
 _PATH_BASELINE = sys.path.count(_REPO_ROOT)  # 注入前的条目数（各调用形态下都实测为 0 或 1）
 sys.path.insert(0, _REPO_ROOT)
 try:
-    import main  # noqa: E402  必须在 src.notify 之前（本文件不直接用其成员，仅为导入顺序）
     import src.notify as notify  # noqa: E402
+    from src import main  # noqa: E402  必须在 src.notify 之前（本文件不直接用其成员，仅为导入顺序）
 finally:
     if _REPO_ROOT in sys.path:
         sys.path.remove(_REPO_ROOT)

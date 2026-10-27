@@ -716,7 +716,7 @@ class _LockRecorder:
 
 class TestUrlConfigWritePaths:
     def test_replace_url_holds_main_lock(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        import main as main_module
+        from src import main as main_module
 
         f = tmp_path / "URL_config.ini"
         _ = f.write_text("https://old.example/1\n", encoding="utf-8-sig")
@@ -727,7 +727,7 @@ class TestUrlConfigWritePaths:
         assert "https://new.example/1" in f.read_text(encoding="utf-8-sig")
 
     def test_remove_duplicate_lines_holds_main_lock(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        import main as main_module
+        from src import main as main_module
 
         f = tmp_path / "URL_config.ini"
         _ = f.write_text("a\na\nb\n", encoding="utf-8-sig")

@@ -21,7 +21,7 @@ const WEB_API_PY = readFileSync(new URL('../../src/web_api.py', import.meta.url)
 // update_config 端点本体仍在 web_api.py。
 const WEB_MODELS_PY = readFileSync(new URL('../../src/web_models.py', import.meta.url), 'utf8');
 // SEV-2221 撤销锁要核对 main.py 里有没有轮次计数器（判据见该用例），读原文而不猜。
-const MAIN_PY = readFileSync(new URL('../../main.py', import.meta.url), 'utf8');
+const MAIN_PY = readFileSync(new URL('../../src/main.py', import.meta.url), 'utf8');
 
 // —— DOM / 定时器 / fetch 桩 ————————————————————————————————
 
@@ -708,7 +708,7 @@ test('MID-2253：i18n.tr 模板的字符串实参不得是中文常量（其它�
     // 失效形态：tr("[web] 认证: {web_auth_enable}", web_auth_enable="开启" if ... else "关闭")——
     // 模板被翻译成「Authentication: {web_auth_enable}」而值仍是中文 → en_US 下中英混杂，
     // 中文下完全看不出。锁做成**文件无关**：任何 i18n.tr(...) 里出现「中文常量 + 无 tr 包装」即判红。
-    const files = ['web.py', 'src/web_api.py'];
+    const files = ['src/web.py', 'src/web_api.py'];
     const offenders = [];
     for (const rel of files) {
         const src = readFileSync(new URL('../../' + rel, import.meta.url), 'utf8');
@@ -735,7 +735,7 @@ test('MID-2253：web.py 认证开关播报必须走 i18n.tr 或字面量目录�
     // web.py 是组 G 独占文件；此锁直接钉住该行的写法形态。
     // 只查**代码行**：修复注释里会引用旧写法原文（那正是「就地改正 + 说明」的要求），
     // 注释行不算违规。
-    const webPy = readFileSync(new URL('../../web.py', import.meta.url), 'utf8');
+    const webPy = readFileSync(new URL('../../src/web.py', import.meta.url), 'utf8');
     const code = webPy.split('\n').filter(l => !l.trim().startsWith('#'));
     const line = code.find(l => l.includes('web_auth_enable='));
     assert.ok(line, 'web.py 未找到 web_auth_enable= 播报行');

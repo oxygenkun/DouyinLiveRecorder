@@ -4,7 +4,7 @@
 # 运行所需：main.py / web.py + src/（不含 gui_qt/；javascript/ 签名脚本、platforms/ 各平台实现与
 #   弹幕采集、proto/ 弹幕协议）+ web/（面板前端）+ i18n/**/*.mo
 # 红线：编译好的 .mo 是 gettext 运行时必需、Dockerfile 不会重编译，**不可排除**；
-#   只排 .po 源文件（编译脚本 compile_po.py 在 scripts/ 下，随 scripts/ 整目录排除）。
+#   只排 .po 源文件（编译脚本 compile_po.py 在 tool/ 下，随 tool/ 整目录排除）。
 # =============================================================================
 
 # ---------- Git / CI（构建上下文无需版本库与流水线定义）----------
@@ -90,8 +90,8 @@ htmlcov/
 .nox/
 .coveragerc-concurrency
 
-# ---------- 维护脚本（CI / i18n / 版本同步工具，运行时链路不引用 scripts/）----------
-scripts/
+# ---------- 维护脚本（CI / i18n / 版本同步工具，运行时链路不引用 tool/）----------
+tool/
 
 # ---------- 开发工具配置（pre-commit 钩子定义，仅本地开发用；配套 pyproject dev extra 的 pre-commit>=3.6.0）----------
 .pre-commit-config.yaml
@@ -116,10 +116,10 @@ dist/
 
 # ---------- 打包与桌面平台专用文件（容器内不使用）----------
 # 注意（MID-2255）：本文件里 `#` **只有行首才是注释**，行内 `#` 是模式的一部分。
-# 原先写成 `build_exe.py    # 说明` 时，模式变成「带空格与中文的长串」，永远匹配不到任何
+# 原先写成 `tool/build_exe.py    # 说明` 时，模式变成「带空格与中文的长串」，永远匹配不到任何
 # 路径——规则看着在、实际等于没写，且**伪装成已排除**（比漏写更糟）。注释一律独立成行。
 # 以下三项：本地 / CI 打包脚本、Windows 停止录制脚本、独立的 M3U8 播放器页（面板用 web/）
-build_exe.py
+tool/build_exe.py
 index.html
 
 # ---------- PyInstaller ----------
@@ -142,7 +142,7 @@ node/
 node-v*.zip
 
 # ---------- 翻译：仅排除 .po 源文件，编译好的 .mo 必须保留 ----------
-# [历史注] MID-2255 删掉了曾有的 `i18n/**/compile_po.py`：该脚本真身在 scripts/ 下，
+# [历史注] MID-2255 删掉了曾有的 `i18n/**/compile_po.py`：该脚本真身在 tool/ 下，
 # i18n/ 内从来没有这个文件，规则永不匹配、属空规则；回归锁见
 # tests/test_build_exe.py::test_dockerignore_excludes_dev_only_artifacts_as_bare_patterns。
 i18n/**/*.po
@@ -176,5 +176,5 @@ Thumbs.db
 desktop.ini
 
 # Docker 永远不运行桌面 GUI；可选 GUI 只在宿主机安装。
-gui.py
+src/gui.py
 src/gui_qt/

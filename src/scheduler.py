@@ -3,7 +3,7 @@ import time
 from collections import deque
 from threading import Condition, Lock, Thread, current_thread
 
-import i18n
+from src import i18n
 
 from .logger import logger
 
@@ -19,7 +19,7 @@ from .logger import logger
 # 设计目标：80+ 任务跨多平台时不因固定 3 槽而排队；单平台抖动被隔离降级、不拖垮全局；
 # 单任务异常被捕获，避免连锁报错导致系统不可用。
 #
-# 同源副本：scripts/douyin_live_recorder_standalone.py 刻意不 import src/（单文件可独立运行），
+# 同源副本：tool/douyin_live_recorder_standalone.py 刻意不 import src/（单文件可独立运行），
 # 因而自带一份 ResizableSemaphore 与 PlatformBreaker 的独立副本。改动本文件的并发语义
 # （容量/已持有分离、调容唤醒规则、熔断阈值与探针租约等）时必须逐方法 diff 后同步副本，
 # 不得假定两者已同步：两份 PlatformBreaker 并不等价（副本缺 _grant_probe / _end_probe /
@@ -40,7 +40,7 @@ class ResizableSemaphore:
     # 两者必须分离：若用单个字段同时表示「剩余可用许可」，recompute() 拿剩余量与目标容量比较
     # 后赋值，会把可用数每轮补满到目标值，旧持有者仍在持有 → 实际并发净增、网络上限失控
     # （表现为「多房间连击同一 CDN → 偶发 403」，易被误判成平台风控）。
-    # 同源副本：scripts/douyin_live_recorder_standalone.py::ResizableSemaphore（改并发语义须同步）。
+    # 同源副本：tool/douyin_live_recorder_standalone.py::ResizableSemaphore（改并发语义须同步）。
     def __init__(self, value: int) -> None:
         # 容量允许为 0（表示暂停/全部阻塞），仅作下限保护避免负值。
         self._cond = Condition()
@@ -115,7 +115,7 @@ class PlatformBreaker:
     # 按 key 的熔断器：closed（放行）→ open（熔断，跳过探测并退避）→ half-open（放一个探针）。
     # 连续失败样本比例超阈值即 open；open 经 cooldown 后转 half-open 放行一个探针，探针成功则
     # closed、失败则重新 open。用于把单平台抖动隔离，避免连锁拖垮全局。
-    # 同源副本：scripts/douyin_live_recorder_standalone.py::PlatformBreaker 只是部分同步
+    # 同源副本：tool/douyin_live_recorder_standalone.py::PlatformBreaker 只是部分同步
     # （缺哪些方法见模块头），改本类语义时须逐方法 diff 后决定是否回灌。
     def __init__(
         self,
@@ -481,7 +481,7 @@ def host_of(url: str) -> str:
     # ② 同一真实 host 因凭据不同被拆成多个熔断桶，失败样本被稀释、阈值到不了。
     # 用 rsplit 而非 split：IPv6 形态 [::1]:8080 与 userinfo 含 @ 的地址都要取最后一个 @ 之后。
     # 可复核判据：tests/test_regression_2026_09_22_main.py::test_host_of_strips_userinfo
-    # 孪生副本：scripts/douyin_live_recorder_standalone.py 的 host_of 是同语义副本（该文件按设计
+    # 孪生副本：tool/douyin_live_recorder_standalone.py 的 host_of 是同语义副本（该文件按设计
     # 不 import src/），实测尚未剥 userinfo，待其负责人同步；改此处须两处同改。
     try:
         tail = url.split("://", 1)[-1]

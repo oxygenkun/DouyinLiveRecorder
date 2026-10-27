@@ -11,7 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-import i18n
+from src import i18n
 from src.ui_i18n import T, set_text
 
 from ..theme import Palette

@@ -47,7 +47,7 @@ def test_compose_only_defines_cli_and_web_services() -> None:
 def test_docker_context_contains_lock_but_excludes_desktop_code() -> None:
     patterns = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert "uv.lock" not in patterns
-    assert "gui.py" in patterns
+    assert "src/gui.py" in patterns
     assert "src/gui_qt/" in patterns
 
 

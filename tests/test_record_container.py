@@ -17,7 +17,7 @@ import pytest
 
 from src.spider import extract_douyin_hevc_flv_url
 
-_MAIN_PATH = Path(__file__).resolve().parent.parent / "main.py"
+_MAIN_PATH = Path(__file__).resolve().parent.parent / "src/main.py"
 # 同类回归的第二处定义点：转码/合流命令同用 -segment_format。
 # 只扫 main.py 时「换个文件重犯」会完全绕过防线（2026-09-10 审查发现）。
 _POSTPROCESS_PATH = Path(__file__).resolve().parent.parent / "src" / "video_postprocess.py"
@@ -30,7 +30,7 @@ def main_mod() -> Any:
     old_argv = sys.argv[:]
     sys.argv = [str(_MAIN_PATH)]
     try:
-        import main
+        from src import main
 
         return main
     finally:

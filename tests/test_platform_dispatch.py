@@ -24,9 +24,9 @@ def main_mod() -> Any:
     # 与 test_start_record_command_golden 一致：导入前把 sys.argv[0] 钉到 main.py，
     # 否则 _app_root() 解析出的路径不对（配置/日志目录会落到别处）。
     old_argv = sys.argv[:]
-    sys.argv = [str(_REPO_ROOT / "main.py")]
+    sys.argv = [str(_REPO_ROOT / "src/main.py")]
     try:
-        import main
+        from src import main
 
         return main
     finally:
@@ -325,7 +325,7 @@ def _platform_cookie_map_entries(tree: "ast.Module") -> dict[str, str]:
 
 
 def test_platform_name_literals_match_resolver_writeback(main_mod: Any) -> None:
-    tree = ast.parse((_REPO_ROOT / "main.py").read_text(encoding="utf-8"))
+    tree = ast.parse((_REPO_ROOT / "src/main.py").read_text(encoding="utf-8"))
     resolver_names = _resolver_platform_names(tree)
     assert resolver_names, "AST 未能取到任何 resolver 回写的平台名（扫描口径失效即假绿）"
     sequences = _literal_sequences_by_name(tree)
@@ -333,7 +333,7 @@ def test_platform_name_literals_match_resolver_writeback(main_mod: Any) -> None:
     unknown: list[str] = []
     for var in _PLATFORM_NAME_LITERALS:
         items = sequences.get(var)
-        assert items, f"main.py 中找不到列表 {var}（被改名或删除，本回归锁随之失效）"
+        assert items, f"src/main.py 中找不到列表 {var}（被改名或删除，本回归锁随之失效）"
         for item in items:
             if item not in resolver_names:
                 unknown.append(f"{var}: {item}")
@@ -342,7 +342,7 @@ def test_platform_name_literals_match_resolver_writeback(main_mod: Any) -> None:
 
 def test_migu_is_not_a_dead_http_record_entry(main_mod: Any) -> None:
     # 回归具体缺陷：http_record_list 曾写 "migu"，而咪咕 resolver 回写 "咪咕直播" → 死项
-    tree = ast.parse((_REPO_ROOT / "main.py").read_text(encoding="utf-8"))
+    tree = ast.parse((_REPO_ROOT / "src/main.py").read_text(encoding="utf-8"))
     sequences = _literal_sequences_by_name(tree)
     assert "migu" not in sequences["http_record_list"]
     assert "咪咕直播" in sequences["http_record_list"]
@@ -423,11 +423,11 @@ def test_forced_direct_download_platforms_carry_cookie(main_mod: Any) -> None:
     # huajiao_cookie 已有读取点并透传给解析函数，却不在映射里，于是同一份 Cookie 在「解析」与
     # 「探针 / ffmpeg 录制头 / 直下」两条路口径不一——直下路径按游客态取流，CDN 可 403 或钳到最低档。
     # 判据：删掉任一键、或把值写成 "" 字面量即变红；映射整体丢失时开头的非空见证变红。
-    tree = ast.parse((_REPO_ROOT / "main.py").read_text(encoding="utf-8"))
+    tree = ast.parse((_REPO_ROOT / "src/main.py").read_text(encoding="utf-8"))
     entries = _platform_cookie_map_entries(tree)
     assert entries, "AST 未能取到 platform_cookie 字面量映射（扫描口径失效即假绿）"
     only_flv = _literal_sequences_by_name(tree).get("only_flv_platform_list")
-    assert only_flv, "main.py 中找不到 only_flv_platform_list（被改名或删除，本回归锁随之失效）"
+    assert only_flv, "src/main.py 中找不到 only_flv_platform_list（被改名或删除，本回归锁随之失效）"
     for platform in only_flv:
         assert platform in entries, f"强制直下平台 {platform} 未向探针/录制头/直下转发 Cookie（L-04 回归）"
         assert entries[platform].endswith("_cookie"), f"{platform} 未绑定配置项变量: {entries[platform]}"

@@ -105,15 +105,15 @@ dev = [
 gui = [
     "PySide6>=6.12.0",
 ]
-# 可执行文件打包（build_exe.py / CI 使用，非运行时依赖）
+# 可执行文件打包（tool/build_exe.py / CI 使用，非运行时依赖）
 build = [
     "pyinstaller>=6.10.0",
 ]
 
 [project.scripts]
-douyin-recorder = "main:main"
-douyin-recorder-gui = "gui:main"
-douyin-recorder-web = "web:main"
+douyin-recorder = "src.main:main"
+douyin-recorder-gui = "src.gui:main"
+douyin-recorder-web = "src.web:main"
 
 [project.urls]
 Homepage = "https://github.com/y123ao6/DouyinLiveRecorder"
@@ -135,8 +135,7 @@ build-backend = "setuptools.build_meta"
 # .pages.{config,danmaku,dashboard,quality,runlog}——漏列任一子包，装出的 douyin-recorder-gui
 # 入口在第一段导入就 ModuleNotFoundError。
 packages = ["src", "src.gui_qt", "src.gui_qt.pages", "src.platforms", "src.proto"]
-# 顶层单文件模块：保证 [project.scripts] 三个入口（main/gui/web）安装后可用
-py-modules = ["main", "web", "gui", "i18n", "msg_push"]
+
 
 [tool.setuptools.package-data]
 src = ["javascript/*.js"]
@@ -144,7 +143,7 @@ src = ["javascript/*.js"]
 # 重新生成（见上方 F-14 注释），故必须随发行包分发；漏列会让 sdist 里只剩生成物没有源定义
 "src.proto" = ["*.proto"]
 # 注：i18n/ 翻译目录不是 Python 包（无 __init__.py），无法通过 package-data 分发；
-# .mo 文件随 git 仓库、发布 zip（build_exe.py）与 Docker 镜像分发。
+# .mo 文件随 git 仓库、发布 zip（tool/build_exe.py）与 Docker 镜像分发。
 
 [tool.ruff]
 include = ["*.py", "*.pyi"]
@@ -191,7 +190,7 @@ line-ending = "auto"
 select = ["I", "E902", "F821", "F822", "F823"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src", "i18n"]
+known-first-party = ["src", "tool"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -259,4 +258,4 @@ exclude_also = [
     "if __name__ == .__main__.:",
 ]
 
-# 逐模块覆盖率阈值只在 scripts/check_coverage.py 的 MODULE_THRESHOLDS 维护；此处不复制数值，避免双写漂移。
+# 逐模块覆盖率阈值只在 tool/check_coverage.py 的 MODULE_THRESHOLDS 维护；此处不复制数值，避免双写漂移。

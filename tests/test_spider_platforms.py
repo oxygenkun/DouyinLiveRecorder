@@ -35,7 +35,7 @@ def _unwrap(func: object) -> Any:
 def _pin_identity_translation() -> Iterator[None]:
     # i18n.tr 在测试环境按 msgid 直通（仅替换占位符），使日志断言不受目录翻译影响；
     # 若某条文案尚未登记，tr 会回落原 msgid——两种路径下断言的都是「中文 msgid 正文」。
-    import i18n as i18n_mod
+    from src import i18n as i18n_mod
 
     original_tr = i18n_mod.tr
 

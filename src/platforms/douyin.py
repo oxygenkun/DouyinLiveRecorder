@@ -20,7 +20,7 @@ import time
 import urllib.parse
 from typing import Any, Union, cast
 
-import i18n
+from src import i18n
 from src.base import DanmakuBase, DanmakuMessage, DanmakuMessageType
 from src.logger import logger
 from src.platforms._xbogus import danmaku_signature

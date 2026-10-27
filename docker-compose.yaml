@@ -76,7 +76,7 @@ services:
 
     # 健康检查：同时兼容 main.py 与 web.py 两种模式
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python (main|web).py' || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f 'python -m src[.](main|web)' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -111,7 +111,7 @@ services:
     container_name: douyin-live-recorder-web
     profiles:
       - web
-    entrypoint: ["python", "web.py"]
+    entrypoint: ["python", "-m", "src.web"]
     # 端口映射仅 Web 模式需要（宿主机:容器），与 Dockerfile EXPOSE 8000 对应。
     # 默认只绑本机回环："8000:8000" 等价于 "0.0.0.0:8000:8000"，会把面板暴露到宿主机**所有**
     # 网卡，而 web_auth_enable 默认 false，组合后果是「无认证面板直接上网」（与 web.py 那条

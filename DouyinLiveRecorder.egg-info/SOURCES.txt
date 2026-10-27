@@ -1,11 +1,6 @@
 LICENSE
 README.md
-gui.py
-i18n.py
-main.py
-msg_push.py
 pyproject.toml
-web.py
 DouyinLiveRecorder.egg-info/PKG-INFO
 DouyinLiveRecorder.egg-info/SOURCES.txt
 DouyinLiveRecorder.egg-info/dependency_links.txt
@@ -23,13 +18,19 @@ src/config_read.py
 src/cookie_cache.py
 src/danmaku_monitor.py
 src/douyin_dm.py
+src/douyin_follow.py
 src/ffmpeg_install.py
 src/ffmpeg_linux_download.py
 src/ffmpeg_master_download.py
 src/ffmpeg_proc.py
+src/graceful_shutdown.py
+src/gui.py
 src/http_config.py
+src/i18n.py
 src/log_archive.py
 src/logger.py
+src/main.py
+src/msg_push.py
 src/node_install.py
 src/notify.py
 src/proxy.py
@@ -51,6 +52,7 @@ src/ui_scale.py
 src/ui_theme.py
 src/utils.py
 src/video_postprocess.py
+src/web.py
 src/web_api.py
 src/web_config.py
 src/web_models.py
@@ -212,6 +214,7 @@ tests/test_scheduler.py
 tests/test_scripts_error_paths.py
 tests/test_shopee_landing_guard.py
 tests/test_skill_agents_consistency.py
+tests/test_source_layout.py
 tests/test_spider.py
 tests/test_spider_fixes.py
 tests/test_spider_hardening.py

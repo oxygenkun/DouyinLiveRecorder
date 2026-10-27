@@ -36,7 +36,7 @@ def recorder_logger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator
     # 与 tests/test_logger_gui_parent.py 同口径：把 _app_root() 的落点指向 tmp_path 以隔离
     # logs/ 与 config/，sys.stderr 置 None 跳过控制台 sink（本组用例只看文件 sink 落盘内容）。
     # 重载 src.logger 让「录制进程」分支重新注册两个文件 sink，同时重新装上房间 patcher。
-    monkeypatch.setattr(sys, "argv", [str(tmp_path / "main.py")])
+    monkeypatch.setattr(sys, "argv", [str(tmp_path / "entry.py")])
     monkeypatch.setattr(sys, "stderr", None)
     monkeypatch.delenv(logger_mod.GUI_PARENT_ENV, raising=False)
     config_dir = tmp_path / "config"

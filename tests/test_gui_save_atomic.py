@@ -20,7 +20,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 _SCRIPT = r"""
-import gui
+from src import gui
 import json
 import os
 import pathlib

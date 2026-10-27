@@ -48,7 +48,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-import i18n
+from src import i18n
 
 from . import utils
 from .async_http import async_req

@@ -237,7 +237,7 @@ logs/
 *.jsonl
 
 # .mo 编译翻译文件随仓库分发（gettext 运行时必需，不忽略）
-# 注：下面一条是空规则——compile_po.py 真身在 scripts/ 下，i18n/ 内从来没有该文件
+# 注：下面一条是空规则——compile_po.py 真身在 tool/ 下，i18n/ 内从来没有该文件
 # （与 .dockerignore 侧 MID-2255 已删除的同名规则同源核对）
 i18n/**/compile_po.py
 
@@ -285,7 +285,7 @@ TRAE_AGENT_CODE_WIKI.md
 PERF_REVIEW_*.md
 
 # 本地工具 / 审查生成物（与 .dockerignore 及 pyproject 各工具排除列表同源维护）
-# .agents/ 整体是本地工具目录，但 skills/ 必须入库：scripts/check_skill_agents_consistency.py
+# .agents/ 整体是本地工具目录，但 skills/ 必须入库：tool/check_skill_agents_consistency.py
 # 是 CI 的 required check，干净检出缺该目录会退 2（SR-06，docs/worklog/CODE_REVIEW_2026-10-04.md）。
 # 写法必须是「排除内容物 + 反选子目录」：直接写 .agents/ 会让 git 不再下钻该目录，
 # 后面的 !.agents/skills/ 反选随之失效（git 对已排除目录不做逐文件匹配）。

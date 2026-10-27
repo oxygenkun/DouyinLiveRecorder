@@ -15,7 +15,7 @@ from typing import Any, Union
 
 from loguru import logger
 
-import i18n
+from src import i18n
 from src.base import DanmakuBase, DanmakuMessage, DanmakuMessageType, spawn_danmaku_task
 
 # MI-01：解压上限与带限长解压助手统一取自 ws_client

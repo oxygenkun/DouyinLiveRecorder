@@ -91,9 +91,9 @@ _COOKIE_GLOBALS = [
 def main_mod() -> ModuleType:
     # 与 test_main_fixes 一致：导入前把 sys.argv[0] 钉到 main.py，否则 _app_root 解析错路径。
     old_argv = sys.argv[:]
-    sys.argv = [str(_REPO_ROOT / "main.py")]
+    sys.argv = [str(_REPO_ROOT / "src/main.py")]
     try:
-        import main
+        from src import main
 
         return main
     finally:

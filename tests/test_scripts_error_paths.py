@@ -1,4 +1,4 @@
-# scripts/smoke_test.py 的配置校验与退出码回归测试。
+# tool/smoke_test.py 的配置校验与退出码回归测试。
 
 from __future__ import annotations
 
@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _load_script(filename: str) -> Any:
-    # scripts/ 不在包路径内：按文件路径显式加载。
+    # tool/ 不在包路径内：按文件路径显式加载。
     # 返回 Any 而非 ModuleType：被测面是「脚本内的私有函数 + 模块全局替换」，
     # ModuleType 的属性访问本就是 Any，这里不靠类型收窄、只靠真实调用。
-    spec = importlib.util.spec_from_file_location(f"_{filename[:-3]}_probe", ROOT / "scripts" / filename)
+    spec = importlib.util.spec_from_file_location(f"_{filename[:-3]}_probe", ROOT / "tool" / filename)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -123,7 +123,7 @@ def _spawn_smoke_child(cfg_path: Path) -> subprocess.CompletedProcess[bytes] | N
     for _attempt in range(3):
         try:
             return subprocess.run(
-                [sys.executable, str(ROOT / "scripts" / "smoke_test.py"), "-c", str(cfg_path)],
+                [sys.executable, str(ROOT / "tool" / "smoke_test.py"), "-c", str(cfg_path)],
                 capture_output=True,
             )
         except OSError:
@@ -192,7 +192,7 @@ class TestSmokeConfigMalformed:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         # L-31 的进程边界形态：元素级畸形必须同样落 rc=2（配置问题），而不是 run_check 抛
-        # TypeError 的 rc=1（接口问题）。这两档在 scripts/_ci_web_smoke.sh 里处置相反——
+        # TypeError 的 rc=1（接口问题）。这两档在 tool/_ci_web_smoke.sh 里处置相反——
         # 前者直接停、后者还会退避重试，混同等于把「配置写坏了」重跑一遍。
         seen = _install_fake_urlopen(monkeypatch, _FakeResponse(200, "ok"))
         cfg = _write_cfg(
@@ -261,8 +261,8 @@ class TestSmokeConfigValid:
         assert _call_main(monkeypatch, missing) == 2
 
     def test_shipped_smoke_web_config_still_loads(self) -> None:
-        # 仓库自带的 CI 配置（scripts/smoke_web.json）是新校验的第一个消费者：必须仍能解析，
+        # 仓库自带的 CI 配置（tool/smoke_web.json）是新校验的第一个消费者：必须仍能解析，
         # 且解析出 2 条断言（MIN-2260 的「0 条也算红」在消费侧还有第二道判据）。
-        checks, base_url = smoke_test.load_config(str(ROOT / "scripts" / "smoke_web.json"))
+        checks, base_url = smoke_test.load_config(str(ROOT / "tool" / "smoke_web.json"))
         assert len(checks) == 2
         assert base_url == "http://127.0.0.1:8000"

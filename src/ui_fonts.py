@@ -26,7 +26,7 @@ from pathlib import Path
 from tkinter import font as tkfont
 from typing import Any, Final
 
-import i18n
+from src import i18n
 from src.config_read import tolerant_config_parser
 from src.logger import logger
 from src.web_config import update_or_append_config_line

@@ -12,7 +12,7 @@ from typing import cast
 
 import httpx
 
-import i18n
+from src import i18n
 from src.logger import logger
 
 from . import JS_SCRIPT_PATH, http_config, utils

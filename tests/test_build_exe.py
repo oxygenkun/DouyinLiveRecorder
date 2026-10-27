@@ -46,7 +46,7 @@ _ALLOWED_HOSTS = frozenset({"www.gyan.dev", "evermeet.ca", "github.com", "api.gi
 def _load_build_exe() -> Any:
     # 根目录模块不在包路径内，按文件路径显式加载；
     # build_exe 的 import 期只有常量定义（main() 受 __name__ 守卫），故加载无副作用。
-    spec = importlib.util.spec_from_file_location("_build_exe_runtime_probe", ROOT / "build_exe.py")
+    spec = importlib.util.spec_from_file_location("_build_exe_runtime_probe", ROOT / "tool/build_exe.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -124,7 +124,7 @@ def test_linux_ffmpeg_urls_pin_an_immutable_release_tag() -> None:
 def test_broken_arm64_endpoint_cannot_be_resurrected() -> None:
     # 形态锁，且**只看字符串字面量与函数体**：注释里记录「这条端点不存在」是必要的文档，
     # 但它绝不能再成为取值——无论写进来源表还是在下载函数里按 machine 现场拼接。
-    tree = ast.parse((ROOT / "build_exe.py").read_text(encoding="utf-8"), filename="build_exe.py")
+    tree = ast.parse((ROOT / "tool/build_exe.py").read_text(encoding="utf-8"), filename="tool/build_exe.py")
     offenders = [
         node.value
         for node in ast.walk(tree)
@@ -147,7 +147,7 @@ def test_every_pinned_source_url_is_https_on_an_allowlisted_host() -> None:
         host = url.split("/", 3)[2]
         assert host in _ALLOWED_HOSTS, f"来源主机 {host} 不在允许清单内"
     # node 的 URL 是 f-string 现拼的，锁它的两个模板主机而不是具体版本
-    node_source = (ROOT / "build_exe.py").read_text(encoding="utf-8")
+    node_source = (ROOT / "tool/build_exe.py").read_text(encoding="utf-8")
     assert 'urllib.request.urlopen("https://nodejs.org/dist/index.json"' in node_source
     assert 'url = f"https://nodejs.org/dist/{version}/{filename}"' in node_source
 
@@ -1028,7 +1028,7 @@ def _zip_positions(order: list[str]) -> list[int]:
 def test_dual_build_zips_both_variants_before_smoke(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--dual", "--smoke"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--dual", "--smoke"])
     build_exe.main()
     zips = _zip_positions(order)
     assert len(zips) == 2, f"--dual 应产出 lite + full 两个 zip：{order}"
@@ -1055,7 +1055,7 @@ def test_dual_build_prunes_stale_zips_before_first_zip(monkeypatch: pytest.Monke
         victim.write_bytes(b"PK\x03\x04")
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--dual"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--dual"])
     build_exe.main()
     assert not stale_buggy.exists(), order
     assert not stale_old.exists(), order
@@ -1072,7 +1072,7 @@ def test_no_zip_build_keeps_existing_dist_zips(monkeypatch: pytest.MonkeyPatch, 
     keeper.write_bytes(b"PK\x03\x04")
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--smoke", "--no-zip", "--no-runtime"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--smoke", "--no-zip", "--no-runtime"])
     build_exe.main()
     assert keeper.is_file(), order
 
@@ -1080,7 +1080,7 @@ def test_no_zip_build_keeps_existing_dist_zips(monkeypatch: pytest.MonkeyPatch, 
 def test_single_build_zips_before_smoke(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--smoke"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--smoke"])
     build_exe.main()
     zips = _zip_positions(order)
     assert len(zips) == 1, order
@@ -1092,7 +1092,7 @@ def test_no_zip_build_still_smokes(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     # 而丢掉冒烟——本用例锁「冒烟仍在」，防止把解耦写成「干脆不冒烟」。
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--smoke", "--no-zip", "--no-runtime"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--smoke", "--no-zip", "--no-runtime"])
     build_exe.main()
     assert "make_zip" not in order, order
     assert "smoke_test" in order, order
@@ -1279,7 +1279,7 @@ def test_dual_and_no_zip_are_mutually_exclusive(monkeypatch: pytest.MonkeyPatch,
     # --no-zip 被静默无视。现在必须 fail-fast；断言 order 为空即锁「判定早于任何构建步骤」。
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--dual", "--no-zip", "--smoke"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--dual", "--no-zip", "--smoke"])
     with pytest.raises(SystemExit) as caught:
         build_exe.main()
     assert "--dual 与 --no-zip 互斥" in str(caught.value)
@@ -1308,7 +1308,7 @@ def test_dual_build_aborts_when_both_variants_land_on_one_zip(monkeypatch: pytes
     order: list[str] = []
     _stub_build_steps(monkeypatch, order, tmp_path)
     victim = _stub_two_colliding_zips(monkeypatch, tmp_path, order)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--dual"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--dual"])
     with pytest.raises(SystemExit) as caught:
         build_exe.main()
     assert "同一个文件" in str(caught.value), str(caught.value)
@@ -1332,7 +1332,7 @@ def test_dual_build_aborts_when_a_variant_zip_is_missing(monkeypatch: pytest.Mon
         return zip_path
 
     monkeypatch.setattr(build_exe, "make_zip", _fake)
-    monkeypatch.setattr(sys, "argv", ["build_exe.py", "--dual"])
+    monkeypatch.setattr(sys, "argv", ["tool/build_exe.py", "--dual"])
     with pytest.raises(SystemExit) as caught:
         build_exe.main()
     assert "不存在" in str(caught.value), str(caught.value)
@@ -1385,9 +1385,9 @@ def test_dockerignore_excludes_dev_only_artifacts_as_bare_patterns() -> None:
     patterns = _ignore_patterns(".dockerignore")
     # 这三条是本轮实测「伪装成已排除」的形态：65KB 打包脚本 / 37KB UTF-16 的 Windows 脚本 /
     # 仓库内散落的 *.jsonl（弹幕监控边车日志）都会经 COPY . ./ 进镜像。
-    for must in ("build_exe.py", "*.jsonl"):
+    for must in ("tool/build_exe.py", "*.jsonl"):
         assert must in patterns, f".dockerignore 缺少裸模式 {must!r}（带行内注释的规则永不匹配）"
-    # 空规则：i18n/ 下从来没有 compile_po.py（真身在 scripts/，已整目录排除），留着只会误导读者
+    # 空规则：i18n/ 下从来没有 compile_po.py（真身在 tool/，已整目录排除），留着只会误导读者
     assert not [p for p in patterns if "compile_po" in p], "i18n/**/compile_po.py 永不匹配，属空规则"
 
 
@@ -1402,11 +1402,11 @@ def test_gitignore_runtime_dirs_are_bare_patterns() -> None:
 
 
 # ---------------------------------------------------------------------------
-# MIN-2260：scripts/smoke_test.py 的「0 断言」不得算通过
+# MIN-2260：tool/smoke_test.py 的「0 断言」不得算通过
 # _ci_web_smoke.sh 原样透传 rc，CI 的「Web panel smoke test」步骤因此可以查了个空气还报成功。
 # ---------------------------------------------------------------------------
 
-_SMOKE_SCRIPT = ROOT / "scripts" / "smoke_test.py"
+_SMOKE_SCRIPT = ROOT / "tool" / "smoke_test.py"
 
 
 def _run_smoke_script(tmp_path: Path, content: str) -> int:
@@ -1472,7 +1472,7 @@ def test_smoke_load_config_still_reads_valid_checks(tmp_path: Path) -> None:
 def _production_import_names() -> set[str]:
     # 收集生产代码（根入口 + src/）里出现过的所有导入模块名，用于判定「排除项是否可达」。
     # 用 AST 而不是正则：正则会把注释与字符串里的 import 也算进去（既漏判又误判）。
-    files = [ROOT / name for name in ("main.py", "gui.py", "web.py", "i18n.py", "msg_push.py")]
+    files = [ROOT / name for name in ("src/main.py", "src/gui.py", "src/web.py", "src/i18n.py", "src/msg_push.py")]
     files += sorted((ROOT / "src").rglob("*.py"))
     names: set[str] = set()
     for path in files:
@@ -1669,7 +1669,7 @@ def test_online_layer_is_off_by_default_and_never_touches_network(
     monkeypatch.delenv("DLR_RUNTIME_PIN_SOURCE", raising=False)
     assert build_exe.pin_source_mode() == build_exe.PIN_SOURCE_OFF
     merged = build_exe._pinned_slots()
-    assert merged["ffmpeg"] == build_exe._PINNED_RUNTIME_SHA256["windows-x64"]["ffmpeg"].lower()
+    assert merged["ffmpeg"] == build_exe._PINNED_RUNTIME_SHA256[build_exe.runtime_slot_key()]["ffmpeg"].lower()
 
 
 def test_unrecognized_pin_source_env_value_falls_back_to_off(

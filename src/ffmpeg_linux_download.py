@@ -35,8 +35,7 @@ from typing import Any
 import requests
 from loguru import logger
 
-import i18n
-from src import utils
+from src import i18n, utils
 
 # 与 ffmpeg_master_download 同量级但**各自持有**：跨模块引私有常量会把 Windows 语义模块的内部细节
 # 变成第二个耦合点（该模块的超时取值是为「挑战页探针」调的，Linux 侧没有这个问题）。

@@ -13,8 +13,8 @@ import weakref
 
 import pytest
 
-import i18n
 import src.ui_i18n as ui_i18n
+from src import i18n
 
 
 class _FakeWidget:

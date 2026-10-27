@@ -34,7 +34,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
-import i18n  # noqa: E402
+from src import i18n  # noqa: E402
 from src.gui_qt.main_window import MainWindow  # noqa: E402
 
 _CHILD_MARKER = "hello-from-child-process-4711"

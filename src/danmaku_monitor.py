@@ -18,7 +18,7 @@ import time
 from collections import deque
 from typing import Any, Optional, TextIO
 
-import i18n
+from src import i18n
 from src.logger import logger, script_path
 
 # 消息展示流采样上限（条/秒/房间）：仅约束展示流，统计计数不受影响

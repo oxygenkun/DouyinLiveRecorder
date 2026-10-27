@@ -31,19 +31,17 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 
-import i18n
-import main
-from src import spider, stream, utils
+from src import i18n, main, spider, stream, utils
 from src.scheduler import host_of
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN_SRC = ROOT / "main.py"
+MAIN_SRC = ROOT / "src/main.py"
 
 
 def _load_extractor() -> Any:
-    # 复用生产提取器（scripts/extract_i18n_strings.py）做判据，而不是自写一份字符串匹配：
+    # 复用生产提取器（tool/extract_i18n_strings.py）做判据，而不是自写一份字符串匹配：
     # 自写匹配在提取器规则变化后会假绿，而本组条目的失效形态恰恰是「提取器扫不到」。
-    spec = importlib.util.spec_from_file_location("extract_i18n_probe", ROOT / "scripts" / "extract_i18n_strings.py")
+    spec = importlib.util.spec_from_file_location("extract_i18n_probe", ROOT / "tool" / "extract_i18n_strings.py")
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -116,7 +114,7 @@ class TestI18nStringsExtractable:
     def test_tr_kwargs_are_actually_used(self) -> None:
         # tr 模板用了 {record_name}/{anchor_name} 等占位符就必须传 kwargs，否则 tr() 内部格式化抛
         # KeyError 时会静默降级回原文模板（i18n.tr 永不抛），译文形同虚设。这里只校验「能格式化成功」。
-        import i18n
+        from src import i18n
 
         cases = [
             ("\r{record_name} 正在直播中...", {"record_name": "张三"}),
@@ -144,7 +142,7 @@ def _four_catalogs() -> dict[str, dict[str, str]]:
     # 删除，「袋子写过、目录没合并」同样要红。复用 i18n 自己的三个加载器，不写第二套解析口径。
     from pathlib import Path
 
-    import i18n
+    from src import i18n
 
     cats = {
         "zh_CN": i18n._load_mo_catalog(i18n.locale_path, "zh_CN"),
@@ -229,7 +227,7 @@ class TestFlvConvertBeforeCommentEnd:
                     break
             if target is not None:
                 break
-        assert target is not None, "main.py 中找不到 _convert_if_flv 分支（MIN-2235 修复形态已丢失）"
+        assert target is not None, "src/main.py 中找不到 _convert_if_flv 分支（MIN-2235 修复形态已丢失）"
         return target
 
     def _drive(self, save_type: str, started: bool = True) -> list[str]:
@@ -298,7 +296,7 @@ class TestNoGlobForSegmentEnumeration:
                 offenders.append(f"attr .glob @ line {node.lineno}")
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "glob":
                 offenders.append(f"call glob() @ line {node.lineno}")
-        assert offenders == [], f"main.py 内仍有 glob 调用: {offenders}"
+        assert offenders == [], f"src/main.py 内仍有 glob 调用: {offenders}"
 
     def test_no_glob_import(self) -> None:
         src = MAIN_SRC.read_text(encoding="utf-8-sig")
@@ -547,7 +545,9 @@ class TestDiskLimitedRecoverable:
             }
             if "disk_limited" in assigned and "exit_recording" in assigned:
                 return ast.unparse(node)
-        raise AssertionError("main.py 里找不到 `if disk_free_gb < disk_space_limit:` 磁盘限制块（SEV-2206 形态已丢失）")
+        raise AssertionError(
+            "src/main.py 里找不到 `if disk_free_gb < disk_space_limit:` 磁盘限制块（SEV-2206 形态已丢失）"
+        )
 
     @classmethod
     def _drive(cls, **state: Any) -> tuple[bool, bool] | None:

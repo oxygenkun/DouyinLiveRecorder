@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 # DouyinLiveRecorder Web 管理面板入口
-# 启动方式: python web.py；浏览器访问: http://localhost:8000
+# 启动方式: python -m src.web；浏览器访问: http://localhost:8000
 #
 # 与 main.py 共用同一录制引擎（`import main` 触发其模块级初始化）：录制主循环跑在守护线程
 # "recorder-engine"；默认主线程运行 uvicorn，启用 Qt 系统托盘时两者对调——主线程要让给 Qt
@@ -16,18 +16,13 @@ import threading
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
 
-import i18n
+from src import i18n
 from src.logger import logger
 
 if TYPE_CHECKING:
     import uvicorn
 
     from src.web_tray import WebConsoleTray
-
-# 项目根入 sys.path：直接 `python web.py` 时仍能 import src/main（不依赖安装态）
-_script_dir = os.path.dirname(os.path.realpath(__file__))
-if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
 
 
 # 中文 Windows 控制台（尤其 PyInstaller 冻结后）stdout 默认 GBK：打印中文/emoji 会乱码，
@@ -272,7 +267,7 @@ def main() -> None:
     # 函数，导入不会进入主循环。
     import uvicorn
 
-    import main
+    from src import main
     from src.web_api import create_app
     from src.web_config import read_web_config
 

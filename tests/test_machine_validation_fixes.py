@@ -153,7 +153,7 @@ def test_ws_heartbeat_timeout_closes_connection(monkeypatch: pytest.MonkeyPatch)
     # 调 i18n.set_language）都会在**用例运行中**把 i18n._tr 从恒等映射重绑成真目录，于是
     # 「按简中模板断言日志文本」当场失效——2026-09-29 本机实测同文件
     # test_video_postprocess_timeout_logged_as_timeout 正是这样红的。用例内再钉一次恒等。
-    import i18n
+    from src import i18n
 
     monkeypatch.setattr(i18n, "_tr", lambda text: text)
 
@@ -345,13 +345,14 @@ def test_video_postprocess_timeout_logged_as_timeout(tmp_path: Path, monkeypatch
 
     # 断言与语言解耦用 i18n._tr 恒等映射（手法与口径同 tests/conftest.py::_pin_identity_translation），
     # 钉死动作见下方 import 之后的 monkeypatch.setattr。
-    import i18n
-
     # 必须先 import main，让 video_postprocess 的循环依赖（notify → video_postprocess）
     # 在「先 main 后 video_postprocess」顺序下完成解析；否则 pytest 在子测试里 import
     # src.video_postprocess 会撞上 notify 内部的延迟导入失败。
-    import main  # noqa: F401
-    from src import video_postprocess
+    from src import (
+        i18n,
+        main,  # noqa: F401
+        video_postprocess,
+    )
 
     # 恒等映射必须打在 `import main` **之后**：main.py 模块级会调 i18n.set_language(language)，把
     # i18n._tr 重绑成真目录（宿主中文 Windows 上探测出 en_US），「按简中模板断言日志文本」当场失效

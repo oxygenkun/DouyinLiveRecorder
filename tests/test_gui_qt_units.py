@@ -2,7 +2,7 @@
 #
 # 与 test_gui_qt_window.py 分工：那份走离屏真窗行为断言（建窗约 0.6s）；本文件用假进程与
 # 假 JSONL 驱动 shared / danmaku_monitor / recorder / settings_dialog / app，更快且能钉住
-# 超时、脏数据、单飞闸门等边界。scripts/check_coverage.py 对 src/ 新模块按 50% 下限判定，
+# 超时、脏数据、单飞闸门等边界。tool/check_coverage.py 对 src/ 新模块按 50% 下限判定，
 # 本文件是上述五处读数的主要来源。
 #
 # 锁：shared 的数值容错与配置裁决三态；danmaku_monitor 的逐事件防护与 stop_event 随线程
@@ -21,7 +21,7 @@ import threading
 import time
 import types
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 
 import pytest
 
@@ -42,8 +42,10 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QSyntaxHighlighter  # noqa: E402
 from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QSystemTrayIcon  # noqa: E402
 
-import i18n  # noqa: E402
-from src import ui_i18n  # noqa: E402
+from src import (
+    i18n,  # noqa: E402
+    ui_i18n,  # noqa: E402
+)
 from src.gui_qt import app as app_module  # noqa: E402
 from src.gui_qt import recorder as recorder_module  # noqa: E402
 from src.gui_qt import shared  # noqa: E402
@@ -276,7 +278,7 @@ def _controller(tmp_path: Path) -> RecorderController:
 def test_build_record_command_is_source_mode_outside_frozen(qt_app: QApplication, tmp_path: Path) -> None:
     controller = _controller(tmp_path)
     command = controller.build_record_command()
-    assert command[-1].endswith("main.py")
+    assert command[1:] == ["-m", "src.main"]
     assert command[0] == sys.executable or command[0].endswith("python.exe")
 
 
@@ -354,9 +356,13 @@ def test_recorder_shutdown_without_process_still_calls_finish(qt_app: QApplicati
     assert finished.wait(timeout=10.0), "退出路径必须回调主线程收尾，否则窗口永不销毁"
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
 def test_send_stop_signal_and_wait_graceful_path(
-    qt_app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    qt_app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str
 ) -> None:
+    process_sys = types.SimpleNamespace(**vars(sys))
+    process_sys.platform = platform
+    monkeypatch.setattr(recorder_module, "sys", process_sys)
     controller = _controller(tmp_path)
     # 真发 CTRL_BREAK 会让本进程 FreeConsole/AttachConsole，pytest 的 stdout 会跟着丢；
     # 这里只验证「信号 → 等待 → 优雅退出」的分支走向，控制台附着本身由 shared 单独守。
@@ -369,29 +375,42 @@ def test_send_stop_signal_and_wait_graceful_path(
         proc.wait(timeout=5)
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
 def test_send_stop_signal_and_wait_hard_kill_path(
-    qt_app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    qt_app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str
 ) -> None:
+    process_sys = types.SimpleNamespace(**vars(sys))
+    process_sys.platform = platform
+    monkeypatch.setattr(recorder_module, "sys", process_sys)
     controller = _controller(tmp_path)
     monkeypatch.setattr(recorder_module, "send_ctrl_break_to_child", lambda pid: False)
-
-    class _Result:
-        returncode = 0
-        stdout = b""
-        stderr = b""
-
-    # 只替换被测模块里的 subprocess 名字（浅拷贝 shim），不改写 stdlib 模块本体：
-    # 全进程生效的改写会让 loguru/coverage 也吃到假 run。
-    subprocess_shim = types.SimpleNamespace(**vars(recorder_module.subprocess))
-    subprocess_shim.run = lambda *a, **k: _Result()
-    monkeypatch.setattr(recorder_module, "subprocess", subprocess_shim)
     proc = subprocess.Popen([sys.executable, "-c", "pass"], stdout=subprocess.PIPE, text=True)
+
+    def fail_signal(pid: int, signal_number: int) -> None:
+        if pid == proc.pid and signal_number == signal_module.SIGINT:
+            raise PermissionError("signal denied")
+        os.kill(pid, signal_number)
+
+    def kill_tree(command: list[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        if command[:1] == ["taskkill"] and command[-1] == str(proc.pid):
+            proc.terminate()
+            return subprocess.CompletedProcess(command, 0, b"", b"")
+        return subprocess.run(command, *args, **kwargs)
+
+    os_shim = types.SimpleNamespace(**vars(recorder_module.os))
+    os_shim.kill = fail_signal
+    monkeypatch.setattr(recorder_module, "os", os_shim)
+    subprocess_shim = types.SimpleNamespace(**vars(recorder_module.subprocess))
+    subprocess_shim.run = kill_tree
+    monkeypatch.setattr(recorder_module, "subprocess", subprocess_shim)
     try:
-        # 信号发不出去 → 走整树强杀，且不得宣称「ffmpeg 已由子进程清理」
+        # 信号发不出去时走终止分支，不得宣称 ffmpeg 已由子进程清理。
         assert controller._send_stop_signal_and_wait(proc) is False
         assert proc.poll() is not None
     finally:
         proc.wait(timeout=5)
+        if proc.stdout is not None:
+            proc.stdout.close()
 
 
 def test_stop_child_once_skips_when_process_already_gone(qt_app: QApplication, tmp_path: Path) -> None:

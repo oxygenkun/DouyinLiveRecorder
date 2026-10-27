@@ -16,7 +16,7 @@ from loguru import logger
 
 # MI-20：本模块日志统一走 i18n（原先 5 处为裸英文 + 字符串拼接，
 # 在中文/繁体/英式目录下无法翻译，与仓库其它模块的日志口径不一致）
-import i18n
+from src import i18n
 
 # 代理自身的协议白名单：注册表/环境变量里出现的 scheme 只有这几种有意义（curl / wget /
 # requests / httpx 所认集合的并集）；其余形态（"proxy-protocol://" 之类）一律按「没有 scheme」

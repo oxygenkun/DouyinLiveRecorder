@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # 按名传入 i18n.tr()/ui_i18n.T() 的 msgid 必须命中四语目录（提取器盲区④的可机检化）。
 #
-# 为什么单独成文件：scripts/extract_i18n_strings.py 与 tests/test_i18n_migration.py 的不变量③
+# 为什么单独成文件：tool/extract_i18n_strings.py 与 tests/test_i18n_migration.py 的不变量③
 # 都只看 tr()/T() 的**字面量首参**；`i18n.tr(msgid)`（msgid 来自元组表）、`tr(THEME_LABELS[k])`、
 # `T(title)`（title 是循环变量）这类按名传入对两者完全隐形。2026-10-17 的实测事故即此类：
 # Qt 侧栏导航 msgid 以「两空格」的 📊  控制台 存放在元组里，四目录只有 Tk 遗留的「三空格」形态，
@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # tests/test_regression_2026_09_22_main.py::TestI18nStringsExtractable 逐字面量核对
 # （提取器已按 PUSH_RENDER_CALLER_IDS 把 render_push_content 的首参当 tr 首参扫）；另由
 # tests/test_msg_push.py::TestPushTemplateRendering 逐语言断言渲染结果。
-ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/ui_i18n.py:34", "msg_push.py:103"}
+ALLOWED_UNRESOLVED_BY_NAME_CALLS = {"src/ui_i18n.py:34", "src/msg_push.py:103"}
 
 # 参数位实参链式解析的收敛轮数：`模块常量 → 调用方实参 → 形参 → 再传入下一层 → tr(形参)`
 # 在 gui.py / src/gui_qt/shared.py 的实际深度是 2 层（_pattern_from_template → _sentinel_text），
@@ -44,9 +44,9 @@ _INDEX_PASSES = 3
 
 
 def _load_probe(module_name: str, filename: str) -> Any:
-    # 按文件路径加载 scripts/ 下的独立脚本（不在包内），与 tests/test_i18n_migration.py 同先例：
+    # 按文件路径加载 tool/ 下的独立脚本（不在包内），与 tests/test_i18n_migration.py 同先例：
     # 复用 compile_po 的 .po 解析与提取器的价值判定/模板还原口径，避免两套解析漂移
-    spec = importlib.util.spec_from_file_location(module_name, ROOT / "scripts" / filename)
+    spec = importlib.util.spec_from_file_location(module_name, ROOT / "tool" / filename)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

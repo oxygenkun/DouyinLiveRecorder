@@ -14,7 +14,7 @@ from typing import Optional, cast
 
 import httpx
 
-import i18n
+from src import i18n
 
 # 抖音直播录制工具 - 爬虫模块
 #
@@ -1335,7 +1335,7 @@ async def get_huya_app_stream_url(
     room_id = url.split("?")[0].rstrip("/").rsplit("/", maxsplit=1)[-1]
 
     if any(char.isalpha() for char in room_id):
-        # 正则与孪生副本 scripts/douyin_live_recorder_standalone.py 的 _HUYA_PROFILE_ROOM_RE
+        # 正则与孪生副本 tool/douyin_live_recorder_standalone.py 的 _HUYA_PROFILE_ROOM_RE
         # 逐字一致（以键名起始引号作锚点，避免命中页面里其他同名子串）。
         html_str = _get_str_response(await async_req(url, proxy_addr=proxy_addr, headers=headers))
         room_id_match = re.search('"ProfileRoom":(.*?),"sPrivateHost', html_str)
@@ -6478,7 +6478,7 @@ async def get_taobao_stream_url(
             # ② 仅在值确实变化时才写。比较对象必须是合并后的完整串——拿响应票据串与配置
             # 里的完整 cookie 比会恒不相等，每轮都重写整份 config.ini 并触发备份。
             try:
-                import main as _main
+                from src import main as _main
 
                 _cfg_path = f"{script_path}/config/config.ini"
                 _old_cookie = utils.read_ini_value(_cfg_path, "Cookie", "taobao_cookie")

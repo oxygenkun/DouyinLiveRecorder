@@ -24,8 +24,8 @@ from typing import Any
 import pytest
 from pytest import MonkeyPatch
 
-import main  # noqa: E402  (config_io 通过 import main 惰性读取模块全局，须先加载)
-from src import config_io  # noqa: E402
+import src.main as main
+from src import config_io
 
 # 分支 → 用例 对照表（本文件只管写侧；读侧/只读降级见 test_config_io_readonly.py，
 # 备份轮换见 test_config_io_backup.py）。

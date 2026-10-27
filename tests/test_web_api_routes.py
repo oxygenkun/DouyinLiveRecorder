@@ -32,20 +32,23 @@ def _install_fake_main() -> types.ModuleType:
     setattr(fake, "text_encoding", "utf-8-sig")
     setattr(fake, "url_config_file", "")
     setattr(fake, "ini_URL_content", "")
-    sys.modules["main"] = fake
+    sys.modules["src.main"] = fake
     return fake
 
 
 @pytest.fixture(scope="function")
-def fake_main() -> Generator[types.ModuleType, None, None]:
+def fake_main(monkeypatch: pytest.MonkeyPatch) -> Generator[types.ModuleType, None, None]:
     # function 级 fixture：每个用例用独立假 main，避免模块级状态串扰。
-    old = sys.modules.get("main")
+    old = sys.modules.get("src.main")
     fake = _install_fake_main()
+    import src
+
+    monkeypatch.setattr(src, "main", fake, raising=False)
     yield fake
     if old is not None:
-        sys.modules["main"] = old
+        sys.modules["src.main"] = old
     else:
-        sys.modules.pop("main", None)
+        sys.modules.pop("src.main", None)
 
 
 def _write_web_section(cfg_path: Path) -> None:

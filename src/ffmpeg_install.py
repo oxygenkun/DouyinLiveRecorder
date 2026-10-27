@@ -18,10 +18,8 @@ import requests
 from loguru import logger
 from tqdm import tqdm
 
-import i18n
-
 # 解压实现与 node_install 共用同一份（原先两处逐字重复，见 src/utils.unzip_file）
-from src import utils
+from src import i18n, utils
 
 # 布尔环境开关的唯一解析入口（与全仓布尔配置同一识别集合，勿在别处再造第三套布尔判定）
 from src.config_bool import parse_config_bool
@@ -131,7 +129,7 @@ def _win_startup_info() -> object | None:
     # "cannot import name 'get_startup_info' from partially initialized module"）。除报错外，那次失败
     # 的导入还会**半程执行 main 的模块体**（含 SetConsoleOutputCP(65001)），污染整个宿主进程。
     # 本模块对「可选加固不得打断主流程」早有口径：拿不到就退回改动前的行为（闪一个控制台窗口）。
-    if "src.video_postprocess" not in sys.modules and "main" not in sys.modules:
+    if "src.video_postprocess" not in sys.modules and "src.main" not in sys.modules:
         return None
     from src.video_postprocess import get_startup_info
 
@@ -675,7 +673,7 @@ def install_ffmpeg() -> bool:
 
 
 # 包内 ffmpeg 目录是否应当前置到 PATH ——**主程序侧**判据的唯一事实源（W6，2026-09-22）。
-# 孪生副本：`scripts/douyin_live_recorder_standalone.py` 里同名同语义函数（该文件按设计不 import
+# 孪生副本：`tool/douyin_live_recorder_standalone.py` 里同名同语义函数（该文件按设计不 import
 # src/，可独立单文件分发）。**改判据必须两处同改**，行为等价性由
 # tests/test_ffmpeg_path_preference.py 的 TestTwinEquivalence 锁住。
 # 返回 True = 维持既有行为（把包内目录前置）；False = 不前置，让系统 PATH 上已有的那份生效。

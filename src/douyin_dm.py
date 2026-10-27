@@ -24,7 +24,7 @@ from typing import Any, Callable, Optional
 
 import httpx
 
-import i18n
+from src import i18n
 from src.logger import logger
 
 IM_BASE = "https://imapi.douyin.com"

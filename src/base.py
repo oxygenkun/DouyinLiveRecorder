@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 
-import i18n
+from src import i18n
 
 
 # 消息类型枚举：取值为字符串（chat/gift/online/superChat），供过滤与分发判断使用。

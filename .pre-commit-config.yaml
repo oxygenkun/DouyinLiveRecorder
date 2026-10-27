@@ -38,21 +38,21 @@ repos:
     hooks:
       - id: compile-po-check
         name: compile_po.py --check (.po/.mo 同步校验)
-        entry: python scripts/compile_po.py --check
+        entry: python tool/compile_po.py --check
         language: system
         always_run: true
         require_serial: true
         pass_filenames: false
       - id: check-version
         name: check_version.py (版本号单一事实源动态化)
-        entry: python scripts/check_version.py
+        entry: python tool/check_version.py
         language: system
         always_run: true
         require_serial: true
         pass_filenames: false
       - id: check-skill-agents
         name: check_skill_agents_consistency.py (Skill 目录与 AGENTS.md 表格一致性)
-        entry: python scripts/check_skill_agents_consistency.py
+        entry: python tool/check_skill_agents_consistency.py
         language: system
         always_run: true
         require_serial: true

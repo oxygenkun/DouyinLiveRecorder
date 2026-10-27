@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
+from src import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
 from src.stream import get_douyu_stream_url, get_huya_stream_url, get_quality_index
 from src.stream_select import get_quality_code
 

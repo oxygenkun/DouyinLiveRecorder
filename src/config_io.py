@@ -10,9 +10,7 @@ import time
 
 from loguru import logger
 
-import i18n
-import main
-from src import utils
+from src import i18n, main, utils
 from src.config_bool import format_config_bool, parse_config_bool
 from src.ffmpeg_proc import _get_error_line
 

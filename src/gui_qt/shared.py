@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Final, cast
 
-import i18n as i18n_module
+from src import i18n as i18n_module
 from src.logger import logger
 from src.utils import atomic_write_text, mask_credentials
 

@@ -11,22 +11,23 @@
 
 ```
 项目根目录/
-├── main.py              # CLI 录制入口（douyin-recorder）
-├── gui.py               # GUI 入口（douyin-recorder-gui）
-├── web.py               # Web 管理面板入口（douyin-recorder-web）
-├── i18n.py              # 国际化模块
-├── msg_push.py          # 消息推送模块
-├── build_exe.py         # PyInstaller 打包脚本
 ├── pyproject.toml       # 项目元数据 + 工具配置
 ├── requirements.txt     # 运行时依赖（与 pyproject.toml 同步）
-├── uv.lock              # uv 锁文件（随仓库分发；镜像/CI 用 pip 走 requirements.txt，不消费它）
+├── uv.lock              # uv 锁文件（随仓库分发；镜像/CI 使用 uv --locked 消费它）
 ├── .coveragerc-concurrency # 并发测试专用覆盖率配置（CI 经 COVERAGE_RCFILE 引用，fail_under = 0）
 ├── Dockerfile           # Docker 镜像构建（python:3.14-slim 多阶段 + Node 24 LTS）
-├── docker-compose.yaml  # compose 编排（recorder / web / gui 三模式服务）
+├── docker-compose.yaml  # compose 编排（recorder / web 两模式服务）
 ├── .gitignore           # 版本库忽略规则（敏感配置 / 运行期产物 / 本地工具目录）
 ├── .dockerignore        # 镜像构建上下文裁剪（与 .gitignore、pyproject 各工具排除列表同源维护）
 │
 ├── src/                 # 核心源码包
+│   ├── main.py              # CLI 录制入口（douyin-recorder）
+│   ├── gui.py               # GUI 入口（douyin-recorder-gui）
+│   ├── web.py               # Web 管理面板入口（douyin-recorder-web）
+│   ├── i18n.py              # 国际化模块
+│   ├── msg_push.py          # 消息推送模块
+│   ├── graceful_shutdown.py # 退出与信号处理
+│   ├── douyin_follow.py     # 抖音关注监控
 │   ├── __init__.py      # 包出口（含 get_danmaku_collector 工厂）
 │   ├── base.py          # 公共基类/常量
 │   ├── room.py          # 直播间管理（HEADERS / DESKTOP_UA）
@@ -106,7 +107,8 @@
 │   └── skills/          # 项目技能目录，清单以 AGENTS.md「项目级 Skill」表为准
 │       └── .gitattributes # *.sh text eol=lf（仓库 core.autocrlf=true 会把 shebang 翻成 bash\r，限定在本子树生效）
 │
-├── scripts/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
+├── tool/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
+│   ├── build_exe.py         # PyInstaller 打包脚本
 │   ├── check_coverage.py       # 提交前的逐模块覆盖率检查（阈值见 MODULE_THRESHOLDS）
 │   ├── check_version.py        # 版本「动态化、未写死」状态校验
 │   ├── sync_version.py         # 从 pyproject.toml 同步版本号到遗留文件
@@ -115,7 +117,6 @@
 │   ├── smoke_test.py           # Web/接口冒烟测试工具（JSON 配置驱动，纯标准库）
 │   ├── check_skill_agents_consistency.py # AGENTS.md「项目级 Skill」表与 .agents/skills/ 目录同源校验（已入检查清单）
 │   ├── smoke_web.json          # 冒烟测试接口配置
-│   ├── patch_i18n_2026_09_12.py # 一次性 i18n 目录补齐脚本（2026-09-12 审查遗留；已执行完毕，保留作审计留痕）
 │   └── douyin_live_recorder_standalone.py # 单文件整合版录制脚本（抖音/虎牙/B站/斗鱼，零第三方依赖）
 │
 └── .github/
@@ -138,6 +139,6 @@
 
 - 根文件「项目结构」章节只保留**职责边界一句话 + 本文件链接**；任何「约定 / 检查 / 坑」都不写在这里。
 - 逐模块覆盖率**阈值数值**不在本文件也不在根文件维护：唯一事实源是
-  [`scripts/check_coverage.py`](../../scripts/check_coverage.py) 的 `MODULE_THRESHOLDS`（根文件只指向该脚本）。
+  [`tool/check_coverage.py`](../../tool/check_coverage.py) 的 `MODULE_THRESHOLDS`（根文件只指向该脚本）。
 - `.gitignore` / `.dockerignore` / pyproject 各工具排除列表的同源约定，见根文件「CI / workflow 约定」章节，
   本文件不重复规定。

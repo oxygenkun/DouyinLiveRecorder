@@ -17,7 +17,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-import i18n
+from src import i18n
 
 _ICON_SIZE: int = 64
 

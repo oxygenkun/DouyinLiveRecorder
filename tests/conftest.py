@@ -75,7 +75,7 @@ def _pin_identity_translation(monkeypatch: pytest.MonkeyPatch) -> None:
     # （本机 language 为空 → 探测出 en_US），同一断言在不同机器上会得到不同文本。
     # 断言的是「源语言模板文本」，故 tr(模板, **kw) == 模板.format(**kw) == 迁移前 f-string 输出；
     # 翻译机制本身由 tests/test_i18n_tr.py 与 test_web_api.py 的语言用例单独覆盖。
-    import i18n
+    from src import i18n
 
     monkeypatch.setattr(i18n, "_tr", lambda text: text)
 

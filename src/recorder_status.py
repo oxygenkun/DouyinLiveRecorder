@@ -6,9 +6,7 @@ from typing import cast
 
 from loguru import logger
 
-import i18n
-import main
-from src import utils
+from src import i18n, main, utils
 from src.ffmpeg_proc import _get_error_line
 
 # 录制状态快照与控制台显示（独立模块）

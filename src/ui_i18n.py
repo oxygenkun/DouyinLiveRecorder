@@ -17,7 +17,7 @@ import threading
 import weakref
 from typing import Any, cast
 
-import i18n
+from src import i18n
 
 
 # 标记类：携带 msgid 与插值实参，工厂据此「建时翻译 + 登记重译」。

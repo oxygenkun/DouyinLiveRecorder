@@ -22,7 +22,7 @@ from typing import Any
 
 import pytest
 
-import web
+from src import web
 
 _ENV_KEY = "DOUYIN_WEB_AUTO_START_RECORDING"
 
@@ -80,7 +80,10 @@ def _run_web_main(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_value: st
     cfg = _write_web_config(tmp_path)
     engine = _FakeEngineModule(tmp_path, cfg)
 
-    monkeypatch.setitem(sys.modules, "main", engine)
+    monkeypatch.setitem(sys.modules, "src.main", engine)
+    import src
+
+    monkeypatch.setattr(src, "main", engine, raising=False)
     monkeypatch.setitem(sys.modules, "uvicorn", types.SimpleNamespace(Server=_FakeServer, Config=lambda *a, **kw: None))
     monkeypatch.setitem(sys.modules, "src.web_api", types.SimpleNamespace(create_app=lambda **kwargs: None))
     # 退出链的 HTTP 连接池收尾：替身避免测试里创建真实 httpx 客户端。

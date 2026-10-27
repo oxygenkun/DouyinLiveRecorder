@@ -119,7 +119,7 @@ class RecorderController(QObject):
 
     # ─── 启动 ───
 
-    # 构造录制命令：冻结包是直接调同目录 CLI exe，源码运行是 python main.py。
+    # 构造录制命令：冻结包是直接调同目录 CLI exe，源码运行是 python -m src.main。
     def build_record_command(self) -> list[str]:
         # [为什么冻结/源码两套] PyInstaller 之后 sys.executable 指向 GUI exe 自身，
         # 继续用 [sys.executable, main.py] 会递归拉起 GUI。
@@ -132,7 +132,6 @@ class RecorderController(QObject):
             if not os.path.isfile(cli_exe):
                 raise FileNotFoundError(f"未找到录制核心程序: {cli_exe}")
             return [cli_exe]
-        main_py = os.path.join(self.script_dir, "main.py")
         exe = sys.executable
         if sys.platform == "win32" and os.path.basename(exe).lower().startswith("pythonw"):
             # pythonw.exe 是无控制台的 GUI 子系统进程，CREATE_NEW_CONSOLE 对它无效 →
@@ -142,7 +141,7 @@ class RecorderController(QObject):
                 exe = console_exe
             else:
                 self._log(f"未找到 console 解释器 {console_exe}，优雅停止将不可用", "warn")
-        return [exe, main_py]
+        return [exe, "-m", "src.main"]
 
     def start(self) -> tuple[bool, int | None, str]:
         # 返回 (是否成功, pid, 失败原因)。失败原因为空串表示成功。
@@ -264,6 +263,7 @@ class RecorderController(QObject):
             self._log("正在发送 SIGINT 信号...")
             try:
                 os.kill(proc.pid, signal.SIGINT)
+                graceful_signal_sent = True
             except Exception as e:
                 self._log(f"发送 SIGINT 失败，回退 terminate: {e}")
                 proc.terminate()

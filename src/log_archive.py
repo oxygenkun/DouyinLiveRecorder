@@ -7,7 +7,7 @@ import threading
 from datetime import datetime
 from typing import TextIO
 
-import i18n
+from src import i18n
 from src.danmaku_monitor import close_monitor_file, resume_monitor_writes, suspend_monitor_writes
 from src.logger import (
     GUI_PARENT_ENV,

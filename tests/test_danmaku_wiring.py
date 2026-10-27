@@ -25,9 +25,9 @@ def main_mod() -> Generator[Any, None, None]:
     # main.py 的 _app_root() 基于 sys.argv[0] 定位 config/，pytest 下 argv[0] 指向 pytest 自身，
     # 需在导入前修正为项目 main.py（与 tests/test_main_fixes.py 同一模式）。
     old_argv = sys.argv[:]
-    sys.argv = [str(Path(__file__).resolve().parent.parent / "main.py")]
+    sys.argv = [str(Path(__file__).resolve().parent.parent / "src/main.py")]
     try:
-        import main
+        from src import main
 
         yield main
     finally:

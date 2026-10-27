@@ -67,7 +67,10 @@ def _install_fake_main() -> types.ModuleType:
 @pytest.fixture(scope="function")
 def fake_main(monkeypatch: pytest.MonkeyPatch) -> Generator[types.ModuleType, None, None]:
     mod = _install_fake_main()
-    monkeypatch.setitem(__import__("sys").modules, "main", mod)
+    monkeypatch.setitem(__import__("sys").modules, "src.main", mod)
+    import src
+
+    monkeypatch.setattr(src, "main", mod, raising=False)
     yield mod
 
 

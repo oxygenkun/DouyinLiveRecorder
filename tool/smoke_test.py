@@ -8,7 +8,7 @@
 #   - 基础 URL 前缀：config 里的 url 若不是完整 http(s) 地址，则拼接 base_url
 #   - 多种输出：控制台（带颜色）、JSON 报告、HTML 报告
 #   - 退出码：0 = 已执行的检查全通过；1 = 至少一条失败；2 = 配置读不出/格式非法/一条断言都没有
-#     **0 断言不等于通过**：消费方 scripts/_ci_web_smoke.sh 原样透传本退出码，而 .github/actions/retry
+#     **0 断言不等于通过**：消费方 tool/_ci_web_smoke.sh 原样透传本退出码，而 .github/actions/retry
 #     对任何非 0 都按可重试失败处理，故「2（配置问题）」必须与「1（接口不符合预期）」分得开，
 #     否则配置写坏会被读成面板故障，白跑一轮起面板 + 重试退避。
 #     2 的覆盖面是**任意**形态畸形：checks 不是 array、checks 元素不是 object、headers/expect_json
@@ -475,7 +475,7 @@ def main() -> None:
 
     # CI 只看这里的退出码：任一检查失败 → 1，全部通过 → 0。走到这一步时 checks 至少有一条
     # 断言：配置损坏与「0 条断言」都已在上方以 rc=2 退出，故「一条都没跑」不可能被报告成通过。
-    # 不得把 2 并入 1：scripts/_ci_web_smoke.sh 原样透传退出码，混同会让「配置写坏了」看起来像
+    # 不得把 2 并入 1：tool/_ci_web_smoke.sh 原样透传退出码，混同会让「配置写坏了」看起来像
     # 「面板接口挂了」，排障方向整个错掉。
     failed = cast(int, summary["failed"])
     sys.exit(1 if failed else 0)

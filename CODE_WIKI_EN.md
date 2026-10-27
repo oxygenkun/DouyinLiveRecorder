@@ -163,7 +163,7 @@ Platforms that support actual quality feedback and downgrade alerting: Douyin, T
 ┌─────────────────────────────────────────────────────────────────┐
 │                         用户交互层                                │
 ├──────────────────┬──────────────────────┬───────────────────────┤
-│ 命令行 (main.py) │ GUI 图形界面 (gui.py)│ Web 面板 (web.py)     │
+│ 命令行 (src/main.py) │ GUI 图形界面 (src/gui.py)│ Web 面板 (src/web.py)     │
 │                  │                      │ └ src/web_api.py      │
 │                  │                      │ └ web/ (前端静态资源)  │
 └──────────────────┴──────────────────────┴───────────────────────┘
@@ -183,7 +183,7 @@ Platforms that support actual quality feedback and downgrade alerting: Douyin, T
 ├──────────────────────┬─────────────────────┬────────────────────┤
 │  日志 (logger.py)  │  工具 (utils.py)  │  代理 (proxy.py) │
 ├──────────────────────┴─────────────────────┴────────────────────┤
-│                    配置管理 + 消息推送 (msg_push.py)             │
+│                    配置管理 + 消息推送 (src/msg_push.py)             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -253,13 +253,13 @@ DouyinLiveRecorder/
 │   │   ├── liveme.js                   # LiveMe 签名
 │   │   └── migu.js                     # 咪咕签名
 │   ├── ffmpeg_install.py                # FFmpeg 安装脚本
-│   ├── ffmpeg_proc.py                   # FFmpeg 进程注册/注销/终止/清理（抽离自 main.py）
-│   ├── video_postprocess.py             # 视频后处理：分段/转码/字幕（抽离自 main.py）
-│   ├── stream_select.py                 # 流地址选择/校验/画质码/抖音限速（抽离自 main.py）
-│   ├── notify.py                        # Push/script/success-failure counting/concurrency adjustment (extracted from main.py)
+│   ├── ffmpeg_proc.py                   # FFmpeg 进程注册/注销/终止/清理（抽离自 src/main.py）
+│   ├── video_postprocess.py             # 视频后处理：分段/转码/字幕（抽离自 src/main.py）
+│   ├── stream_select.py                 # 流地址选择/校验/画质码/抖音限速（抽离自 src/main.py）
+│   ├── notify.py                        # Push/script/success-failure counting/concurrency adjustment (extracted from src/main.py)
 │   ├── scheduler.py                     # Concurrency scheduling hub (adaptive capacity + per-platform circuit breaker + runtime-resizable semaphore)
-│   ├── recorder_status.py               # Recording status snapshot and display (extracted from main.py)
-│   ├── config_io.py                     # 配置读写/安全数值转换/备份（抽离自 main.py）
+│   ├── recorder_status.py               # Recording status snapshot and display (extracted from src/main.py)
+│   ├── config_io.py                     # 配置读写/安全数值转换/备份（抽离自 src/main.py）
 │   ├── config_bool.py                   # Boolean config parsing (是/否 equals true/false/1/0/yes/no; dependency-free module)
 │   ├── config_read.py                   # Tolerant config read (a duplicated key folds to the last value and is reported; added 2026-10-17)
 │   ├── base.py                          # 弹幕基类与数据结构（DanmakuBase / DanmakuMessage / DanmakuMessageType）
@@ -287,18 +287,18 @@ DouyinLiveRecorder/
 ├── typings/                             # 第三方库类型存根（仅静态检查用）
 ├── ffmpeg/                              # FFmpeg 二进制目录（Windows，git 忽略 exe）
 ├── node/                                # Node.js 二进制目录（Windows，git 忽略）
-├── main.py                              # 命令行入口
-├── gui.py                               # GUI 图形界面入口（委托 src/gui_qt/，PySide6 窗口层；tkinter 实现迁移期保留）
-├── web.py                               # Web 管理面板入口
-├── i18n.py                              # 国际化实现（print 翻译包装）
-├── msg_push.py                          # 消息推送模块
+├── src/main.py                              # 命令行入口
+├── src/gui.py                               # GUI 图形界面入口（委托 src/gui_qt/，PySide6 窗口层；tkinter 实现迁移期保留）
+├── src/web.py                               # Web 管理面板入口
+├── src/i18n.py                              # 国际化实现（print 翻译包装）
+├── src/msg_push.py                          # 消息推送模块
 ├── index.html                           # 独立 M3U8/FLV 播放器页面
-├── build_exe.py                         # PyInstaller 打包脚本（CLI/GUI/Web 三入口）
-├── DouyinLiveRecorder.spec              # 由 build_exe.py 自动生成（.gitignore 已忽略）
+├── tool/build_exe.py                         # PyInstaller 打包脚本（CLI/GUI/Web 三入口）
+├── DouyinLiveRecorder.spec              # 由 tool/build_exe.py 自动生成（.gitignore 已忽略）
 ├── requirements.txt                     # Python 依赖列表
 ├── uv.lock                              # uv dependency lock file (committed to the repo; image/CI use pip + requirements.txt, do not consume it)
 ├── pyproject.toml                      # Python 项目配置（版本号/工具配置/覆盖率检查单一事实源）
-├── scripts/                             # 辅助脚本
+├── tool/                             # 辅助脚本
 │   ├── check_version.py                # 版本号一致性校验（CI static job 调用）
 │   ├── check_coverage.py               # Per-module coverage gate (invoked by the CI test job, thresholds in MODULE_THRESHOLDS)
 │   ├── compile_po.py                   # gettext catalog compiler (.po → .mo; --check zero-side-effect sync check, invoked by the CI static job)
@@ -357,7 +357,7 @@ DouyinLiveRecorder/
 
 ## Core Module Details
 
-### 1. Main Program Module (`main.py`)
+### 1. Main Program Module (`src/main.py`)
 
 **Responsibility**: The command center of the entire recorder, responsible for workflow orchestration.
 
@@ -396,7 +396,7 @@ recording_time_list: dict   # 录制时间与画质记录 {name: [start_time, qu
 - `select_source_url()` - selects between m3u8/FLV sources, falling back to FLV when HLS source validation fails (polling with `delay_default=120s`); a new `proxy_addr` parameter is passed through to the three validation calls to avoid misjudging proxy-required platforms like TikTok as unreachable on direct validation; computes the "last-resort candidate" (when FLV has no `record_url` fallback, or `record_url` is always present) and passes it to the validator as `last_resort` — even a stable rejection only warns and passes through, leaving the final decision to ffmpeg's actual stream pull; **HLS capture exclusion list** (`main.hls_collection_exclude_platforms`, config key "HLS采集排除平台(逗号分隔)"): listed platforms ignore the "whether to enable HLS capture" setting and always use FLV capture (equivalent to disabling HLS capture for that platform only — the whole HLS candidate group is removed with no fallback; when only HLS sources remain with no fallback, it warns and gives up the round, with recovery guidance pointing to removing the platform from the exclusion list); platforms outside the list behave unchanged
 - `_validate_stream_url()` - stream address validation: the content-type check now also accepts `mpegurl`; when HEAD is rejected, for `.m3u8` sources (including **404**) it adds a `Range: bytes=0-0` GET probe — Douyin CDN's m3u8 often returns 4xx to HEAD, which used to be misjudged as unreachable and always fell back to FLV; a new `verify` parameter follows the global SSL switch (consistent with async validation); all failure paths now log a warning (URL + exception type/status code/content-type) instead of silently swallowing the exception; the GET re-check (`_confirm_get_ok`) retries once verbatim (0.8s interval) when receiving 401/403 before convicting — CDNs such as Douyu hw/Huya al occasionally return 403 to millisecond-level back-to-back probes (HEAD→GET) (in practice the same URL returns 200 after a brief retry, and ffmpeg's single GET works normally); the retry distinguishes "intermittent rate limiting" from "stable rejection", and the historically false-green Huya scenario that still returns 403 after retry is correctly rejected
 
-**Refactoring (2026-08-16)**: The following responsibilities have been extracted into `src/` submodules, re-exported by `main.py` to preserve `main.<name>` namespace compatibility (zero changes to `web.py`/`gui.py`/`web_api.py`/tests):
+**Refactoring (2026-08-16)**: The following responsibilities have been extracted into `src/` submodules, re-exported by `src/main.py` to preserve `main.<name>` namespace compatibility (zero changes to `src/web.py`/`src/gui.py`/`web_api.py`/tests):
 
 - FFmpeg process management → `src/ffmpeg_proc.py` (process register/unregister/terminate/cleanup)
 - Video post-processing (segment/transcode/subtitle) → `src/video_postprocess.py`
@@ -405,7 +405,7 @@ recording_time_list: dict   # 录制时间与画质记录 {name: [start_time, qu
 - Recording status snapshot/display → `src/recorder_status.py` (`get_status`/`display_info`)
 - Config read/write/safe numeric conversion/backup → `src/config_io.py` (`update_file`/`delete_line`/`read_config_value`/`_safe_int`/`_safe_float`/`backup_file`/`backup_file_start`)
 
-Modules deeply coupled to main's globals uniformly use a runtime `import main` to lazily access globals, avoiding parameter bloat at call sites during startup; a `__main__` guard is added at the top of `main.py` to prevent a submodule's `import main` from re-executing the entire file when running `python main.py`.
+Modules deeply coupled to main's globals uniformly use a runtime `import main` to lazily access globals, avoiding parameter bloat at call sites during startup; a `__main__` guard is added at the top of `src/main.py` to prevent a submodule's `import main` from re-executing the entire file when running `python -m src.main`.
 
 **Room recording thread closure fix (2026-08-16)**: When adding a new live room, a daemon thread is spawned for each URL to run `start_record`. The original implementation used "default-argument binding of loop variables" (`def _room_thread_target(_key=thread_key, _args=args)`) to avoid the closure late-binding trap, and `_args: tuple[Any, ...]` used an explicit `Any` that the project's basedpyright globally disallows. After the fix:
 
@@ -516,7 +516,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 - FLV and M3U8 dual-protocol support
 - Status code validation
 - Explicit truncation replacing `_pad_list`'s silent padding, avoiding out-of-bounds
-- Quality downgrade detection (`is_downgrade`), used by main.py for alerting
+- Quality downgrade detection (`is_downgrade`), used by src/main.py for alerting
 - Douyu FLV→m3u8 same-token HLS candidate: when `rtmp_live` ends with `.flv`, `get_douyu_stream_url` changes the path `.flv` to `.m3u8` (query string preserved as-is) and attaches it as `m3u8_url` — Douyu's wsAuth token works for both FLV and HLS (verified: hw CDN returns 200 + `application/vnd.apple.mpegurl`, two-level m3u8); when HLS collection is enabled it is validated and preferred via `select_source_url`, falling back to FLV when unreachable; HLS pulls segment-by-segment without maintaining a long connection, mitigating the repeated segmentation caused by the visitor-state FLV long connection being cut by the CDN after about 70 seconds
 
 ### 4. Live Room Info Module (`src/room.py`)
@@ -575,7 +575,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - Every line emitted by a room thread carries a stable correlation column, used to cut a single room's chain out of the interleaved multi-room log file (extraction command and boundaries: the identically named `AGENTS.md` "Known pitfalls" entry)
 - Implementation: `ROOM_FIELD` plus `set_room_context()` / `get_room_context()` reading and writing a `ContextVar`, pushed into `record["extra"]` by the global patcher registered via `logger.configure(extra={ROOM_FIELD: ""}, patcher=_room_patcher)` **in the calling thread** (hence no cross-talk under `enqueue=True`); an explicit call-site `bind(room=...)` outranks the thread-level fallback
-- The room thread binds `序号N` at the `main.py::start_record` entry and upgrades it to the full `record_name` once the anchor name resolves; `set_room_context("")` unbinds
+- The room thread binds `序号N` at the `src/main.py::start_record` entry and upgrades it to the full `record_name` once the anchor name resolves; `set_room_context("")` unbinds
 - **The `extra` default must not be removed**: without it, formatting an unbound record raises `KeyError: 'room'`, loguru swallows it, prints `Logging error in Loguru Handler` to stderr for every line and drops the line; regression lock `tests/test_logger_room_context.py`
 - Only the identifier was added: log levels, the two INFO/other `filter` buckets, `rotation` and `retention` are unchanged
 
@@ -583,11 +583,11 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - Controlled via `是否启用日志文件(是/否)` in `config/config.ini`
 - Enabled by default, preserving backward compatibility
-- `logger.py` reads the configuration directly at initialization (not dependent on main.py execution order)
+- `logger.py` reads the configuration directly at initialization (not dependent on src/main.py execution order)
 
 **Log rotation**: auto-rotates at 300 KB, keeping 1 backup
 
-### 7. Message Push Module (`msg_push.py`)
+### 7. Message Push Module (`src/msg_push.py`)
 
 **Responsibility**: Support multiple message push channels.
 
@@ -603,15 +603,15 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 | NTFY | `ntfy()` | Open-source push service |
 | PushPlus | `pushplus()` | WeChat push platform |
 
-### 8. Internationalization Module (`i18n.py`)
+### 8. Internationalization Module (`src/i18n.py`)
 
 **Responsibility**: A gettext-based multilingual support system that automatically translates `print` output from the project source code.
 
 **Implementation mechanism**:
 
-- `translated_print` wraps `builtins.print`, automatically translating output whose caller comes from the project root (`src/` package and top-level scripts like `main.py`); `main.py` unconditionally installs `builtins.print = translated_print` at import time (installed under any language — zh_CN/zh_TW translate English constant strings into Chinese, en_US/en_GB translate Chinese strings into English, unknown strings are returned identically)
+- `translated_print` wraps `builtins.print`, automatically translating output whose caller comes from the project root (`src/` package and top-level scripts like `src/main.py`); `src/main.py` unconditionally installs `builtins.print = translated_print` at import time (installed under any language — zh_CN/zh_TW translate English constant strings into Chinese, en_US/en_GB translate Chinese strings into English, unknown strings are returned identically)
 - Supports both source-run and PyInstaller-packaged path detection (`_internal/i18n` vs `i18n/`)
-- **Multi-format catalog loading (since 2026-08)**: `i18n.py` probes in order gettext `.mo` → `<lang>.json` → `<lang>.yaml`; all three formats are flat "original → translation" mappings with consistent behavior; `PyYAML` is a runtime dependency (only YAML format support is lost if missing). `_load_yaml_catalog()` catches `yaml.YAMLError` (not an OSError/ValueError subclass) — a corrupted yaml catalog returns None and degrades to the next format instead of letting `set_language` raise (web language-switch endpoint 500)
+- **Multi-format catalog loading (since 2026-08)**: `src/i18n.py` probes in order gettext `.mo` → `<lang>.json` → `<lang>.yaml`; all three formats are flat "original → translation" mappings with consistent behavior; `PyYAML` is a runtime dependency (only YAML format support is lost if missing). `_load_yaml_catalog()` catches `yaml.YAMLError` (not an OSError/ValueError subclass) — a corrupted yaml catalog returns None and degrades to the next format instead of letting `set_language` raise (web language-switch endpoint 500)
 - **Hot language switch**: `set_language(lang)` normalizes (via the `normalize_language` alias table: `zh_cn`/`zh-CN`/`en`/`en-US`/`zh-Hant`/`zh_CN.UTF-8` and other spellings all work) then hot-swaps the `_tr` translation function without restarting the process. Three switch entry points: Web panel (`GET/PUT /api/language`, writes back to config + hot switch + redraws frontend `data-i18n` text; on `PUT`, a missing `language` config key now falls back to appending it at the end of its section instead of an unconditional 500), GUI (sidebar "Language" menu), CLI main loop (re-syncs per round from config)
 - Default language: Simplified Chinese (zh_CN); supported languages: zh_CN / en_US / en_GB / zh_TW
 
@@ -625,27 +625,27 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 | `i18n/en_GB.json` | UK English catalog (JSON format, British spelling: minimise/unrecognised, etc.) | 496 |
 | `i18n/zh_TW.yaml` | Traditional Chinese catalog (YAML format, simplified→traditional character conversion + Taiwan usage adaptation) | 496 |
 
-**Maintenance workflow**: After modifying `.po` you must run `python scripts/compile_po.py` to recompile and commit the `.mo` together, otherwise translation changes will not take effect; `python scripts/compile_po.py --check` (CI `static` job) blocks when the two are out of sync — internally `write_mo()` is **pure in-memory output with no disk write**, so `--check` has zero side effects and genuinely compares against the committed `.mo` on disk; only non-check mode writes the file. The CI path filter (paths-filter) treats `i18n/**` as a trigger condition: translation-only changes also run this gate. **The key sets of all four language catalogs must be consistent** (enforced by `tests/test_i18n.py::test_catalogs_share_same_keyset`) — when adding a new msgid you must update all four catalogs. To extract and compare pending-translation strings, run `python scripts/extract_i18n_strings.py` (AST-scans runtime code for print constant strings + logger f-string template drafts and compares against the four catalogs; f-string template normalization conventions: format/conversion specifiers dropped, double quotes inside expressions converted to single quotes; pure-placeholder templates (e.g. `{color}{text}`) and the gettext header empty msgid are filtered out, producing no noise).
+**Maintenance workflow**: After modifying `.po` you must run `python tool/compile_po.py` to recompile and commit the `.mo` together, otherwise translation changes will not take effect; `python tool/compile_po.py --check` (CI `static` job) blocks when the two are out of sync — internally `write_mo()` is **pure in-memory output with no disk write**, so `--check` has zero side effects and genuinely compares against the committed `.mo` on disk; only non-check mode writes the file. The CI path filter (paths-filter) treats `i18n/**` as a trigger condition: translation-only changes also run this gate. **The key sets of all four language catalogs must be consistent** (enforced by `tests/test_i18n.py::test_catalogs_share_same_keyset`) — when adding a new msgid you must update all four catalogs. To extract and compare pending-translation strings, run `python tool/extract_i18n_strings.py` (AST-scans runtime code for print constant strings + logger f-string template drafts and compares against the four catalogs; f-string template normalization conventions: format/conversion specifiers dropped, double quotes inside expressions converted to single quotes; pure-placeholder templates (e.g. `{color}{text}`) and the gettext header empty msgid are filtered out, producing no noise).
 
 **Translation coverage** (after the full 2026-08-27 replenishment, covering all runtime constant strings and logger template drafts):
 
 - `src/spider.py` — per-platform live data fetch/login/risk-control messages (including the Bilibili buvid auth chain)
-- `main.py` — main program general messages, recording chain, quality downgrade, anchor-name sync, disk space
-- `gui.py` — GUI interface messages (widget text, process management, tray, exit confirmation)
+- `src/main.py` — main program general messages, recording chain, quality downgrade, anchor-name sync, disk space
+- `src/gui.py` — GUI interface messages (widget text, process management, tray, exit confirmation)
 - `src/scheduler.py` — concurrency mode switching and capacity-adjustment broadcasts
 - `src/stream_select.py` — the full stream-URL validation message set (probe backoff, GET recheck, last-resort pass-through)
 - `src/collector.py` / `src/danmaku_monitor.py` — danmaku capture and monitoring
 - `src/async_http.py` / `src/sync_http.py` / `src/cookie_cache.py` — HTTP clients and cookie cache
-- `msg_push.py` — seven-channel push-failure branches (WeChat/DingTalk/TG/Bark/ntfy/PushPlus/email)
+- `src/msg_push.py` — seven-channel push-failure branches (WeChat/DingTalk/TG/Bark/ntfy/PushPlus/email)
 - `src/ffmpeg_install.py` / `src/node_install.py` — ffmpeg/Node.js auto installation
 - `src/config_io.py` / `src/utils.py` — config read/write, backup, disk space
 - `src/notify.py` — custom script execution errors
-- `web.py` / `src/web_tray.py` — web panel startup and tray
-- `src/room.py` / `src/recorder_status.py` / `src/ttwid.py` / `src/ffmpeg_proc.py` / `src/platforms/bilibili.py` / `src/platforms/douyin.py` / `build_exe.py` — remaining runtime messages
+- `src/web.py` / `src/web_tray.py` — web panel startup and tray
+- `src/room.py` / `src/recorder_status.py` / `src/ttwid.py` / `src/ffmpeg_proc.py` / `src/platforms/bilibili.py` / `src/platforms/douyin.py` / `tool/build_exe.py` — remaining runtime messages
 
 > Note: What actually participates in translation lookup at runtime is the constant English string output by `print()`; `logger.*` output and f-string-interpolated text do not go through lookup, and the related entries in the catalogs are kept only as ready-made translation drafts for later log i18n integration.
 
-### 9. GUI Module (`gui.py`)
+### 9. GUI Module (`src/gui.py`)
 
 > **Since 2026-10-17 the window layer has moved to PySide6**: this section describes the tkinter implementation kept during the migration period (`_legacy_main()`); the current window implementation lives in `src/gui_qt/` (`app.py` assembly / `theme.py` design tokens & QSS / `widgets.py` Card·Toast·DataTable / `main_window.py` main window / `pages/` five pages / `recorder.py`·`danmaku_monitor.py` controllers), with the visual source of truth in `docs/gui-redesign/index.html` — see the same-day entry in the changelog.
 
@@ -677,7 +677,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 **Quality Monitor page** (`_build_quality_page`):
 
-- Obtains quality info by parsing the stdout log of the main.py subprocess
+- Obtains quality info by parsing the stdout log of the src/main.py subprocess
 - Parses the loguru log prefix (`|` + `-` separators) to extract the message content
 - Downgrade alert match: `{name} 画质降级：设置 {zh}({code}) 实际 {zh}({code})`
 - Recording status match: `{name}[{quality}] 正在录制中 {duration}`
@@ -717,7 +717,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 **Features**:
 
-- Global SSL certificate verification switch (`ssl_verify`), enabled by default (True, security first); integrated into "whether to enable https recording" — enabled = https pull + disable cert verification, disabled = http pull + default strict verification (hot-synced by main.py each round)
+- Global SSL certificate verification switch (`ssl_verify`), enabled by default (True, security first); integrated into "whether to enable https recording" — enabled = https pull + disable cert verification, disabled = http pull + default strict verification (hot-synced by src/main.py each round)
 - Provides `set_ssl_verify()` / `set_https_recording()` functions, set at startup from the main config and each round in the main loop
 - Platform-level SSL override (`ssl_verify_platform_overrides`): kept for compatibility; integration does not change actual behavior
 - Async / sync HTTP clients read this config when issuing requests
@@ -740,13 +740,13 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 - **Response body caps (SEV-2226 follow-up, 2026-09-23)**: on the proxy-free urllib path both caps are required — `_read_capped()` limits the compressed/raw body read (`_MAX_RESPONSE_BYTES`, 8 MiB) and `_gunzip_capped()` decompresses in chunks while limiting the produced bytes (`_MAX_DECOMPRESSED_BYTES`, 32 MiB); exceeding a cap raises `ValueError`, which the existing failure branch logs masked and turns into an empty string. **The proxy branch's `response.text` is gzip-decoded by requests itself and is still NOT covered by these caps** (known residual gap, see the source comment)
 - **Current status (SEV-2226 forensics, 2026-09-23)**: this module **currently has no production importer at all** (`src/spider.py` uses the httpx async surface via `from .async_http import async_req`; the former caller `src/weverse_auth.py` was deleted on 2026-09-23); keeping or removing it is left to the maintainer — the module still carries the F-12 invariant and the `tests/test_sync_http.py` regression lock on it
 
-### 13. Web Management Panel (`web.py` + `src/web_api.py` + `src/web_config.py` + `web/`)
+### 13. Web Management Panel (`src/web.py` + `src/web_api.py` + `src/web_config.py` + `web/`)
 
 **Responsibility**: Provide a Web interface to remotely manage the recorder, including dashboard, live room management, config editing, and log viewing.
 
 **Architecture**:
 
-- `web.py` - entry: a daemon thread runs `main.main()`, the main thread runs uvicorn; supports a hidden background run mode
+- `src/web.py` - entry: a daemon thread runs `main.main()`, the main thread runs uvicorn; supports a hidden background run mode
 - `src/web_api.py` - Starlette app: authentication (Token), REST API routes, SSE push, static asset mounting
 - `src/web_config.py` - config read/write (does not depend on Web framework, convenient for unit tests)
 - `web/` - frontend static assets (single-page application)
@@ -807,7 +807,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 - **Unauthenticated dangerous-config write protection**: when `web_auth_enable = false`, `PUT /api/config` is forbidden from overwriting dangerous keys in [Recorder] and [Push] (such as "run custom script after recording" `run_script`); only [Web] and whitelisted keys are allowed, blocking the unauthenticated RCE chain
 - **INI injection protection**: config values and live room names filter `\n`/`\r` to prevent injecting arbitrary new lines / new sections into `config.ini` / `URL_config.ini`
 - **Login brute-force rate limiting**: after `/api/login` fails consecutively up to a threshold (default 5 times / 5 minutes), it locks for a period (default 10 minutes), defending against online password brute-forcing
-- **Push log masking**: `_mask_url()` in `msg_push.py` masks tokens / secrets in the query of webhook URLs in failure logs, preventing credential leakage via logs
+- **Push log masking**: `_mask_url()` in `src/msg_push.py` masks tokens / secrets in the query of webhook URLs in failure logs, preventing credential leakage via logs
 
 ### 14. Danmaku Collection Subsystem (`src/platforms/` + `src/collector.py` + related modules)
 
@@ -822,7 +822,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 - The factory `src/__init__.py:get_danmaku_collector(platform, danmaku_args, base_filename, segment_seconds, only_fans, room_name, write_srt)` picks the danmaku class by platform and constructs a `DanmakuCollector`; returns `None` when the platform is unsupported or `danmaku_args` is empty;
 - `DanmakuCollector` calls `stop()` outside the `while process.poll() is None` loop; `DanmakuCollector.stop()` has `_stop_called` to prevent re-entry (idempotent).
 
-**Platform registry** (`src/__init__.py:get_danmaku_class`, platform names consistent with `main.py` identifiers):
+**Platform registry** (`src/__init__.py:get_danmaku_class`, platform names consistent with `src/main.py` identifiers):
 
 | Platform ID | Danmaku Class (`src/platforms/`) |
 | --- | --- |
@@ -921,7 +921,7 @@ async def some_function():
 
 ### Dynamic Concurrency Adjustment
 
-`main.py` implements an error-rate-based dynamic concurrency adjustment mechanism to avoid being rate-limited by platforms.
+`src/main.py` implements an error-rate-based dynamic concurrency adjustment mechanism to avoid being rate-limited by platforms.
 
 ### Concurrency Scheduler (`src/scheduler.py`)
 
@@ -970,7 +970,7 @@ def host_of(url: str) -> str: ...
 | exejs | >=1.0.1 | JavaScript execution engine (active-maintained successor to PyExecJS, preferred) |
 | PyExecJS | >=1.5.1 | JS execution engine fallback compatibility (used when exejs is not installed) |
 | PySide6 | >=6.12.0 | GUI window layer (`src/gui_qt/`, QSS token themes + Qt widgets) + Web entry system tray (`src/web_tray.py`, migrated from pystray on 2026-10-20; the 6.12 floor is the measured minimum that supports Python 3.14.8) |
-| pystray | >=0.19.5 | System tray (GUI entry `gui.py`; the Web tray uses QSystemTrayIcon since 2026-10-20) |
+| pystray | >=0.19.5 | System tray (GUI entry `src/gui.py`; the Web tray uses QSystemTrayIcon since 2026-10-20) |
 | Pillow | >=12.3.0 | Image processing (tray icon generation) |
 | starlette | >=1.3.1 | ASGI framework (`src/web_api.py` migrated from FastAPI to depend on Starlette directly in phase 2; lower bound 0.49.1 → 1.0.1 → 1.3.1, see the CVE/PYSEC notes) |
 | uvicorn[standard] | >=0.51.0 | ASGI server |
@@ -1000,7 +1000,7 @@ def host_of(url: str) -> str: ...
 ### Module Dependency Graph
 
 ```
-main.py
+src/main.py
 ├── src/spider.py
 │   ├── src/room.py
 │   ├── src/async_http.py
@@ -1019,7 +1019,7 @@ main.py
 ├── src/async_http.py
 ├── src/utils.py
 │   └── src/logger.py
-├── msg_push.py
+├── src/msg_push.py
 └── src/ffmpeg_install.py
 
 src/__init__.py (弹幕注册表/工厂)
@@ -1034,10 +1034,10 @@ src/__init__.py (弹幕注册表/工厂)
 │       ├── src/srt_writer.SrtWriter (落 SRT)
 │       └── src/danmaku_monitor.get_hub() (监控枢纽，进程单例)
 
-web.py
+src/web.py
 ├── src/web_api.py
 │   ├── src/web_config.py
-│   └── main.py (get_status 等函数)
+│   └── src/main.py (get_status 等函数)
 └── web/ (静态资源)
 ```
 
@@ -1110,7 +1110,7 @@ Account/password configuration for some platforms
 
 #### [Web] section
 
-Web management panel configuration (specific to `web.py` mode)
+Web management panel configuration (specific to `src/web.py` mode)
 
 | Config Item | Description | Default |
 | --- | --- | --- |
@@ -1181,19 +1181,19 @@ pip install -r requirements.txt
 #### CLI Mode
 
 ```bash
-python main.py
+python -m src.main
 ```
 
 #### GUI Mode
 
 ```bash
-python gui.py
+python -m src.gui
 ```
 
 #### Web Management Panel Mode
 
 ```bash
-python web.py
+python -m src.web
 # 默认监听 http://localhost:8000
 ```
 
@@ -1210,11 +1210,11 @@ python web.py
 
 **`.dockerignore` key points** (after the 2026-08-28 sync):
 
-- Exclude platform binaries (`ffmpeg/`, `node/`, installed via apt in the container), `config/*.ini` (mounted at runtime), `typings/`, `build_exe.py`, the root `index.html` (a standalone M3U8 player page; the panel uses `web/`), and other desktop/build-specific files;
+- Exclude platform binaries (`ffmpeg/`, `node/`, installed via apt in the container), `config/*.ini` (mounted at runtime), `typings/`, `tool/build_exe.py`, the root `index.html` (a standalone M3U8 player page; the panel uses `web/`), and other desktop/build-specific files;
   [2026-09-21 revision: this line previously listed `gui_legacy.py`, deleted in v4.1.0-dev / 2026-09-10 and absent from `.dockerignore` — the 4th stale MIN-15 reference, corrected in place]
 - **Keep `i18n/**/*.mo` compiled translation files and `i18n/*.json`, `i18n/*.yaml` multilingual catalogs** — they are required at runtime (gettext / JSON / YAML, the three translation catalog formats) and the Dockerfile will not recompile/regenerate them; only the `.po` sources and compile scripts are excluded;
 - Exclude local tool / AI-assistant generated directories (`.mimosa/`, `.qoder/`, `.agents/`, `.pnpm-store/`, `.dsh-validation/`, `.ego-browser-test/`, `.plugin-src/`, `pytest-cache-files-*/`, etc., maintained in sync with `.gitignore`);
-- Exclude content the image does not consume at runtime: `scripts/` (maintenance scripts, zero references from the runtime chain), `tests/`, docs such as `AGENTS.md` / `README_EN.md` / `CODE_WIKI_EN.md`, and `.coveragerc-concurrency` (CI-specific).
+- Exclude content the image does not consume at runtime: `tool/` (maintenance scripts, zero references from the runtime chain), `tests/`, docs such as `AGENTS.md` / `README_EN.md` / `CODE_WIKI_EN.md`, and `.coveragerc-concurrency` (CI-specific).
 
 #### Using Docker Compose (recommended)
 
@@ -1222,49 +1222,49 @@ The `docker-compose.yaml` at the repo root defines two services (sharing one ima
 
 | Service | Entry | Start Command | Port |
 | --- | --- | --- | --- |
-| `recorder` (default) | `python main.py` | `docker compose up -d` | None (pure CLI) |
-| `web` (profile) | `python web.py` | `docker compose --profile web up -d` | `127.0.0.1:8000:8000` |
+| `recorder` (default) | `python -m src.main` | `docker compose up -d` | None (pure CLI) |
+| `web` (profile) | `python -m src.web` | `docker compose --profile web up -d` | `127.0.0.1:8000:8000` |
 
 Shared mount volumes: `./config`, `./downloads`, `./logs`, `./backup_config`.
 
-> ⚠️ **Web mode required reading**: `web.py` listens on `127.0.0.1:8000` by default; inside the container you must set `web_host = 0.0.0.0` in the `[Web]` section of `config/config.ini` for the host port mapping to be reachable;
+> ⚠️ **Web mode required reading**: `src/web.py` listens on `127.0.0.1:8000` by default; inside the container you must set `web_host = 0.0.0.0` in the `[Web]` section of `config/config.ini` for the host port mapping to be reachable;
 >
 > at the same time it is strongly recommended to enable `web_auth_enable = true` and configure a password.
 
 ## Packaging and Release
 
-This project provides one-click executable packaging (`build_exe.py`) and cross-platform automated build/release (`GitHub Actions`), unifying the **CLI / GUI / Web three entry points** into distributable release directories.
+This project provides one-click executable packaging (`tool/build_exe.py`) and cross-platform automated build/release (`GitHub Actions`), unifying the **CLI / GUI / Web three entry points** into distributable release directories.
 
-### 1. Packaging Script `build_exe.py`
+### 1. Packaging Script `tool/build_exe.py`
 
 PyInstaller `onedir` mode + `contents_directory='_internal'`, dynamically generates the `.spec` file and then calls PyInstaller to build **three entries sharing dependencies**:
 
 | Artifact (beside the exe) | Entry | Mode |
 | --- | --- | --- |
-| `DouyinLiveRecorder(.exe)` | `main.py` | Console (CLI recording core) |
-| `DouyinLiveRecorder-GUI(.exe)` | `gui.py` | No console window (GUI) |
-| `DouyinLiveRecorder-Web(.exe)` | `web.py` | Console (Web management panel, listens on `0.0.0.0:8000`) |
+| `DouyinLiveRecorder(.exe)` | `src/main.py` | Console (CLI recording core) |
+| `DouyinLiveRecorder-GUI(.exe)` | `src/gui.py` | No console window (GUI) |
+| `DouyinLiveRecorder-Web(.exe)` | `src/web.py` | Console (Web management panel, listens on `0.0.0.0:8000`) |
 
 The three entries share one `COLLECT`; after dependency de-duplication the size is about 1/3 of independent packaging.
 
 **Usage**:
 
 ```bash
-python build_exe.py              # build and produce the zip artifact
-python build_exe.py --smoke      # additionally run smoke tests after building (recommended for CI)
-python build_exe.py --no-zip     # build only, no zip
-python build_exe.py --no-runtime # skip bundling ffmpeg/node (downloaded at runtime instead, smaller artifact)
-python build_exe.py --dual       # emit both zips: lite (no runtime) and full (ffmpeg+node bundled)
+python tool/build_exe.py              # build and produce the zip artifact
+python tool/build_exe.py --smoke      # additionally run smoke tests after building (recommended for CI)
+python tool/build_exe.py --no-zip     # build only, no zip
+python tool/build_exe.py --no-runtime # skip bundling ffmpeg/node (downloaded at runtime instead, smaller artifact)
+python tool/build_exe.py --dual       # emit both zips: lite (no runtime) and full (ffmpeg+node bundled)
 ```
 
 **Data files and hidden imports**:
 
 - `datas`: `src/javascript` (JS signing scripts), `i18n` (translations), `web` (frontend static assets), all located via `__file__`, automatically collected into `_internal/` by PyInstaller.
 - `config/` does not go into `_internal`; it is copied beside the exe by `copy_external_binaries()` (see the directory convention).
-- `hiddenimports`: `i18n`, `src.async_http` (dynamically imported by main.py via `__import__`), `h2` (httpx[http2] lazy load); `a_web` additionally `collect_submodules('uvicorn')` (protocol modules imported by string).
+- `hiddenimports`: `i18n`, `src.async_http` (dynamically imported by src/main.py via `__import__`), `h2` (httpx[http2] lazy load); `a_web` additionally `collect_submodules('uvicorn')` (protocol modules imported by string).
 - `excludes`: CLI excludes GUI/Web libraries (tkinter/customtkinter/pystray/PIL/fastapi/uvicorn/starlette); GUI excludes Web libraries; Web excludes GUI libraries (tkinter/customtkinter/pystray; **since 2026-10-20 `PySide6` is no longer excluded** — the Web tray moved to QSystemTrayIcon); all three entries additionally exclude `brotlicffi` (fixes the post-packaging error of the `brotlicffi` module missing the `error` attribute; httpx auto-falls back when no brotli is present).
 
-**Version number**: Parsed from the `version` field of `pyproject.toml` (single source of truth), used for zip naming; falls back to `0.0.0` on parse failure. `main.py` also reads the version dynamically from `pyproject.toml` at runtime (prefers `importlib.metadata`, falls back to parsing the file directly).
+**Version number**: Parsed from the `version` field of `pyproject.toml` (single source of truth), used for zip naming; falls back to `0.0.0` on parse failure. `src/main.py` also reads the version dynamically from `pyproject.toml` at runtime (prefers `importlib.metadata`, falls back to parsing the file directly).
 
 ### 2. Directory Structure Convention (packaging artifact)
 
@@ -1296,9 +1296,9 @@ dist/DouyinLiveRecorder/
 
 ### 3. Path Convergence Mechanism `_app_root()`
 
-The project has a "dual-track path" problem: `main.py`/`src/ffmpeg_install.py`/`src/__init__.py` etc. locate runtime resources via `sys.argv[0]`/`sys.executable`; `src/logger.py`, `i18n.py`, `src/web_api.py` etc. locate packaged resources via `__file__`. After freezing, the former points to the exe's sibling directory (release root), the latter to `_internal/`.
+The project has a "dual-track path" problem: `src/main.py`/`src/ffmpeg_install.py`/`src/__init__.py` etc. locate runtime resources via `sys.argv[0]`/`sys.executable`; `src/logger.py`, `src/i18n.py`, `src/web_api.py` etc. locate packaged resources via `__file__`. After freezing, the former points to the exe's sibling directory (release root), the latter to `_internal/`.
 
-To unify convergence, `src/logger._app_root()` was added (same name as the inline function in `main.py`):
+To unify convergence, `src/logger._app_root()` was added (same name as the inline function in `src/main.py`):
 
 ```python
 def _app_root() -> str:
@@ -1307,21 +1307,21 @@ def _app_root() -> str:
     return os.path.split(os.path.realpath(sys.argv[0]))[0]
 ```
 
-- `main.py`'s `script_path`, `src/__init__.py`, `src/node_install.py`, `src/ffmpeg_install.py`'s `execute_dir` all converge to the exe's sibling directory, so `config/ffmpeg/node` are located correctly.
+- `src/main.py`'s `script_path`, `src/__init__.py`, `src/node_install.py`, `src/ffmpeg_install.py`'s `execute_dir` all converge to the exe's sibling directory, so `config/ffmpeg/node` are located correctly.
 - `src/logger.py`'s `script_path` is changed to `_app_root()`, so `logs/`, `backup_config/` land beside the exe.
-- `gui.py` adds `self.app_root`: when frozen, if `script_dir` is `_internal` it falls back one level to the release root, from which config/downloads are located; the CLI subprocess is launched via the sibling `DouyinLiveRecorder.exe` (see below).
-- `i18n.py` supports dual-path detection of `_internal/i18n` and `i18n/`.
+- `src/gui.py` adds `self.app_root`: when frozen, if `script_dir` is `_internal` it falls back one level to the release root, from which config/downloads are located; the CLI subprocess is launched via the sibling `DouyinLiveRecorder.exe` (see below).
+- `src/i18n.py` supports dual-path detection of `_internal/i18n` and `i18n/`.
 
 ### 4. Frozen Build Adaptation Notes
 
-- **GUI subprocess launch (critical fix)**: After `gui.py` is frozen, `sys.executable` points to the GUI itself; the original `[sys.executable, main.py]` would recursively launch the GUI infinitely. Changed to directly call the sibling `DouyinLiveRecorder.exe` when frozen; source-run stays as before.
-- **GUI subprocess pythonw compatibility (2026-08-09)**: In source mode, if the GUI is started via `pythonw.exe`, `sys.executable` points to pythonw (GUI subsystem, no console); the original `[sys.executable, main.py]` would also run the recording core under pythonw — `CREATE_NEW_CONSOLE` is ineffective on it, `AttachConsole(pid)` is guaranteed to fail, CTRL_BREAK can never be delivered, and stopping can only hard-kill (orphaning ffmpeg). Now when the interpreter basename starts with `pythonw`, it switches to launching the recording core with the sibling `python.exe` (console subsystem); the packaged version (CLI exe `console=True`) is unaffected.
+- **GUI subprocess launch (critical fix)**: After `src/gui.py` is frozen, `sys.executable` points to the GUI itself; the original `[sys.executable, src/main.py]` would recursively launch the GUI infinitely. Changed to directly call the sibling `DouyinLiveRecorder.exe` when frozen; source-run stays as before.
+- **GUI subprocess pythonw compatibility (2026-08-09)**: In source mode, if the GUI is started via `pythonw.exe`, `sys.executable` points to pythonw (GUI subsystem, no console); the original `[sys.executable, src/main.py]` would also run the recording core under pythonw — `CREATE_NEW_CONSOLE` is ineffective on it, `AttachConsole(pid)` is guaranteed to fail, CTRL_BREAK can never be delivered, and stopping can only hard-kill (orphaning ffmpeg). Now when the interpreter basename starts with `pythonw`, it switches to launching the recording core with the sibling `python.exe` (console subsystem); the packaged version (CLI exe `console=True`) is unaffected.
 - **GUI graceful stop on recording (2026-08-09)**: When `_send_ctrl_break_to_child` fails, instead of only `proc.terminate()` (`TerminateProcess` hard-kill, orphaning ffmpeg and `wait()` succeeding immediately bypassing whole-tree cleanup), it now uses `taskkill /F /T /PID` for whole-tree termination; logs distinguish "graceful exit" from "hard-kill path" by path, no longer falsely reporting ffmpeg as cleaned up.
-- **Chinese UTF-8 encoding (critical fix)**: After freezing, the subprocess stdout is a pipe and Python falls back to GBK for output, while the GUI reads the pipe as UTF-8 → Chinese mojibake (e.g. `自动获取 Cookie ttwid 成功` becomes garbled). Added `_fix_encoding()` at the top of `main.py`/`gui.py`/`web.py`: on Windows `sys.stdout/stderr.reconfigure(encoding='utf-8', errors='replace')` + `ctypes.windll.kernel32.SetConsoleOutputCP(65001)/SetConsoleCP(65001)`; on non-Windows only reconfigure. stream gets `None`/`hasattr` guards (stdout of a windowed exe may be `None`). `web.py`'s original `reconfigure(errors='replace')` is upgraded to also set `encoding='utf-8'`.
+- **Chinese UTF-8 encoding (critical fix)**: After freezing, the subprocess stdout is a pipe and Python falls back to GBK for output, while the GUI reads the pipe as UTF-8 → Chinese mojibake (e.g. `自动获取 Cookie ttwid 成功` becomes garbled). Added `_fix_encoding()` at the top of `src/main.py`/`src/gui.py`/`src/web.py`: on Windows `sys.stdout/stderr.reconfigure(encoding='utf-8', errors='replace')` + `ctypes.windll.kernel32.SetConsoleOutputCP(65001)/SetConsoleCP(65001)`; on non-Windows only reconfigure. stream gets `None`/`hasattr` guards (stdout of a windowed exe may be `None`). `src/web.py`'s original `reconfigure(errors='replace')` is upgraded to also set `encoding='utf-8'`.
 
 ### 5. Smoke Tests
 
-`build_exe.py --smoke` automatically runs three verifications after packaging (CI recommended to enable):
+`tool/build_exe.py --smoke` automatically runs three verifications after packaging (CI recommended to enable):
 
 - **CLI**: Launch for a few seconds, confirm it enters the monitoring loop and outputs no `Traceback`/`ImportError`/`ModuleNotFoundError`.
 - **Web**: HTTP liveness probe `http://127.0.0.1:8000/`, returns 200 means the panel is usable; also verifies the built-in ffmpeg is hit (no download triggered).
@@ -1342,7 +1342,7 @@ Workflow file: `.github/workflows/ci.yml`, runs on push to main / PR, ensuring c
 - Every job sets an explicit `timeout-minutes`; a new push to the same branch/PR cancels stale runs via `cancel-in-progress: true` (fast feedback, deliberately different from the non-cancellable release pipeline);
 - pip caching uniformly keyed by `hash(requirements.txt + pyproject.toml)` (no lock file participates in installation).
 
-**Path filtering**: the `setup` job uses `dorny/paths-filter@v4` to detect changed file categories; a match runs all downstream jobs. Trigger list: Python source (`src/**`, root entry points `main.py`/`gui.py`/`web.py`/`i18n.py`/`msg_push.py`/`build_exe.py`), `tests/**`, `scripts/**`, dependency manifests (`requirements.txt` / `pyproject.toml` / `.coveragerc-concurrency`), **`i18n/**`**, **`web/**`**, **`Dockerfile` / `docker-compose.yaml`**, and the workflow and composite actions (**`.github/workflows/**` / `.github/actions/**`**). Only **pure documentation (`*.md`) changes do not trigger**. **`i18n/**` is a trigger condition** — translation-only changes also run the static job's compile_po --check sync gate; **`web/**` is likewise a trigger** (added 2026-09-20) — `web/app.js`'s `parseConfigBool + CONFIG_*_TOKENS` and `src/config_bool.py` form a cross-language boolean-parsing invariant (AGENTS.md "Unified parsing of boolean config values"), so a change on either side must run the `tests/frontend/test_quality_ui.mjs` regression lock via the test job (the old "pure frontend web/ does not trigger" claim has been falsified; see the matching changelog entry).
+**Path filtering**: the `setup` job uses `dorny/paths-filter@v4` to detect changed file categories; a match runs all downstream jobs. Trigger list: Python source (`src/**`, root entry points `src/main.py`/`src/gui.py`/`src/web.py`/`src/i18n.py`/`src/msg_push.py`/`tool/build_exe.py`), `tests/**`, `tool/**`, dependency manifests (`requirements.txt` / `pyproject.toml` / `.coveragerc-concurrency`), **`i18n/**`**, **`web/**`**, **`Dockerfile` / `docker-compose.yaml`**, and the workflow and composite actions (**`.github/workflows/**` / `.github/actions/**`**). Only **pure documentation (`*.md`) changes do not trigger**. **`i18n/**` is a trigger condition** — translation-only changes also run the static job's compile_po --check sync gate; **`web/**` is likewise a trigger** (added 2026-09-20) — `web/app.js`'s `parseConfigBool + CONFIG_*_TOKENS` and `src/config_bool.py` form a cross-language boolean-parsing invariant (AGENTS.md "Unified parsing of boolean config values"), so a change on either side must run the `tests/frontend/test_quality_ui.mjs` regression lock via the test job (the old "pure frontend web/ does not trigger" claim has been falsified; see the matching changelog entry).
 
 **Parallel jobs** (all gated by `needs: setup`):
 
@@ -1350,10 +1350,10 @@ Workflow file: `.github/workflows/ci.yml`, runs on push to main / PR, ensuring c
 | --- | --- | --- |
 | `static` | py3.14 | Ruff + version / pins / i18n / annotations / skill checks |
 
-| `test` | py3.14 | `pytest --cov=src --cov-report=term-missing` (global `fail_under=50` gate, `fail-fast: false`); on the minimum version additionally runs the `scripts/check_coverage.py` per-module gate + coverage.xml upload + optional Codecov |
+| `test` | py3.14 | `pytest --cov=src --cov-report=term-missing` (global `fail_under=50` gate, `fail-fast: false`); on the minimum version additionally runs the `tool/check_coverage.py` per-module gate + coverage.xml upload + optional Codecov |
 | `concurrency-test` | py3.14 | Concurrency-specific: under `COVERAGE_RCFILE=.coveragerc-concurrency` runs `test_concurrency_rate_limit.py` + `test_concurrency.py` + `test_async_http_lock.py` (dedicated config sets no global threshold) |
 | `integration-verify` | py3.14 + Node 24 | apt install ffmpeg; verify the ffmpeg/node binaries are discoverable, and call `check_ffmpeg_installed()` / `check_nodejs_installed()` to verify detection logic |
-| `build-verify` | py3.14 packaging interpreter | `build_exe.py --smoke --no-runtime --no-zip` (lite packaging + CLI/Web/GUI three-entry smoke, on Linux via `xvfb-run -a`); release-grade full packaging is left to build-release.yml |
+| `build-verify` | py3.14 packaging interpreter | `tool/build_exe.py --smoke --no-runtime --no-zip` (lite packaging + CLI/Web/GUI three-entry smoke, on Linux via `xvfb-run -a`); release-grade full packaging is left to build-release.yml |
 | `ci-summary` | — | The only required check: aggregates the results of all upstream jobs (skipped counts as passed — path-filter skips never leave branch protection permanently pending) |
 
 ### 7. GitHub Actions Automated Build and Release (`build-release.yml`)
@@ -1372,7 +1372,7 @@ Workflow file: `.github/workflows/build-release.yml` (job name `Build (${{ matri
 1. `prepare` job: extracts the version from pyproject.toml via tomllib and validates tag consistency (a mistagged release fails immediately); runs `check_version.py` to confirm all consumers read the version dynamically.
 2. `release-create` job: on the release path **pre-creates** the Release record (a singleton job eliminating the race where multi-platform build jobs concurrently create the same Release; no files attached); on the manual release path it also creates the lightweight tag (a Release must be attached to a tag).
 3. build job (matrix): each platform installs ffmpeg via its system package manager for smoke testing — Windows `choco`, Linux `apt` (plus `xvfb`; GUI smoke needs a virtual display), macOS `brew` (`brew trust aws/tap` as a separate idempotent step, `HOMEBREW_*` variables exported inline in the command); **all network-install commands are wrapped by the `.github/actions/retry` composite action** (linear backoff ×3; system package managers back off 15s, pip 10s); dependencies via `pip install -r requirements.txt` + `pip install ".[build]"`.
-4. `python build_exe.py --smoke --dual` (on Linux wrapped with `xvfb-run -a`): PyInstaller runs only once. Before any packaging, stale `DouyinLiveRecorder-v*.zip` leftovers under `dist/` are pruned (otherwise `path: dist/*.zip` sweeps last run's artifacts into this run's attachment set). It then produces the **lite** zip (no ffmpeg/node, auto-downloaded at runtime) → downloads the runtimes → produces the **full** zip (built-in runtime, ~300MB). The two `make_zip` **return paths** must differ and both must exist on disk, otherwise the build exits with `SystemExit` right there. Smoke runs after **both** zips (MID-2254) against the release directory that already holds the runtimes — not against the lite build.
+4. `python tool/build_exe.py --smoke --dual` (on Linux wrapped with `xvfb-run -a`): PyInstaller runs only once. Before any packaging, stale `DouyinLiveRecorder-v*.zip` leftovers under `dist/` are pruned (otherwise `path: dist/*.zip` sweeps last run's artifacts into this run's attachment set). It then produces the **lite** zip (no ffmpeg/node, auto-downloaded at runtime) → downloads the runtimes → produces the **full** zip (built-in runtime, ~300MB). The two `make_zip` **return paths** must differ and both must exist on disk, otherwise the build exits with `SystemExit` right there. Smoke runs after **both** zips (MID-2254) against the release directory that already holds the runtimes — not against the lite build.
 5. Artifact publishing: on the release path (tag / manual with create_release) the build job uploads zips **directly to the Release** via `softprops/action-gh-release@v3` (explicit `tag_name` pointing at the same Release as release-create; GitHub supports concurrent uploads of distinct assets to the same Release); the build-only path uses `upload-artifact@v7` (`compression-level: 0` to skip re-compression, retained 30 days for manual retrieval).
 6. `release` job (release path): `gh release download` pulls the published assets back to verify completeness (4 platforms × (lite+full) = 8 zips; any shortfall fails instead of publishing an incomplete Release), generates `SHA256SUMS.txt`, and finally via `softprops/action-gh-release@v3` attaches the checksums and writes the release notes (`generate_release_notes: true`).
 
@@ -1382,8 +1382,8 @@ Workflow file: `.github/workflows/build-release.yml` (job name `Build (${{ matri
 
 ```bash
 pip install pyinstaller          # install the packager
-python build_exe.py --smoke      # build + smoke test
-python build_exe.py --smoke --dual  # same shape as CI: lite + full artifacts
+python tool/build_exe.py --smoke      # build + smoke test
+python tool/build_exe.py --smoke --dual  # same shape as CI: lite + full artifacts
 # output: dist/DouyinLiveRecorder/ release directory + dist/DouyinLiveRecorder-vX.Y.Z-*.zip
 ```
 
@@ -1413,7 +1413,7 @@ Each platform's recording flow follows the same template: detect → fetch strea
 
 ### 6. Factory + Registry Pattern
 
-The danmaku subsystem uses the `get_danmaku_class(platform)` registry in `src/__init__.py` (Chinese platform name → danmaku class) together with the `get_danmaku_collector(...)` factory to uniformly create each platform's collector; `main.py` obtains the collector by platform identifier without knowing the concrete platform implementation. To add a new danmaku platform you only need to register it in the registry and implement the four abstract methods `start/stop/heartbeat/decode_message` of `DanmakuBase`, with zero intrusion to callers.
+The danmaku subsystem uses the `get_danmaku_class(platform)` registry in `src/__init__.py` (Chinese platform name → danmaku class) together with the `get_danmaku_collector(...)` factory to uniformly create each platform's collector; `src/main.py` obtains the collector by platform identifier without knowing the concrete platform implementation. To add a new danmaku platform you only need to register it in the registry and implement the four abstract methods `start/stop/heartbeat/decode_message` of `DanmakuBase`, with zero intrusion to callers.
 
 ## Troubleshooting
 
@@ -1477,7 +1477,7 @@ HLS URL validation failed, falling back to FLV    ← 原因完全不可见
 **Root cause** (three layers, all fixed on 2026-08-05):
 
 - The exception log only printed `{e}`, and on Windows `socket.timeout` / `TimeoutError`'s `str()` returns an **empty string**, so a timeout exception prints blank
-- `main.py::_validate_stream_url` used `except Exception: return False` to swallow all failure reasons, giving no clue on fallback
+- `src/main.py::_validate_stream_url` used `except Exception: return False` to swallow all failure reasons, giving no clue on fallback
 - The m3u8 source HEAD probe only covered `400/401/403/405`, **404 was directly judged unreachable**; and `select_source_url` → the validation call **did not pass through the proxy**, so overseas platforms like TikTok would time out on direct validation and be misjudged
 
 **After the fix**: exception logs include URL + exception type; all failure paths log a warning (including status_code / content-type); m3u8 HEAD non-2xx (including 404) always adds a Range GET probe; `select_source_url` passes through `proxy_addr`. After re-running, the log directly gives the real cause (e.g. `ConnectTimeout`, `HEAD=404, Range-GET=403`); if still unreachable it is an environment issue such as the CDN domain being blocked or the stream URL having expired, not a code misjudgment.
@@ -1515,20 +1515,20 @@ This fix uniformly takes effect for **all platforms** (Bilibili/Douyu/Huya/Douyi
 
 **Decision basis**: The danmaku channel is inherently a domestic direct connection and does not need an outbound proxy, consistent with the overall direct-connection semantics of "recording with proxy disabled"; minimizes dependencies (no new `python-socks`); does not touch system settings; explicit declaration is better than implicit detection (avoids re-stepping on the pit if a library upgrade changes default behavior). If an individual overseas platform's danmaku genuinely needs a proxy, a later optional `proxy` parameter can be added to `WsClient` to pass through on demand, without global following.
 
-**Verification**: Fully run `main.py` with no proxy; danmaku is correctly written to disk as SRT; `mypy src/ws_client.py` / `py_compile` pass. When troubleshooting danmaku anomalies, first look at `logs/streamget.log` (DEBUG records collector thread start / connection ready / first danmaku received / connection close reason).
+**Verification**: Fully run `src/main.py` with no proxy; danmaku is correctly written to disk as SRT; `mypy src/ws_client.py` / `py_compile` pass. When troubleshooting danmaku anomalies, first look at `logs/streamget.log` (DEBUG records collector thread start / connection ready / first danmaku received / connection close reason).
 
 ### Issue 6: Douyin/Douyu and other platforms show "live streaming" but never record (no error, no file)
 
-**Symptom**: During `py web.py` (or `python main.py`), Douyin and Douyu rooms print "live streaming…" every monitoring cycle, but "preparing to start video recording" never appears, and no recording file is produced; on the same config, Huya and Bilibili record normally. The log has no error, warning, or hint, and the status panel always shows "live streaming".
+**Symptom**: During `py src/web.py` (or `python -m src.main`), Douyin and Douyu rooms print "live streaming…" every monitoring cycle, but "preparing to start video recording" never appears, and no recording file is produced; on the same config, Huya and Bilibili record normally. The log has no error, warning, or hint, and the status panel always shows "live streaming".
 
 **Scope**: All platforms where `get_record_headers()` returns `None` (measured: Douyin, Douyu). These platforms share the characteristic of having no dedicated recording request-header rules (Referer/Origin) and no corresponding Cookie configured.
 
-**Root cause (historic structural bug)**: In `main.py`'s `run()`, the `if headers:` after `headers = get_record_headers(platform, ...)` wrongly wrapped the **entire recording chain** that follows — tls_verify/proxy insertion, recording-status registration, all TS/FLV/MP4/MKV recording branches, `check_subprocess` launching ffmpeg, and `record_success` cycle counting (about 490 lines). Any platform where `get_record_headers` returns `None` (`_RECORD_HEADER_RULES` has no Referer/Origin configured and no Cookie) had its entire recording block **silently skipped**: no print, no error, no recording, just idling every cycle. Platforms with dedicated recording headers (Huya/Bilibili) happened to be unaffected, making the problem look like "an individual platform parse issue" rather than a global structural one.
+**Root cause (historic structural bug)**: In `src/main.py`'s `run()`, the `if headers:` after `headers = get_record_headers(platform, ...)` wrongly wrapped the **entire recording chain** that follows — tls_verify/proxy insertion, recording-status registration, all TS/FLV/MP4/MKV recording branches, `check_subprocess` launching ffmpeg, and `record_success` cycle counting (about 490 lines). Any platform where `get_record_headers` returns `None` (`_RECORD_HEADER_RULES` has no Referer/Origin configured and no Cookie) had its entire recording block **silently skipped**: no print, no error, no recording, just idling every cycle. Platforms with dedicated recording headers (Huya/Bilibili) happened to be unaffected, making the problem look like "an individual platform parse issue" rather than a global structural one.
 
 **Fix**:
 
-1. **Indentation-level correction (main.py)**: Inside the `if headers:` block only the `-headers` insertion (4 lines) is kept; tls_verify insertion, proxy insertion, recording-status registration, all recording branches, and cycle counting are **shifted left 4 spaces as a whole**, escaping the conditional nesting and executing unconditionally.
-2. **Validator UA alignment (src/stream_select.py)**: Added the `MOBILE_UA` constant (identical character-for-character to `main.py`'s ffmpeg command default UA); `_validate_stream_url` sends a mobile UA for platforms without a desktop UA — Douyu's hwa CDN occasionally returns 403 to non-browser-UA GETs, so the validator and recorder must use exactly the same UA (method GET + header Referer/Cookie + UA, a trinity).
+1. **Indentation-level correction (src/main.py)**: Inside the `if headers:` block only the `-headers` insertion (4 lines) is kept; tls_verify insertion, proxy insertion, recording-status registration, all recording branches, and cycle counting are **shifted left 4 spaces as a whole**, escaping the conditional nesting and executing unconditionally.
+2. **Validator UA alignment (src/stream_select.py)**: Added the `MOBILE_UA` constant (identical character-for-character to `src/main.py`'s ffmpeg command default UA); `_validate_stream_url` sends a mobile UA for platforms without a desktop UA — Douyu's hwa CDN occasionally returns 403 to non-browser-UA GETs, so the validator and recorder must use exactly the same UA (method GET + header Referer/Cookie + UA, a trinity).
 
 **Troubleshooting tip**: The entry condition of a long recording chain must precisely correspond to the "whether to record" semantics; "skip the whole block when the condition is false" is the most dangerous failure mode (no exception thrown, no log printed). When all code-path analysis says "there should be a log" but there isn't, the shortest path to locate is to temporarily instrument and print the real `real_url` after `select_source_url` returns, and cross-check the block boundaries against the indentation level by drawing a diagram.
 
@@ -1557,7 +1557,7 @@ This fix uniformly takes effect for **all platforms** (Bilibili/Douyu/Huya/Douyi
 
 - Concurrency-specific tests (`test_concurrency.py` / `test_concurrency_rate_limit.py`) use the dedicated config `.coveragerc-concurrency` (no global threshold), verifying the correctness of `threading.Lock` de-duplication and Douyin rate limiting under multi-threaded environments
 
-#### Web/API Smoke Test Tool (`scripts/smoke_test.py`)
+#### Web/API Smoke Test Tool (`tool/smoke_test.py`)
 
 A general, zero-dependency (pure standard library) Web/API smoke test tool for quickly verifying the reachability and core responses of **running HTTP interfaces** such as the Web management panel.
 
@@ -1565,25 +1565,25 @@ A general, zero-dependency (pure standard library) Web/API smoke test tool for q
 - `base_url` prefix concatenation, no need to write the full address for each interface
 - Three outputs: console (colored), JSON report, HTML report
 - Any check failure exits with non-zero code, convenient for CI integration
-- **Wired into CI**: the default case `scripts/smoke_web.json` probes the Web panel `/` and `/health` (the latter a public liveness endpoint provided by `src/web_api.py`); the `test` job in `.github/workflows/ci.yml` starts `python web.py` in a controlled way after pytest, does readiness-wait + assertions via `scripts/_ci_web_smoke.sh` (through `.github/actions/retry`), keeps `logs/web-smoke-*` artifacts and turns the job red on failure — covering the "can the panel process really bind and respond" path that TestClient cannot reach
+- **Wired into CI**: the default case `tool/smoke_web.json` probes the Web panel `/` and `/health` (the latter a public liveness endpoint provided by `src/web_api.py`); the `test` job in `.github/workflows/ci.yml` starts `python -m src.web` in a controlled way after pytest, does readiness-wait + assertions via `tool/_ci_web_smoke.sh` (through `.github/actions/retry`), keeps `logs/web-smoke-*` artifacts and turns the job red on failure — covering the "can the panel process really bind and respond" path that TestClient cannot reach
 
 Usage:
 
 ```bash
-# 检查本机 Web 管理面板（默认 127.0.0.1:8000，示例见 scripts/smoke_web.json）
-python scripts/smoke_test.py -c scripts/smoke_web.json
+# 检查本机 Web 管理面板（默认 127.0.0.1:8000，示例见 tool/smoke_web.json）
+python tool/smoke_test.py -c tool/smoke_web.json
 
 # 生成 HTML 报告
-python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f html
+python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 ```
 
-> Unlike `build_exe.py --smoke` (packaging-artifact smoke test, see Section 5 above), this tool does lightweight liveness probing against **running HTTP interfaces**; the two are complementary.
+> Unlike `tool/build_exe.py --smoke` (packaging-artifact smoke test, see Section 5 above), this tool does lightweight liveness probing against **running HTTP interfaces**; the two are complementary.
 
 ### Adding New Platform Support
 
 1. Add a platform data-fetching function in `src/spider.py`
 2. Add a stream-address parsing function in `src/stream.py`, whose return value includes the `actual_quality` and `available_qualities` fields
-3. Add platform identification logic in `main.py`
+3. Add platform identification logic in `src/main.py`
 4. Update `README.md` and this document
 
 ## Change Overview by Module (2026-10-17)
@@ -2341,3 +2341,7 @@ python scripts/smoke_test.py -c scripts/smoke_web.json -r smoke_report.html -f h
 - **Verification**: `sync_metadata.py --check` OK (uv.lock / egg-info both 4.5.0); `check_version.py` PASS (all dynamic consumers OK: main / web_api / Dockerfile); `pytest tests/test_regression_2026_09_22_gates.py` 27 passed; `git diff` review confirms uv.lock changes are only the root version + new package nodes, no drift in existing pins.
 
 > **Rolling archive**: v4.4.0 and every earlier entry has been moved as a whole into [docs/changelog/code-wiki-history-en.md](docs/changelog/code-wiki-history-en.md); this section keeps only the current release cycle.
+
+## Source and tool directory separation (2026-10-27)
+
+Runtime modules and CLI / GUI / Web entries now live in `src/`. Maintenance, build and standalone auxiliary scripts live in `tool/`, replacing `scripts/` and the root build script. Run source entries with `uv run --locked python -m src.main`, `uv run --locked --extra gui python -m src.gui`, or `uv run --locked python -m src.web`. Installed command names stay the same. Build with `uv run --locked --extra build --extra gui python tool/build_exe.py --smoke`. Configuration, translation catalogs and Web assets remain at the repository root. Importing `src` no longer checks runtimes; the CLI initializes Node after configuring encoding, preserving GUI logging isolation.

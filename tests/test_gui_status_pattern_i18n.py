@@ -26,7 +26,7 @@ from typing import Any, cast
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 _MARKER = "\n@@WP_E_I18N@@ "
 
 # 支持的语言全集（四语目录都齐，见 _SUPPORTED 断言）；用例逐语言跑同三条判据。
@@ -39,8 +39,8 @@ import json
 import sys
 import threading
 
-import i18n
-import gui
+from src import i18n
+from src import gui
 
 TPL_RECORDING = "{recording_live}[{qa}] 正在录制中 {have_record_time}"
 TPL_IDLE = "\r没有正在录制的直播 循环监测间隔时间：{delay_default}秒"
@@ -383,7 +383,7 @@ def test_no_bare_chinese_literals_outside_tr_templates() -> None:
     # 一旦有人在 re.compile(...) 或 `xxx in msg` 里重新写死简中，本用例即红。
     tree = ast.parse(GUI_SOURCE)
     allowed = _status_tpl_assigned_names(tree)
-    assert allowed, "gui.py 里找不到 _STATUS_TPL_* 常量（M-14 的派生实现被删了？）"
+    assert allowed, "src/gui.py 里找不到 _STATUS_TPL_* 常量（M-14 的派生实现被删了？）"
     offenders: list[str] = []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
@@ -393,7 +393,7 @@ def test_no_bare_chinese_literals_outside_tr_templates() -> None:
             continue
         if text in allowed:
             continue
-        offenders.append(f"gui.py:{node.lineno} {text[:40]!r}")
+        offenders.append(f"src/gui.py:{node.lineno} {text[:40]!r}")
     assert offenders == [], "状态行匹配串不得硬编码简中（应由 tr() 结果派生）：" + "; ".join(offenders)
 
 
@@ -413,7 +413,7 @@ def test_patterns_are_derived_from_tr_and_cached_per_language() -> None:
         ):
             compiled_literals.append(node.args[0].value)
     assert not any(marker in literal for marker in _MATCHING_MARKERS for literal in compiled_literals), (
-        "gui.py 仍有硬编码状态行的 re.compile 字面量"
+        "src/gui.py 仍有硬编码状态行的 re.compile 字面量"
     )
 
     names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}

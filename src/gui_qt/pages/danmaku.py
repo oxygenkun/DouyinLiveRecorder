@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import i18n
+from src import i18n
 from src.ui_i18n import T, set_text
 
 from ..danmaku_monitor import DanmakuMonitor

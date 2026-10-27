@@ -14,14 +14,14 @@
 # 判定「自包含」与「架构」，而不是 `--enable-static` 写了就当成立（最常见的假自包含是 brew 的
 # dylib 被静默链进来，必须实测 otool）。
 #
-# 无 macOS 时：`bash scripts/spike_arm64_static_ffmpeg.sh --print-only` 打印将要执行的全部命令与
+# 无 macOS 时：`bash tool/spike_arm64_static_ffmpeg.sh --print-only` 打印将要执行的全部命令与
 # 常量、不执行任何外部程序，评审据此复核。
 #
 # 用法（macOS）：
-#   bash scripts/spike_arm64_static_ffmpeg.sh                 # 全流程（约 20~45 min，装依赖需 brew）
-#   FFMPEG_VERSION=8.1.2 bash scripts/spike_arm64_static_ffmpeg.sh
-#   SKIP_DEPS=1 bash scripts/spike_arm64_static_ffmpeg.sh     # 依赖已装好时跳过 brew install
-#   bash scripts/spike_arm64_static_ffmpeg.sh --print-only    # 只打印计划
+#   bash tool/spike_arm64_static_ffmpeg.sh                 # 全流程（约 20~45 min，装依赖需 brew）
+#   FFMPEG_VERSION=8.1.2 bash tool/spike_arm64_static_ffmpeg.sh
+#   SKIP_DEPS=1 bash tool/spike_arm64_static_ffmpeg.sh     # 依赖已装好时跳过 brew install
+#   bash tool/spike_arm64_static_ffmpeg.sh --print-only    # 只打印计划
 #
 # 退出码：0 全部验收通过；1 任一验收不通过（结论同样有效，spike 就是来给结论的）；
 #         2 前置条件不满足（非 macOS / 拿不到官方 tarball 摘要 / 工具缺失），属「没跑成」不是「跑过了」。

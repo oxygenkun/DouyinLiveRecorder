@@ -465,14 +465,15 @@ class TestTrayIcon:
         finally:
             web_tray._resource_roots = _original  # type: ignore[assignment]
 
-    def test_resource_roots_frozen_then_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # 冻结态必须同时探 _MEIPASS（onefile 解包目录）与 exe 同级目录，两条都要在，
-        # 否则「用户把图标放在 exe 旁边」这唯一的手工入口就没了。
-        monkeypatch.setattr(web_tray.sys, "frozen", True, raising=False)
-        monkeypatch.setattr(web_tray.sys, "_MEIPASS", r"C:\meipass", raising=False)
-        monkeypatch.setattr(web_tray.sys, "executable", r"C:\dist\app-Web.exe", raising=False)
+    def test_resource_roots_frozen_then_source(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        # 冻结态同时探解包目录与 exe 同级目录，路径按宿主规则构造。
+        process_sys = types.SimpleNamespace(**vars(web_tray.sys))
+        process_sys.frozen = True
+        process_sys._MEIPASS = str(tmp_path / "meipass")
+        process_sys.executable = str(tmp_path / "dist" / "app-Web.exe")
+        monkeypatch.setattr(web_tray, "sys", process_sys)
         roots = web_tray._resource_roots()
-        assert roots[:2] == [r"C:\meipass", r"C:\dist"]
+        assert roots[:2] == [str(tmp_path / "meipass"), str(tmp_path / "dist")]
         assert Path(roots[-1]) == Path(web_tray.__file__).resolve().parent.parent
 
     def test_resource_roots_source_only(self, monkeypatch: pytest.MonkeyPatch) -> None:

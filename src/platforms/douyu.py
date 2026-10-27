@@ -8,7 +8,7 @@ from __future__ import annotations
 import struct
 from typing import Any
 
-import i18n
+from src import i18n
 from src.base import DanmakuBase, DanmakuMessage, DanmakuMessageType, spawn_danmaku_task
 from src.logger import logger
 from src.ws_client import WsClient

@@ -20,10 +20,8 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from loguru import logger
 
-import i18n
-import main
 from src import http_config as _http_config
-from src import utils
+from src import i18n, main, utils
 
 # 类 URL 片段匹配模式（模块级编译一次）：主循环每解析一行 URL 配置就调用 contains_url，
 # 80+ 房间时每轮上百次；预编译省掉每次走 re 模块模式串缓存查表的开销。

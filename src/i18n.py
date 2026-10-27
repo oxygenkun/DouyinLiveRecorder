@@ -175,7 +175,7 @@ def resolve_language(value: str | None) -> str:
 # 检测执行目录，支持打包后 (_internal) 和源码两种运行方式
 # 优先基于本模块文件所在目录定位，避免 sys.argv[0] 在打包/-m 运行时被误解析；
 # 冻结运行时模块可能位于 PYZ 中，__file__ 指向 PYZ 目录，需回退到 sys._MEIPASS。
-module_dir = Path(__file__).resolve().parent
+module_dir = Path(__file__).resolve().parent.parent
 _meipass = getattr(sys, "_MEIPASS", None)
 if os.path.exists(module_dir / "_internal/i18n"):
     locale_path = module_dir / "_internal/i18n"  # PyInstaller 打包版位置

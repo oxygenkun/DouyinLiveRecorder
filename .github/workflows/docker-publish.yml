@@ -126,7 +126,7 @@ jobs:
           # 只推分架构的临时 tag；真正的对外 tag 由 merge job 在两个 digest 都齐了之后合成。
           tags: ${{ needs.prepare.outputs.image }}:v${{ needs.prepare.outputs.version }}-amd64
           # 镜像内版本仍经 build-arg 注入：Dockerfile 的 ARG 行序约束（MIN-14）与
-          # scripts/check_version.py 的断言都不动，本文件只负责把值传进去。
+          # tool/check_version.py 的断言都不动，本文件只负责把值传进去。
           build-args: |
             APP_VERSION=${{ needs.prepare.outputs.version }}
 

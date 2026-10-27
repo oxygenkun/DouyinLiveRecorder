@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-# 项目根目录（scripts/ 的上一级）
+# 项目根目录（tool/ 的上一级）
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -44,7 +44,7 @@ def extract_main_version() -> str | None:
     # 动态化之后它取的是 _read_version_from_pyproject() 的返回值，正则不再匹配，
     # 故本函数不可能、也不需要报出具体版本号——比对由 pyproject.toml 单点承担。
     # 返回 "HARDCODED" 表示有人把版本又写回了源码；返回 None 表示已是动态读取、无需比对。
-    text = (ROOT / "main.py").read_text(encoding="utf-8")
+    text = (ROOT / "src/main.py").read_text(encoding="utf-8")
     if re.search(r'^version:\s*str\s*=\s*["\']v?\d', text, re.MULTILINE):
         return "HARDCODED"  # 标记为仍有硬编码
     return None
@@ -139,7 +139,7 @@ def extract_po_version() -> str | None:
     po_path = ROOT / "i18n" / "zh_CN" / "LC_MESSAGES" / "zh_CN.po"
     if not po_path.exists():
         # 文件缺席也返回 None，但**不**是「查不到就算通过」：同一条缺失会被检查块里的
-        # scripts/compile_po.py 以 rc=2 拦下（它找不到 PO_PATH），不必在这里重复报一份。
+        # tool/compile_po.py 以 rc=2 拦下（它找不到 PO_PATH），不必在这里重复报一份。
         return None
     text = po_path.read_text(encoding="utf-8")
     m = re.search(r"Project-Id-Version:.*?(\d+\.\d+\.\d+(?:\.\d+)?)", text)
@@ -161,7 +161,7 @@ def main() -> int:
     elif docker_status is None:
         # MIN-2262（2026-09-23）：None 原样打印 [OK] 属「检查对象消失即通过」——把
         # `LABEL version=...` 整块删掉是本项最省事的破坏方式，删完检查反而更绿。
-        # 与 scripts/sync_version.py::check_all 的「先判命中再判等」同构：未命中一律判失败。
+        # 与 tool/sync_version.py::check_all 的「先判命中再判等」同构：未命中一律判失败。
         errors.append("  [FAIL] Dockerfile: 未找到任何 version 标签（检查对象消失，不得当作通过）")
     else:
         errors.append(f"  [FAIL] Dockerfile: 仍写死版本号 {docker_status}（应改用 APP_VERSION 构建参数）")

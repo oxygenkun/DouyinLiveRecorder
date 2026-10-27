@@ -10,11 +10,8 @@ from urllib.parse import urlsplit
 
 from loguru import logger
 
-import i18n
-import main
-import msg_push
-from msg_push import bark, dingtalk, ntfy, pushplus, send_email, tg_bot, xizhi
-from src import utils
+from src import i18n, main, msg_push, utils
+from src.msg_push import bark, dingtalk, ntfy, pushplus, send_email, tg_bot, xizhi
 from src.video_postprocess import get_startup_info
 
 # 通知与录制状态钩子（独立模块）
@@ -26,7 +23,7 @@ from src.video_postprocess import get_startup_info
 #
 # 这些函数读写的都是 main 的配置与运行时全局变量（推送渠道、录制状态集合、错误率窗口、
 # 并发信号量），故通过 `import main` 在运行时惰性读写：状态在 main 与各模块间实时共享，
-# 同时避免循环导入与 `python main.py` 直接运行时的 __main__ 二次执行。
+# 同时避免循环导入与 `python -m src.main` 直接运行时的 __main__ 二次执行。
 
 
 # 按配置的推送渠道（微信/钉钉/邮箱/TG/BARK/NTFY/PUSHPLUS）分发直播状态消息：

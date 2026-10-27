@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Optional, TextIO
 
-import i18n
+from src import i18n
 from src.logger import logger
 
 # SRT 句柄打开失败后的重试间隔（秒）：目录被删/磁盘满等瞬时故障恢复后需自愈，

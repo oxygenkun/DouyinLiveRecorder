@@ -15,7 +15,7 @@ import re
 import sys
 from pathlib import Path
 
-# 项目根目录（scripts/ 的上一级）
+# 项目根目录（tool/ 的上一级）
 ROOT = Path(__file__).resolve().parent.parent
 
 # 需要校验的常量键——AGENTS.md「CI / workflow 约定」列出的跨 workflow 同值项

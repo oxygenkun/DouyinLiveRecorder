@@ -39,10 +39,10 @@ _EXCLUDED_PARTS = {
     "backup_config",
     ".agents",
     ".superpowers",
-    # tests/ 与 scripts/ 不参与：用例里的替身异常文本是本文件自己的构造值，
+    # tests/ 与 tool/ 不参与：用例里的替身异常文本是本文件自己的构造值，
     # 维护脚本只在开发机跑、不落运行期日志，纳进来会把判据稀释成「也管测试代码」。
     "tests",
-    "scripts",
+    "tool",
 }
 # 出站动作标记（出现在函数体源码里即认为该函数会发起带 URL 的请求）。
 _OUTBOUND_MARK = re.compile(
@@ -56,7 +56,7 @@ _EXC_NAME_RE = re.compile(r"\b(e|err|exc|error)\b")
 # 归类只说明「为什么它排在后面」，**不是**「为什么可以永远不脱敏」——全部待整改。
 # 凭据型 = URL/异常文本可能带 Cookie/token/签名参数；下载源型 = 取数指向公共 CDN，泄漏面是路径而非凭据。
 _SANCTIONED_UNMASKED: dict[tuple[str, str], tuple[int, str]] = {
-    ("main.py", "direct_download_stream"): (1, "下载源型"),
+    ("src/main.py", "direct_download_stream"): (1, "下载源型"),
     ("src/ffmpeg_install.py", "_fetch_official_sha256"): (1, "下载源型"),
     ("src/ffmpeg_install.py", "download_ffmpeg_official"): (2, "下载源型"),
     ("src/ffmpeg_linux_download.py", "_download"): (2, "下载源型"),

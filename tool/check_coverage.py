@@ -7,8 +7,8 @@
 #
 # 用法：
 #    pytest --cov=src --cov-report=term-missing    # 先跑一次带覆盖率的测试
-#    python scripts/check_coverage.py
-#    python scripts/check_coverage.py --data-file path/to/.coverage
+#    python tool/check_coverage.py
+#    python tool/check_coverage.py --data-file path/to/.coverage
 #
 # 退出码口径（区分「不达标」与「检查没跑」）：
 #    0  全部模块达标
@@ -35,7 +35,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple, cast
 
-# 项目根目录（scripts/ 的上一级）：模块枚举与新鲜度比较都以它为基准
+# 项目根目录（tool/ 的上一级）：模块枚举与新鲜度比较都以它为基准
 ROOT = Path(__file__).resolve().parent.parent
 
 # 兜底数据文件名：优先级（显式 --data-file > $COVERAGE_FILE > 本常量）见 _resolve_data_file，

@@ -42,8 +42,8 @@ import httpx
 import pytest
 from loguru import logger
 
-import main  # noqa: F401  先完整初始化 main，打破 stream_select<->main 的循环导入
 import src.async_http as async_http
+import src.main as main
 import src.stream_select as ss
 from src import web_config
 from src.async_http import get_response_status

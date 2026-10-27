@@ -117,7 +117,7 @@ ARG TZ=Asia/Shanghai
 # main.py / src/web_api.py 经 importlib.metadata 在运行时读取）。本地 / CI 取值：
 #   docker build --build-arg APP_VERSION="$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
 # MIN-14（2026-09-21）：ARG 必须声明在**使用它的 LABEL 之前**——Dockerfile 按行做变量替换，
-# 顺序颠倒会让 version 标签固化为空串、--build-arg 完全不生效；scripts/check_version.py 现已
+# 顺序颠倒会让 version 标签固化为空串、--build-arg 完全不生效；tool/check_version.py 现已
 # 断言「声明行号 < 使用行号」（原先只正则匹配字面 version="${APP_VERSION}"，检不出顺序错误）。
 ARG APP_VERSION
 
@@ -200,7 +200,7 @@ RUN ffmpeg -hide_banner -version > /dev/null \
 # 应用代码以 recorder 属主入镜像，实际内容由 .dockerignore 裁剪（那份文件是唯一清单事实源）：
 # 留下 main.py / web.py + src/（不含桌面窗口层；包含 javascript/ 签名脚本、platforms/ 平台实现、proto/ 弹幕协议）
 #   + web/ 静态资源 + i18n/**/*.mo（gettext 运行时必需，构建期不重编译）；排除测试与工具
-#   （tests/ scripts/ typings/ 等）、文档、运行期产物（logs/ downloads/ backup_config/，
+#   （tests/ tool/ typings/ 等）、文档、运行期产物（logs/ downloads/ backup_config/，
 #   改由卷挂载提供）、平台二进制与 config/*.ini（含凭据）。
 COPY --chown=recorder:recorder . ./
 
@@ -213,12 +213,12 @@ USER recorder
 # 健康检查：经 pgrep 匹配进程命令行，同时兼容 main.py（命令行）与 web.py（面板）两种模式；
 # compose 的 web 服务继承此判定。
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD pgrep -f 'python (main|web).py' || exit 1
+    CMD pgrep -f 'python -m src[.](main|web)' || exit 1
 
 # Web 管理面板模式端口。注意：web.py 默认监听 127.0.0.1，容器内需在 config/config.ini 的
 # [Web] 节将 web_host 设为 0.0.0.0，宿主机端口映射才能访问到面板。
 EXPOSE 8000
 
-# 默认命令行录制模式；Web 面板模式改 command 为 python web.py
+# 默认命令行录制模式；Web 面板模式改 command 为 python -m src.web
 # （docker-compose.yaml 提供 web profile 服务）
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["python", "-m", "src.main"]

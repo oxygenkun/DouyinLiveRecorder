@@ -24,10 +24,10 @@ from typing import Any
 
 import pytest
 
-import i18n
+from src import i18n
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-GUI_SOURCE = (ROOT / "gui.py").read_text(encoding="utf-8")
+GUI_SOURCE = (ROOT / "src/gui.py").read_text(encoding="utf-8")
 PENDING_GUI_JSON = ROOT / "_i18n_pending_gui.json"
 
 gui = pytest.importorskip(
@@ -269,7 +269,7 @@ class TestKernel32DeclaredAndConsoleRestoreWarns:
             and isinstance(n.value, ast.Name)
             and n.value.id == "ctypes"
         ]
-        assert hits == [], f"gui.py 仍在使用 ctypes.windll：{hits}"
+        assert hits == [], f"src/gui.py 仍在使用 ctypes.windll：{hits}"
 
     def test_get_gui_kernel32_declares_signatures(self, monkeypatch: pytest.MonkeyPatch) -> None:
         declared: dict[str, _Sig] = {}

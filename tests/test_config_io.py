@@ -12,8 +12,8 @@ from typing import Self
 import pytest
 from pytest import MonkeyPatch
 
-import main  # noqa: E402  (config_io 通过 import main 惰性读取模块全局，须先加载)
-from src import config_io  # noqa: E402
+import src.main as main
+from src import config_io
 from src.config_read import tolerant_config_parser  # noqa: E402
 
 

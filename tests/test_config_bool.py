@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
-import main  # noqa: E402,F401  (打破 config_io ↔ main 导入环)
-from src import config_io  # noqa: E402
+import src.main as main
+from src import config_io
 from src.config_bool import FALSE_TOKENS, TRUE_TOKENS, format_config_bool, parse_config_bool  # noqa: E402
 
-_MAIN_PY = Path(__file__).resolve().parents[1] / "main.py"
+_MAIN_PY = Path(__file__).resolve().parents[1] / "src/main.py"
 _KEY = "是否录制弹幕(是/否)"
 
 
@@ -169,13 +169,13 @@ def test_https_config_legacy_key_true_encoding_migrates(tmp_path: Path, monkeypa
 def test_main_has_no_legacy_options_dict_lookup() -> None:
     # 字典查表 + 静默兜底是本次事故的根因：main.py 不得再出现该写法。
     # 用 AST 而非原文子串判定——源码注释里会引用被删除的实现，子串匹配会把注释也算作命中。
-    tree = ast.parse(_MAIN_PY.read_text(encoding="utf-8"), filename="main.py")
+    tree = ast.parse(_MAIN_PY.read_text(encoding="utf-8"), filename="src/main.py")
 
     # ① 不得存在 options.<attr>() 形式的调用
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             if isinstance(node.func.value, ast.Name):
-                assert node.func.value.id != "options", "main.py 仍存在 options.<attr>() 调用"
+                assert node.func.value.id != "options", "src/main.py 仍存在 options.<attr>() 调用"
 
     # ② 不得再绑定名为 options 的模块级变量
     for stmt in tree.body:
@@ -185,7 +185,7 @@ def test_main_has_no_legacy_options_dict_lookup() -> None:
         elif isinstance(stmt, ast.AnnAssign):
             targets = [stmt.target]
         for target in targets:
-            assert not (isinstance(target, ast.Name) and target.id == "options"), "main.py 又新增了 options 变量"
+            assert not (isinstance(target, ast.Name) and target.id == "options"), "src/main.py 又新增了 options 变量"
 
 
 @pytest.mark.parametrize(

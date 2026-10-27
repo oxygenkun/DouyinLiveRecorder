@@ -283,9 +283,8 @@ class TestRealWindowWidgets:
     ) -> None:
         # T()（ui_i18n.Translatable）经工厂「建时查表 + 登记重译」：语言切换后
         # retranslate_all 回填当前语言值。删掉工厂里的 register 调用本用例必须转红（变异验证）。
-        import i18n
         import src.ui_kit as uk
-        from src import ui_i18n
+        from src import i18n, ui_i18n
 
         label = uk.Label(tk_root, text=ui_i18n.T("待 机"))
         button = uk.Button(tk_root, text=ui_i18n.T("开始录制"))

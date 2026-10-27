@@ -27,7 +27,7 @@ import pytest
 # src/stream.py::_probe_headers 就地延迟导入 src.stream_select，而 stream_select 顶层又 `import main`；
 # 单文件跑本用例时若不先把 main 装好，延迟导入拿到的是半初始化的 stream_select →
 # ImportError 被 trace_error_decorator 吞成「未开播」，断言会表现为 is_live=False 的假因。
-import main  # noqa: F401
+from src import main  # noqa: F401
 from src.stream import bitrate_to_quality, get_tiktok_stream_url, is_downgrade
 
 _HOST = "https://tiktok.example.com"
