@@ -1,82 +1,12 @@
 # 会话经验沉淀（项目共享知识）
 
 > **语义声明**：本文件是**项目共享知识**，受版本控制、各工具可解析。
-> 与 `.workbuddy/memory/` 的当日草稿不同——后者为私有日志、不纳入共享知识。
 > 本文件记录历史经验，不增加执行义务；pytest 与覆盖率仅在需要 commit 时运行，当前规则以 AGENTS.md 为准。
 >
-> **历史通道**：本窗口的版本控制条目（`unversioned-working-copy`）由
-> [`AGENTS.md`](../../AGENTS.md)「可靠交付」维度单独持有，本文件不重复处理，只在此点名。
-
----
-
-## 源根状态基线
-
-> 后续复盘需**重新采集**（重跑同一命令），不得直接复用本次读数做结论。
-> 每次采集的读数按日期排列，使下次复盘能做出「有可比对后续结果」或
-> 「确认无法比对」二者之一的明确结论。
-
-采集命令：`<cli> session-analysis sources --workspace d:\DouyinLiveRecorder-dev --json`
-补充命令：`<cli> harness evidence-bundle --workspace d:\DouyinLiveRecorder-dev --language zh-CN --depth normal --format json --include-memories`
-
-### 首次采集（2026-09-22）
-
-| 字段 | 值 |
-|---|---|
-| `home` 解析值 | `C:\Users\58421\.qoder` |
-| 总源根数 | 7 |
-| **存在数 / 启用数** | **0 / 5**（5 个启用的源根全部 `exists: false`；2 个禁用） |
-| 会话数 | 0 |
-
-不存在的已启用源根：
-
-| id | 路径 |
-|---|---|
-| `qoder-audit` | `C:\Users\58421\.qoder\audit\audit.jsonl` |
-| `qoder-run-manifests` | `C:\Users\58421\.qoder\logs\runs` |
-| `qoder-log-sessions` | `C:\Users\58421\.qoder\logs\sessions\d--DouyinLiveRecorder-dev` |
-| `qoder-projects` | `C:\Users\58421\.qoder\projects\d--DouyinLiveRecorder-dev` |
-| `qoder-home-sessions` | `C:\Users\58421\.qoder\sessions` |
-
-禁用的源根（2 个）：`qoder-cache-projects`（需 `--include-cache`）、`qoder-global-projects`（需 `--include-global-capabilities`）。
-
-### 复查（2026-09-22，证据通道修复）
-
-| 字段 | 首次采集 | 复查 |
-|---|---|---|
-| `home` 解析值 | `C:\Users\58421\.qoder` | `C:\Users\58421\.qoder`（未变） |
-| 存在数 / 启用数 | 0 / 5 | 0 / 5（未变） |
-| 会话数 | 0 | 0 |
-| `eligibleSessions` | — | 0 |
-| `titleCount`（记忆枚举） | — | 0（`scanState: scanned-empty`） |
-
-实测对照：`C:\Users\58421\.qoder-cn\projects\d--DouyinLiveRecorder-dev` 存在且含 20 个文件，
-但 CLI 解析到 `C:\Users\58421\.qoder\projects\d--DouyinLiveRecorder-dev`（不存在）。
-路径不匹配仍是唯一可观测的结构性差异。
-
-### 结论（2026-09-22 复查后）
-
-**不可判定**：两条证据通道（会话源根、记忆枚举）均不可读。
-不猜测成因，不将此写为项目缺陷——CLI 的 `home` 解析值（`.qoder`）与本机
-Qoder CN 发行版的实际数据根（`.qoder-cn`）不一致，属外部工具配置层面。
-修正或桥接此数据根解析须取得用户单独授权，本次未执行任何配置变更。
-
-**授权说明**：若用户决定修正工具数据根解析（例如使 CLI 识别 `.qoder-cn` 或建立
-符号链接 / 路径桥接），需用户明确授权后执行；本代理不主动发起此类变更。
-
-### 关联发现
-
-`learning-loop-unauditable`（better-harness 2026-09-22 报告）。
-该发现指出 `.workbuddy/memory/` 虽自 2026-07 起持续产出（47 个文件），但被 `.gitignore`
-排除且不在任何工具可检索路径上。本文件的创建即为该发现的修复动作——将长期经验
-写入此可被各工具解析的位置。
-
----
 
 ## 经验条目
 
 > 格式：日期 | 主题 | 经验内容（一句话） | 关联文件（可选）
-
-（待后续会话追加）
 
 - 2026-09-22 | 子进程探测 | 读子进程输出做判定时禁止 `text=True`/`encoding=`——Windows 系统工具按控制台码页发本地化消息，`PYTHONUTF8=1` 下解码抛错会让 `stdout` 变 `None`；判据一律按字节包含。 | `tests/test_frontend_quality_ui.py`
 - 2026-09-22 | 测试可验证性 | 凡驱动子进程并断言其输出/进程状态的测试文件，必须保证**单独运行该文件**也全绿 0 警告；`main.py` 导入期的 `SetConsoleOutputCP(65001)` 会掩盖 GBK 分支，制造「全量绿、单跑红」。 | `AGENTS.md`
@@ -124,7 +54,7 @@ Qoder CN 发行版的实际数据根（`.qoder-cn`）不一致，属外部工具
 - 2026-09-27 | 互斥参数组合不得「其中一个静默不起作用」 | `--dual` 分支从不读 `no_zip`，所以 `--dual --no-zip` 会无视用户显式写的 `--no-zip` 照样压出两个大 zip、零报错。与 `--require-pinned/--allow-unpinned` 同理，语义互斥要在解析参数后**立即** `SystemExit`，不得让分支各走一半；锁法是断言「桩记录的顺序列表为空」，证明判定早于任何重活。**本条初稿把成因写成「提前 return 跳过了 --smoke」，是采信子代理断言未回读代码所致，已更正。** | `build_exe.py::main`
 - 2026-09-27 | 子代理的行为断言不是证据 | 两个 review agent 各给过一条我未复核就写进注释/文档的断言：① 第一条称 `--dual --no-zip` 会「提前 return 跳过冒烟」——实际 `smoke_test()` 在该分支 `return` 之前，真缺陷是 `no_zip` 不被读取；② 第二条称回归锁里有个 `v{version}` 拼出的正则——读文件后发现我的正则是字面 `4\.3\.0`，该「发现」不成立。判据：子代理报的**代码事实**必须自己 Read/grep 复核，只有它跑出来的**读数**（变异 rc、用例计数）可直接引用。 | `AGENTS.md` 关键约定第 12 条
 - 2026-09-27 | 文档瘦身先量化冗余，再决定手法 | 收到「精简四份文档体积」时先实测：`CODE_WIKI*.md`/`README*.md` 行尾空白 **0 行**、连续空行 >1 的段 **0 处**、README 与 CODE_WIKI 逐字重复的行只有 **1 行**、更新日志 170 条里 475/354 行虽带 `…` 但多为刻意精简——「删重复段落和空行」根本没有可执行空间。真正可动的是**历史文件清单类参考段**：更新日志内 41（zh）/32（en）个「涉及文件（按模块分类）」块，共 213,734 B，占 wiki 的 16~19%。判据：体积诉求一律先按冗余类别给读数，再选「外迁 + 指针」而非改写正文；一次整理净减 113,458 B（四文档 −7.3%），零删除。 | `docs/agent-reference/changelog-file-inventories.md`
-- 2026-09-27 | 批量压缩脚本会留下静默信息损失，且不可复用 | `.workbuddy/optimize_docs.py`（2026-09-25 那轮）按 `c[:78] + '…'` 截表格单元格、删整列 `关联条目`，还会**整条删除**标签以「验证/回归锁/变异验证/行尾」开头的 bullet。前者在本仓留下 109（zh）/181（en）处断句（其中一处把 `NetworkError` 截成 `NetworkErro…` 并把代码 span 劈成半边，另一处把 2026-09-23 已删除的 `ChallengePageError` 留在文档里）；后者与 AGENTS 完成定义第 2 步「真机验证结论写进 CODE_WIKI」直接冲突。判据：这类一次性脚本跑过之后必须做**逐行对账**（原文每行是否仍在新文或附录里）与「未闭合代码 span 段落数」比对，回补只能靠保留的快照（`.workbuddy/docold`）；不得再次直接复用该脚本。 | `scripts/check_annotations.py` 的等价性思路
+- 2026-09-27 | 批量压缩脚本会留下静默信息损失，且不可复用 | 一次性文档压缩脚本（2026-09-25 那轮）按 `c[:78] + '…'` 截表格单元格、删整列 `关联条目`，还会**整条删除**标签以「验证/回归锁/变异验证/行尾」开头的 bullet。前者在本仓留下 109（zh）/181（en）处断句（其中一处把 `NetworkError` 截成 `NetworkErro…` 并把代码 span 劈成半边，另一处把 2026-09-23 已删除的 `ChallengePageError` 留在文档里）；后者与 AGENTS 完成定义第 2 步「真机验证结论写进 CODE_WIKI」直接冲突。判据：这类一次性脚本跑过之后必须做**逐行对账**（原文每行是否仍在新文或附录里）与「未闭合代码 span 段落数」比对，回补只能靠保留的快照（整理前快照）；不得再次直接复用该脚本。 | `scripts/check_annotations.py` 的等价性思路
 - 2026-09-27 | 外迁必须自证「找得回来」 | 把清单搬出去之后，仅「文件存在」不够：本轮逐条校验 41/32 个指针都能在附录里命中**同一 (条目, 小节)** 对，且孤立表头 0 处、边界一律落在标题或「验证/影响范围/结论」标签之前（否则会把表头与表体切开）。指针里写「条目名｜小节名」而不是 markdown 锚点——中文标题的 GitHub 锚点规则不稳定，写锚点等于埋一个将来必坏的链接。 | `CODE_WIKI.md`「参考子文档索引」
 - 2026-09-27 | 覆盖率检查的陈旧数据防线会真的拦下你 | `scripts/check_coverage.py` 比对 `.coverage` 写入时刻与源码 mtime，本轮以「数据写于 09:07、`tests/test_build_exe.py` 改于 12:35」rc=2 拒绝评审过期读数（口径：数据不可用 ≠ 覆盖率不达标）。改完 `tests/` 或 `src/` 之后必须先 `pytest --cov=src` 再跑该检查，否则会拿到一条与代码无关的红。 | `scripts/check_coverage.py`
 - 2026-09-27 | 根约定文件减不动：先证明它是约束密度下限，再谈架构 | `AGENTS.md` 精简一轮只有 −1.4%（97,034→95,715 B），原因可量化：224 条顶层条目平均 383 B，逐条都是「判据+常量名+用例名+错误码」。可用的只有三类：① 已在 `docs/agent-reference/measured-evidence.md` 留存的读数被根文件又抄了一遍（BtbN/johnvansickle 三个字节数、月末标签回溯、`assets[].digest`）；② 真正的第二事实源（「关键约定」14 与 i18n 提取器盲区条目、「项目概览」版本行与「关键约定」1、风险控制路由句与两处细则）；③ 同因两条（`PYTHONUTF8` 父进程转发 与 `reconfigure(errors=...)`）。判据：**减体积前先跑 token 保全审计**（原文全部 code span / `test_` 名 / CVE-PYSEC-GHSA-MIN-SEV-MID 编号 / `UPPER_SNAKE` 名逐一在新文件与外迁目标里找），丢失数必须为 0 才算「没删掉约束」。要再降一档只能改架构（已知坑按主题外迁、根文件留索引+硬规则），而那与该文件开头「约束句一律留在本文件内」的自我约定冲突，属用户决策。 | `AGENTS.md`「可达性约定」
@@ -288,7 +218,7 @@ Qoder CN 发行版的实际数据根（`.qoder-cn`）不一致，属外部工具
 - **i18n 目录「孤儿条目 / 源文已变更」判定必须走 AST，不能靠 grep，也不能靠 read_text**（2026-10-17 实测两处）：
   ① 侧栏导航同一标签在 Qt 实现里是 `📊  控制台`（两空格）、在 Tk 遗留实现里是 `📊   控制台`（三空格），两者都是运行时按键；
      用 `grep "📊   控制台"` 扫 `gui.py` 恒无命中（非 ASCII + 连续多空格在 Git Bash 的 grep 下静默失配），据此把三空格形态「改名」
-     会当场把 Tk 侧栏译文弄坏——判据：`ast.walk` 比对 `Constant.value` 全集（含 tests/ 与 .workbuddy 备份副本），两种形态各自定位到调用点后再决定并存还是改名。
+     会当场把 Tk 侧栏译文弄坏——判据：`ast.walk` 比对 `Constant.value` 全集（含 tests/ 与历史备份副本），两种形态各自定位到调用点后再决定并存还是改名。
   ② 目录四文件全是纯 CRLF，而 `Path.read_text()` 走 universal newlines，`write_bytes(text.encode())` 会**静默整文件转成 LF**；
      改目录一律 `read_bytes().decode('utf-8')` → 只替换不含行尾的行内容 → `write_bytes`，并在前后各测一次 `(CRLF, bareLF)` 双侧必须相同（AGENTS.md 注释盲点③同源）。
   ③ 登记条目前先问「这条串有没有查询路径」：被 `set_text(T(...))` 覆盖的构造器字面量、经 `HTTPException(422, str(e))` 原样出面板的 raise 文案，

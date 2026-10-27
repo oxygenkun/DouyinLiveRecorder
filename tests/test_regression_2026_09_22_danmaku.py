@@ -246,8 +246,6 @@ _SCAN_EXCLUDED_DIRS = frozenset(
         "backup_config",
         "recordings",
         "typings",
-        ".workbuddy",
-        ".mimosa",
         ".agents",
         ".pnpm-store",
         ".npm-cache",
@@ -255,7 +253,6 @@ _SCAN_EXCLUDED_DIRS = frozenset(
         ".ego-browser-test",
         ".plugin-src",
         ".tmp-dps-extract",
-        ".v2c",
     }
 )
 # 只查「首参是消息」的 loguru 级别方法；add() 的首参是 sink 路径、log() 的首参是级别，

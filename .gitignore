@@ -271,17 +271,11 @@ desktop.ini
 # 系统托盘图标缓存
 *.icon
 
-# AI 助手工作目录（含本项目记忆 / 技能 / 第三方代理生成物，禁止入库）
-.workbuddy/
-.codebuddy/
-.trae/
-
 # 临时 / 过程性文档（只兜底开发期随手记的临时笔记名；CODE_WIKI*.md / CODE_REVIEW_FIX_1.md /
 # DIAGNOSIS_*.md 是正式架构与审查记录，随仓库分发、不忽略）
 # PROPOSAL_*.md（待审批的生产代码改动提案）同属正式记录，刻意**不在此处忽略**，只在
 # .dockerignore 里排除以免增大镜像；新增同类前缀时两处同改。
 CODE_CHANGES.md
-TRAE_AGENT_CODE_WIKI.md
 PERF_REVIEW_*.md
 
 # 本地工具 / 审查生成物（与 .dockerignore 及 pyproject 各工具排除列表同源维护）
@@ -298,12 +292,8 @@ PERF_REVIEW_*.md
 .ego-browser-test/
 .plugin-src/
 .tmp-dps-extract/
-.mimosa/
-.v2c/
-# SDD/治理式流程技能在仓库内留下的工作区（brief/report/review/diff + 运行日志快照；
-# 与 .dockerignore 及 pyproject 各工具排除列表同源维护，见 AGENTS.md「dockerignore / gitignore 同源约定」；
-# 2026-10-03 漏登记的实测后果：`Dockerfile:112` 的 `COPY . ./` 会把该目录整体打进对外镜像）
-.superpowers/
+# 浏览器 mockup 会话产物（与 Git、Docker 及 pyproject 排除项同步）
+.brainstorm/
 
 # 测试输出目录（端到端 / 真实房间采集的临时产物）
 tests/_out_e2e/

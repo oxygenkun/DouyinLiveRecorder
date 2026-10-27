@@ -27,26 +27,17 @@ English&nbsp;&nbsp;|&nbsp;&nbsp;[**简体中文**](CODE_WIKI.md)
 
 ## Document Statistics and Index
 
-> This section is summarized from a statistical analysis of **all `*.md` files in the workspace** (first generated on 2026-08-09; re-checked on 2026-09-20; recomputed on 2026-09-27 alongside the doc size pass, and again on 2026-09-28 with the version sync and the changelog split-and-archive).
-> **Counts must be recomputable**: the numbers below came from the command written right here, measured 2026-09-28 — a figure that cannot be recomputed counts as stale:
-> `python -c "import pathlib; sk={'.git','.venv','node_modules','__pycache__','.mypy_cache','.pytest_cache'}; p=[x for x in pathlib.Path('.').rglob('*.md') if not (set(x.parts) & sk)]; print(len(p))"`
+Project documentation is maintained by purpose and does not depend on private memories, session data or machine-specific paths from a particular development tool.
 
 ### Statistics Overview
 
-Excluding `.git/`/`.venv/`/`node_modules/`, the workspace contains **106** Markdown files (recomputed 2026-09-28 with the changelog split; +5 over the same-day reading of 101: the four new `docs/changelog/` archive volumes plus one harness session report), grouped by source and maintenance method into seven categories:
-
-| Category | Path | Count | Nature | Manually Maintained |
-| --- | --- | --- | --- | --- |
-| Project root docs (source of truth) | `AGENTS.md` + `README` / `CODE_WIKI` CN-EN pairs | 5 | Source of truth (CN/EN document pairs) | Yes |
-| Architecture reference sub-docs | `docs/agent-reference/**` | 6 | **Purely reference material moved out** of the root docs: directory tree, one-off measured readings, session learnings, lock-classification policy, and the changelog file inventories | Yes |
-| One-off review reports | `docs/worklog/*.md` | 9 | Historical review / diagnosis / proposal output: `CODE_REVIEW_2026-09-17` (AGENTS conventions review), `-09-18`, `-09-20`, `-09-21`, `-09-22`, `-09-22_1`, `-09-22_2`, plus `DIAGNOSIS_2026-09-23_*` and `PROPOSAL_2026-09-22_*`; these used to sit at the repo root and are archived here | No (archived) |
-| Changelog archives | `docs/changelog/**` | 4 | **Added 2026-09-28**: the historical entry volumes that the root documents' changelogs roll over per release window (`README` / `CODE_WIKI`, two volumes per language); entries are kept verbatim and the volumes are append-only | Yes |
-| Local tool-generated docs | `.qoder/**` | 1 | The 302 AI-generated English architecture/knowledge files under `.qoder/repowiki/**` were confirmed absent at the 2026-09-20 re-check; the single remaining file is a harness practice session report | No (auto-generated) |
-| Workspace memory | `.workbuddy/**` | 66 | Local agent's daily work logs (53 files under `memory/`) + the `docold/`/`docnew/`/`docopt/` snapshots of earlier doc passes (4 each) + one quality report | No (cache) |
-| Historical memory | `.codebuddy/memory/**` | 14 | Legacy agent memory (deprecated) | No (cache) |
-| CI sidecars | `.github/**/*.md` | 1 | Notes shipped with workflows / issue templates | Yes |
-
-**Conclusion**: the hand-maintained documents that should act as the source for changes are the **5** root docs (`AGENTS.md` plus the `README` / `CODE_WIKI` CN-EN pairs), the `docs/agent-reference/` sub-docs, and the rolling archive volumes under `docs/changelog/`; the reports under `docs/worklog/` are historical artifacts, `.workbuddy/` is project-level persistent data that must not be deleted, and everything else is AI-generated derivative documentation or a local cache that must not be merged into this document, to avoid introducing content that is out of sync with the code. (Snapshot first generated on 2026-08-09; root-doc count updated to 5 on 2026-08-28 as the CN/EN pairs were completed; refreshed on 2026-09-20: total 324 -> 285, the `.qoder/repowiki/**` directory no longer exists, and a row for the 2 review reports was added. **Since 2026-09-27 this section carries a command-plus-timestamp discipline**: the old 285 shipped without a recompute command and can no longer be reproduced. Measured 101 on 2026-09-27, 106 on 2026-09-28 after the changelog split.)
+| Category | Path | Maintenance |
+| --- | --- | --- |
+| Project root docs (source of truth) | `AGENTS.md` + `README` / `CODE_WIKI` CN-EN pairs | Hand-maintained; engineering conventions follow `AGENTS.md` |
+| Architecture references | `docs/agent-reference/` | Directory tree, measured evidence and shared learnings |
+| One-off review reports | `docs/worklog/` | Historical reviews, diagnoses and proposals |
+| Changelog archives | `docs/changelog/` | Historical entries archived by release window |
+| CI sidecars | `.github/` | Maintained with workflows and templates |
 
 ### Root Document Index
 
@@ -68,7 +59,7 @@ Excluding `.git/`/`.venv/`/`node_modules/`, the workspace contains **106** Markd
 | --- | --- | --- |
 | `project-structure.md` | Full directory tree | `AGENTS.md` "Project Structure" |
 | `measured-evidence.md` | One-off measured readings (probe speed-up / keepalive / Huya tier sampling / Douyu clamping / release-chain bundle sizes) | long reading blocks at the end of `AGENTS.md` pitfall entries |
-| `session-learnings.md` | Session learnings (step 6 of the Definition of Done) | `.workbuddy/memory/*.md` |
+| `session-learnings.md` | Shared project learnings | Development and review experience |
 | `lock-classification.md` | Re-entrancy classification of locks | `AGENTS.md` "Known pitfalls" |
 | `changelog-file-inventories.md` | **Added 2026-09-27**: verbatim text of the 41 "Files involved (classified by module)" inventories from the Chinese changelog; the original spots keep their section heading plus a one-line pointer | `CODE_WIKI.md` changelog |
 | `changelog-file-inventories-en.md` | English counterpart of the row above (32 inventory blocks), pointed to from `CODE_WIKI_EN.md` | `CODE_WIKI_EN.md` changelog |
@@ -77,7 +68,7 @@ Excluding `.git/`/`.venv/`/`node_modules/`, the workspace contains **106** Markd
 
 > **Added 2026-09-28.** This directory has a different job from `docs/agent-reference/`: that one holds purely reference passages lifted out of the root docs, this one holds whole historical changelog entries rolled out of the release window.
 > Rotation rule: the root documents keep only the **current release window** (this file) or the **three most recent releases** (`README`); everything older moves to the volume below. When a new entry is written to a root document, the oldest entry that falls out of the window is appended to the matching archive volume.
-> The volumes are **append-only**: entry bodies stay verbatim; the only change is the per-line restoration of the trailing `…` / mid-sentence cuts left by the earlier trimming pass, matched against the `.workbuddy/docold` baseline (each volume's header states the exact rule).
+> The volumes are **append-only**: entry bodies stay verbatim; the only change is the per-line restoration of the trailing `…` / mid-sentence cuts left by the earlier trimming pass, matched against the pre-edit snapshot baseline (each volume's header states the exact rule).
 
 | File | Content | Moved from |
 | --- | --- | --- |
@@ -1146,7 +1137,7 @@ python -m src.web
 
 - Exclude platform binaries (`ffmpeg/`, `node/`, installed via apt in the container), `config/*.ini` (mounted at runtime), `typings/`, `tool/build_exe.py`, the root `index.html` (a standalone M3U8 player page; the panel uses `web/`), and other desktop/build-specific files;
 - **Keep `i18n/**/*.mo` compiled translation files and `i18n/*.json`, `i18n/*.yaml` multilingual catalogs** — they are required at runtime (gettext / JSON / YAML, the three translation catalog formats) and the Dockerfile will not recompile/regenerate them; only the `.po` sources and compile scripts are excluded;
-- Exclude local tool / AI-assistant generated directories (`.mimosa/`, `.qoder/`, `.agents/`, `.pnpm-store/`, `.dsh-validation/`, `.ego-browser-test/`, `.plugin-src/`, `pytest-cache-files-*/`, etc., maintained in sync with `.gitignore`);
+- Exclude local tool / AI-assistant generated directories (`.agents/`, `.pnpm-store/`, `.dsh-validation/`, `.ego-browser-test/`, `.plugin-src/`, `pytest-cache-files-*/`, etc., maintained in sync with `.gitignore`);
 - Exclude content the image does not consume at runtime: `tool/` (maintenance scripts, zero references from the runtime chain), `tests/`, docs such as `AGENTS.md` / `README_EN.md` / `CODE_WIKI_EN.md`, and `.coveragerc-concurrency` (CI-specific).
 
 #### Using Docker Compose (recommended)
@@ -1588,6 +1579,10 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **Modified** · `docs/agent-reference/project-structure.md`, `docs/agent-reference/session-learnings.md` — The directory tree synced with the new modules and test files; lessons appended (the ADS fixture, the reserved-name measurement, the case-count attribution, the offscreen probe exit shape, measuring redundancy before editing, anchors over line numbers, and duplicate keys under `strict=True`)
 - **Added** · `CODE_WIKI.md`, `CODE_WIKI_EN.md` — This module-classified change overview section (identical bilingual structure, matching entry counts, one-to-one correspondence), plus the per-batch changelog entries appended alongside each change and kept in one-to-one bilingual correspondence
 ## Changelog
+
+### 2026-10-28 — Remove development-tool bindings
+
+- Remove directory exclusions and private-memory requirements specific to WorkBuddy, CodeBuddy, Trae and Mimosa, and delete the local WorkBuddy session note. Keep shared project skills and historical change records. Store visualization sessions in `.brainstorm/` and remove tool-specific environment detection and template naming.
 
 ### 2026-10-27 — Remove the native GUI
 

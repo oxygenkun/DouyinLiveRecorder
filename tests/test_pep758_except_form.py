@@ -24,14 +24,13 @@ _EXCLUDED_PARTS = {
     "build",
     "dist",
     "__pycache__",
-    ".workbuddy",
     "node_modules",
     "typings",
     "downloads",
     "logs",
     "backup_config",
     ".agents",
-    ".superpowers",
+    ".brainstorm",
 }
 # ②的基线：2026-10-18 由本锁自己的 AST 分类器实测（61 处无括号 / 43 处带括号）。[历史注] 首版基线
 # 60 来自行正则粗扫，与分类器不同源，变异验证当场发现「摘掉一处无括号」仍判绿（61→60 ≥ 60 恒真）——

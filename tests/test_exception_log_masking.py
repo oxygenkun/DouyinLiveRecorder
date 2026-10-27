@@ -31,14 +31,13 @@ _EXCLUDED_PARTS = {
     "build",
     "dist",
     "__pycache__",
-    ".workbuddy",
     "node_modules",
     "typings",
     "downloads",
     "logs",
     "backup_config",
     ".agents",
-    ".superpowers",
+    ".brainstorm",
     # tests/ 与 tool/ 不参与：用例里的替身异常文本是本文件自己的构造值，
     # 维护脚本只在开发机跑、不落运行期日志，纳进来会把判据稀释成「也管测试代码」。
     "tests",

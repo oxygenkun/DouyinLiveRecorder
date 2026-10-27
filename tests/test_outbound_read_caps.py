@@ -38,14 +38,13 @@ _EXCLUDED_PARTS = {
     "build",
     "dist",
     "__pycache__",
-    ".workbuddy",
     "node_modules",
     "typings",
     "downloads",
     "logs",
     "backup_config",
     ".agents",
-    ".superpowers",
+    ".brainstorm",
 }
 # httpx Response 独有的流式/异步读取方法名（文件对象没有这些属性 ⇒ 零误报的一档）。
 _HTTPX_READ_METHODS = frozenset(

@@ -27,26 +27,17 @@
 
 ## 文档统计与索引
 
-> 本节由对**工作空间内所有 `*.md` 文件**的统计分析归纳而来（初版生成于 2026-08-09，2026-09-20 复核刷新，2026-09-27 随文档体积整理复算，2026-09-28 随版本同步与更新日志拆分归档两次复算）。
-> **计数必须可复算**：下方数字是 2026-09-28 用取数命令得到的，命令一并写在这里，不复算即视为过期——
-> `python -c "import pathlib; sk={'.git','.venv','node_modules','__pycache__','.mypy_cache','.pytest_cache'}; p=[x for x in pathlib.Path('.').rglob('*.md') if not (set(x.parts) & sk)]; print(len(p))"`
+项目文档按用途维护，不依赖特定开发工具的私有记忆、会话数据或本机路径。
 
 ### 统计概览
 
-排除 `.git/`/`.venv/`/`node_modules/` 后，工作空间共 **106** 个 Markdown 文件（2026-09-28 随更新日志拆分归档复算；较同日上一读数 101 增加 5：新落的 4 份 `docs/changelog/` 归档卷 + 1 份 harness 会话报告），按来源与维护方式分为七类：
-
-| 分类 | 路径 | 数量 | 性质 | 是否手工维护 |
-| --- | --- | --- | --- | --- |
-| 项目根文档（事实来源） | `AGENTS.md` + 中英成对的 `README` / `CODE_WIKI` | 5 | 事实来源（source of truth，中英双语文档各成对） | ✅ 是 |
-| 架构参考子文档 | `docs/agent-reference/**` | 6 | 从根文档外迁的**纯参考性长段**：目录树、一次性实测读数、会话经验、锁分类口径、更新日志的文件清单附录 | ✅ 是 |
-| 一次性审查报告 | `docs/worklog/*.md` | 9 | 历史审查/诊断/提案产出：`CODE_REVIEW_2026-09-17`（AGENTS 约定评审）/`-09-18`/`-09-20`/`-09-21`/`-09-22`/`-09-22_1`/`-09-22_2` + `DIAGNOSIS_2026-09-23_*` + `PROPOSAL_2026-09-22_*`；原散在仓库根目录，现归档于此 | ❌ 历史产物 |
-| 变更日志归档 | `docs/changelog/**` | 4 | **2026-09-28 新增**：根文档更新日志按发布周期滚动归档的历史条目卷（`README` / `CODE_WIKI` 中英各两卷）；条目逐字保留，只增不改 | ✅ 是 |
-| 本地工具生成文档 | `.qoder/**` | 1 | 原 `.qoder/repowiki/**` 的 302 份 AI 生成英文知识库已于 2026-09-20 复核时确认不在工作区；现存 1 份为 harness 实践会话报告 | ❌ 自动生成 |
-| 工作区记忆 | `.workbuddy/**` | 66 | 项目级持久记忆（`memory/` 53 份）+ 历次文档整理的 `docold/`/`docnew/`/`docopt/` 快照（各 4 份）+ 1 份质量报告 | ❌ 本地项目数据 |
-| 历史记忆 | `.codebuddy/memory/**` | 14 | 旧版 agent 记忆（遗留） | ❌ 缓存 |
-| CI 附带说明 | `.github/**/*.md` | 1 | workflow/issue 模板随附的说明文档 | ✅ 是 |
-
-**结论**：真正由人工维护、应作为改动来源的文档是仓库根目录的 **5 个**（`AGENTS.md` 与中英成对的 `README` / `CODE_WIKI`）加上 `docs/agent-reference/` 的参考子文档与 `docs/changelog/` 的滚动归档卷；`docs/worklog/` 下的审查报告属历史产物，`.workbuddy/` 是不可删除的项目级持久数据，其余为 AI 生成衍生文档或旧版本地缓存，不应合并进本文档，以免引入与代码不同步的冗余内容。（统计快照初版生成于 2026-08-09；根文档数于 2026-08-28 随中英双语文档补齐更新为 5；2026-09-20 复核刷新；2026-09-27 起改为「取数命令 + 读数时刻」口径；2026-09-28 实测为 106）
+| 分类 | 路径 | 维护方式 |
+| --- | --- | --- |
+| 项目根文档（事实来源） | `AGENTS.md` + 中英成对的 `README` / `CODE_WIKI` | 手工维护，工程约定以 `AGENTS.md` 为准 |
+| 架构参考子文档 | `docs/agent-reference/` | 维护目录树、实测依据与共享经验 |
+| 一次性审查报告 | `docs/worklog/` | 保留历史审查、诊断与提案 |
+| 变更日志归档 | `docs/changelog/` | 按发布周期滚动归档历史条目 |
+| CI 附带说明 | `.github/` | 随工作流与模板维护 |
 
 ### 根文档索引
 
@@ -68,7 +59,7 @@
 | --- | --- | --- |
 | `project-structure.md` | 完整目录树 | `AGENTS.md`「项目结构」 |
 | `measured-evidence.md` | 一次性实测读数（探针提速 / keepalive / 虎牙选档 / 斗鱼钳制 / 发布链体积） | `AGENTS.md` 坑条目末尾的长段读数 |
-| `session-learnings.md` | 会话经验双轨记录（完成定义第 6 步） | `.workbuddy/memory/*.md` |
+| `session-learnings.md` | 项目共享经验参考 | 历次开发与审查经验 |
 | `lock-classification.md` | 锁的可重入性分类口径 | `AGENTS.md`「已知坑」 |
 | `changelog-file-inventories.md` | **2026-09-27 新增**：本文档更新日志里 41 个「涉及文件（按模块分类）」清单块的逐字原文；原处保留小节标题 + 一行指针 | 本文档更新日志 |
 | `changelog-file-inventories-en.md` | 同上条目的英文对应版（32 个清单块），对应 `CODE_WIKI_EN.md` | `CODE_WIKI_EN.md` 更新日志 |
@@ -77,7 +68,7 @@
 
 > **2026-09-28 新增，与上一节的分工不同**：`docs/agent-reference/` 放「从根文档抽走的参考长段」，本目录放「按发布周期滚走的完整历史条目」。
 > 滚动规则：根文档只保留**当前发布周期**（本文档）或**最近三个正式发布**（`README`）的条目，其余整卷迁入归档；新条目写入根文档后，超出窗口的最旧条目随即追加到对应归档卷尾部。
-> 归档卷**只增不改**：条目正文逐字保留，仅对上一轮粗剪留下的行尾 `…` / 句中截断按 `.workbuddy/docold` 基线做逐行前缀回补（各卷卷首写明口径）。
+> 归档卷**只增不改**：条目正文逐字保留，仅对上一轮粗剪留下的行尾 `…` / 句中截断按整理前快照基线做逐行前缀回补（各卷卷首写明口径）。
 
 | 文件 | 内容 | 迁出自 |
 | --- | --- | --- |
@@ -1160,7 +1151,7 @@ python -m src.web
 - **保留 `i18n/**/*.mo` 编译翻译文件与 `i18n/*.json`、`i18n/*.yaml` 多语言目录** ——
   运行时必需（gettext / JSON / YAML 三种翻译目录格式）且 Dockerfile 不会重新编译/生成，
   仅排除 `.po` 源文件与编译脚本；
-- 排除本地工具 / AI 助手生成目录（`.mimosa/`、`.qoder/`、`.agents/`、`.pnpm-store/`、`.dsh-validation/`、`.ego-browser-test/`、`.plugin-src/`、`pytest-cache-files-*/` 等，与 `.gitignore` 同源维护）；
+- 排除本地工具 / AI 助手生成目录（`.agents/`、`.pnpm-store/`、`.dsh-validation/`、`.ego-browser-test/`、`.plugin-src/`、`pytest-cache-files-*/` 等，与 `.gitignore` 同源维护）；
 - 排除镜像运行不消费的内容：`tool/`（维护脚本，运行时链路零引用）、`tests/`、`AGENTS.md` / `README_EN.md` / `CODE_WIKI_EN.md` 等文档、`.coveragerc-concurrency`（CI 专用）。
 
 #### 使用 docker compose (推荐)
@@ -1606,6 +1597,10 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 - **修改内容** · `docs/agent-reference/project-structure.md`、`docs/agent-reference/session-learnings.md` — 目录树同步新增模块与测试文件；经验条目追加（ADS 夹具、保留设备名实测、用例数增量归因、offscreen 探针的退出形态、先测后改的冗余度量、锚点优于行号、`strict=True` 下的重复键）
 - **新增功能** · `CODE_WIKI.md`、`CODE_WIKI_EN.md` — 本「按模块分类的改动总览」章节（中英同结构、同条目数、逐条对应），以及逐批更新日志条目随改动追加并保持双语一一对应
 ## 更新日志
+
+### 2026-10-28 — 清理开发工具绑定
+
+- 移除 WorkBuddy、CodeBuddy、Trae、Mimosa 等专属目录排除项及私有记忆要求，删除本地 WorkBuddy 会话记录；共享项目技能与历史变更记录保留。可视化会话统一存入 `.brainstorm/`，移除工具专属环境变量判断与模板命名。
 
 ### 2026-10-27 — 移除原生 GUI
 

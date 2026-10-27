@@ -1108,7 +1108,7 @@ This project is open-sourced under the [MIT License](LICENSE). Stars and Forks a
 
 ### Earlier entries (archived)
 
-19 release-note entries from 2024-07-13 to 2026-10-15 (v4.0.0 ~ v4.2.0) have been moved verbatim to [release-notes-history-en.md](docs/changelog/release-notes-history-en.md): 17 of them (v4.0.0 ~ v4.0.9.4) on 2026-09-28, plus 2 more (v4.2.0 / v4.1.0) on 2026-10-18 under the "keep only the three most recent releases" rule; that volume also restores the trailing `…` / mid-sentence cuts left by the previous trimming pass against the `.workbuddy/docold` baseline (exact rule in its header).
+19 release-note entries from 2024-07-13 to 2026-10-15 (v4.0.0 ~ v4.2.0) have been moved verbatim to [release-notes-history-en.md](docs/changelog/release-notes-history-en.md): 17 of them (v4.0.0 ~ v4.0.9.4) on 2026-09-28, plus 2 more (v4.2.0 / v4.1.0) on 2026-10-18 under the "keep only the three most recent releases" rule; that volume also restores the trailing `…` / mid-sentence cuts left by the previous trimming pass against the pre-edit snapshot baseline (exact rule in its header).
 Reason: the changelog alone took 36.6% of this file's characters (45,771 of 124,906). The root document now keeps only the three most recent releases (v4.5.0 / v4.4.0 / v4.3.0) plus this pointer, which is what makes the rest of the document readable.
 
 ## 💬 For questions or requests, please open an Issue. Stars and Forks are welcome

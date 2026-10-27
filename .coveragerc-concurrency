@@ -11,9 +11,8 @@
 # =============================================================================
 
 [run]
-# source 固定为 src（与 pyproject 一致）——它既是覆盖率口径，也是隐私边界：放宽为 "." 会把
-# .codebuddy/ 等本地工具目录（含会话记忆 / 技能 / 本机绝对路径）扫进报告，而报告会随
-# CI artifact / Codecov 外发；下面的 omit 只是第二道兜底，不能被当作唯一防线。
+# source 固定为 src（与 pyproject 一致）——放宽为 "." 会把本地会话记忆等私有数据扫进报告，
+# 报告会随 CI artifact / Codecov 外发；下面的 omit 只是第二道兜底，不能被当作唯一防线。
 source = src
 # 并发用例的形态是「多线程各自 asyncio.run」，不涉 multiprocessing / 子进程；显式写 thread
 # 是为了钉死语义：留空时 coverage 走的是「concurrency 为空则隐式开启线程追踪」的内部分支
@@ -35,19 +34,14 @@ omit =
     */recordings/*
     */logs/*
     */backup_config/*
-    */.mimosa/*
     */.agents/*
-    */.workbuddy/*
-    */.codebuddy/*
-    */.trae/*
     */.pnpm-store/*
     */.npm-cache/*
     */.dsh-validation/*
     */.ego-browser-test/*
     */.plugin-src/*
     */.tmp-dps-extract/*
-    */.v2c/*
-    */.superpowers/*
+    */.brainstorm/*
     */pytest-cache-files-*/*
 
 [report]

@@ -13,13 +13,7 @@
 .gitattributes
 .github/
 
-# ---------- AI 助手工作目录（含本项目记忆 / 技能，不打入镜像）----------
-.workbuddy/
-.codebuddy/
-.trae/
-
 # ---------- 本地工具 / 审查生成物（与 .gitignore 及 pyproject 各工具排除列表同源）----------
-.mimosa/
 .agents/
 .pnpm-store/
 .npm-cache/
@@ -27,11 +21,8 @@
 .ego-browser-test/
 .plugin-src/
 .tmp-dps-extract/
-.v2c/
-# SDD/治理式流程技能在仓库内留下的工作区（brief/report/review/diff + 运行日志快照）。
-# 本目录曾因未登记而被 `Dockerfile:112` 的 `COPY . ./` 打进对外镜像（2026-10-03 评审 I-3），
-# 与 .gitignore 及 pyproject 各工具排除列表同源维护，见 AGENTS.md「dockerignore / gitignore 同源约定」。
-.superpowers/
+# 浏览器 mockup 会话产物（与 Git、Docker 及 pyproject 排除项同步）
+.brainstorm/
 pytest-cache-files-*/
 
 # ---------- 文档（容器内无需运行）----------
@@ -47,7 +38,6 @@ docs/changelog/
 # 审查 / 排查记录与开发期笔记（2026-09-14 由逐文件名列举改为本形态：逐文件名会持续腐化，
 # 新增同类文档自动落入排除，无需再改本文件）
 CODE_CHANGES.md
-TRAE_AGENT_CODE_WIKI.md
 PERF_REVIEW_*.md
 CODE_REVIEW_*.md
 DIAGNOSIS_*.md
