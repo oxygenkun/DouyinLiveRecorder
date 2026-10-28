@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # i18n 待翻译串提取器：AST 扫描运行时代码（main/web/msg_push/i18n + src/ 全部 .py），
 # 提取 print() 的全部常量实参、logger.*() 与 i18n.tr() 的首参（常量串或 f-string 模板底稿），
-# 与四语目录（zh_CN.json / en_US.json / en_GB.json / zh_TW.json）比对并打印缺失清单。
+# 与英文目录（en_US.json）比对并打印缺失清单。
 # 只读工具、仅供维护期使用：不进运行时链路，也不在 AGENTS.md 的检查命令块里（缺失靠人工跟进）。
 #
 # 当前**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
@@ -149,10 +149,8 @@ def is_valuable(text: str) -> bool:
 
 
 def load_catalog_keys() -> dict[str, set[str]]:
-    return {
-        f"{lang}.json": set(json.loads((ROOT / "i18n" / f"{lang}.json").read_text(encoding="utf-8")))
-        for lang in ("zh_CN", "en_US", "en_GB", "zh_TW")
-    }
+    path = ROOT / "i18n" / "en_US.json"
+    return {path.name: set(json.loads(path.read_text(encoding="utf-8")))}
 
 
 def main() -> int:
@@ -166,17 +164,13 @@ def main() -> int:
     runtime_strings = {s for s in runtime_strings if is_valuable(s)}
 
     catalogs = load_catalog_keys()
-    zh_keys = catalogs["zh_CN.json"]
+    english_keys = catalogs["en_US.json"]
 
-    for name, keys in catalogs.items():
-        if keys != zh_keys:
-            print(f"[不一致] {name} 与 zh_CN.json 差异：多 {len(keys - zh_keys)} / 少 {len(zh_keys - keys)}")
-
-    missing = sorted(runtime_strings - zh_keys)
-    stale = sorted(zh_keys - runtime_strings)
+    missing = sorted(runtime_strings - english_keys)
+    stale = sorted(english_keys - runtime_strings)
 
     print(f"运行时提取（有价值）串：{len(runtime_strings)} 条")
-    print(f"zh_CN.json 现有条目：{len(zh_keys)} 条")
+    print(f"en_US.json 现有条目：{len(english_keys)} 条")
     print(f"\n== 缺失（运行时有、目录无，{len(missing)} 条）==")
     for s in missing:
         print(f"  + {s!r}")

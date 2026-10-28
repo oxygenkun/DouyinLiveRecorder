@@ -72,7 +72,7 @@ class BilibiliDanmaku(DanmakuBase):
     def _report_close(self, reason: str) -> None:
         if self._hosts_left > 0 and not self._stopped:
             # 留痕不静默：复用 DanmakuBase._on_reconnect 这条既有 debug 通道（语义正合适，且文案
-            # 已登记在四语目录；不新造 msgid 就不给 i18n 检查「运行时模板 ⊆ zh_CN.json 键集」添缺口）。
+            # 已登记在英文目录；不新造 msgid 就不给 i18n 检查「运行时模板 ⊆ en_US.json 键集」添缺口）。
             self._on_reconnect(reason)
             return
         if self._close_reported:
@@ -218,7 +218,7 @@ class BilibiliDanmaku(DanmakuBase):
     # GC 时以 'Task exception was never retrieved' 打到 stderr；fail() 里的 _on_close
     # （hub.room_closed / 边车落盘）抛错时无人回收，房间既没重连也没有关闭事件，同样是
     # 「已连接 / 0 条」的观感。spawn_danmaku_task 的完成回调会落一条
-    # 「[弹幕]后台协程异常: {type_name}: {exc}」warning（既有键，四语目录已登记）。
+    # 「[弹幕]后台协程异常: {type_name}: {exc}」warning（既有键，英文目录已登记）。
     # 回归锁：tests/test_bilibili_danmaku.py::test_reject_auth_dispatches_through_spawned_task。
     def _reject_auth(self) -> None:
         self._stopped = True

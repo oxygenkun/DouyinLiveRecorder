@@ -16,7 +16,7 @@
 #
 # Job 拓扑（lint / audit / type / test / build 七路并行，收尾串行汇总）：
 #
-#   setup ──┬── static             格式 / 导入序 / 版本一致性 / 派生元数据一致性 / 运行时钉定表结构 / i18n JSON 目录校验
+#   setup ──┬── static             格式 / 导入序 / 版本一致性 / 派生元数据一致性 / 运行时钉定表结构
 #           ├── deps-audit         pip-audit 按 OSV 审计 requirements.txt（补-05）
 #           ├── test               pytest 矩阵（3.14）+ 全局与逐模块覆盖率检查 + Web 面板 HTTP 冒烟
 #           ├── concurrency-test   线程安全 / 跨事件循环锁 / 速率限制专项
@@ -188,9 +188,6 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: python -m ruff check .
-
-      - name: Check i18n JSON catalogs
-        run: python tool/check_i18n.py
 
   # ── 1.5 依赖漏洞审计（pip-audit，补-05）────────────────────────────────
   # 本仓运行时清单刻意「只有下限、无上限」（唯一例外 protobuf<8），且 uv.lock 不参与

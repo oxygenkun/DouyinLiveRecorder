@@ -137,18 +137,15 @@ class TestI18nStringsExtractable:
             assert "{" not in out, f"占位符未替换，kwargs 不完整: {template!r} -> {out!r}"
 
 
-def _four_catalogs() -> dict[str, dict[str, str]]:
-    # 断言对象是四语目录本身：_i18n_pending*.json 只是并行修复防撞车的一次性中转袋，已按收尾约定
+def _english_catalog() -> dict[str, dict[str, str]]:
+    # 断言对象是英文目录本身：_i18n_pending*.json 只是并行修复防撞车的一次性中转袋，已按收尾约定
     # 删除，「袋子写过、目录没合并」同样要红。复用 i18n 自己的 JSON 加载器，不写第二套解析口径。
     from pathlib import Path
 
     from src import i18n
 
     cats = {
-        "zh_CN": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_CN.json"),
         "en_US": i18n._load_json_catalog(Path(i18n.locale_path) / "en_US.json"),
-        "en_GB": i18n._load_json_catalog(Path(i18n.locale_path) / "en_GB.json"),
-        "zh_TW": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_TW.json"),
     }
     loaded: dict[str, dict[str, str]] = {}
     for lang_key, value in cats.items():
@@ -160,14 +157,13 @@ def _four_catalogs() -> dict[str, dict[str, str]]:
 
 
 def _assert_registered(msgids: set[str] | list[str], cats: dict[str, dict[str, str]] | None = None) -> None:
-    # 「已登记」= 四语目录都有该 msgid，且三条非默认语言的译文**非空**。只查 zh_CN 会漏掉「键在但
-    # 译文空」的静默不翻译；译文留空正是 MI-23 之后「繁体用户看到的仍是简体」的成因形态。
-    cats = cats or _four_catalogs()
+    # 消息必须有非空英文译文。
+    cats = cats or _english_catalog()
     for msgid in msgids:
         missing = sorted(lang for lang, cat in cats.items() if msgid not in cat)
         assert not missing, f"msgid 未并入这些语言目录：{missing} <- {msgid[:60]!r}"
-        for lang in ("en_US", "en_GB", "zh_TW"):
-            # 只断言「非空」：英文源串的 en_US/en_GB 译文按本仓惯例本就是恒等同文
+        for lang in ("en_US",):
+            # 只断言「非空」：英文源串的 英文 译文按本仓惯例本就是恒等同文
             # （如 'Disk space remaining is below'），加「不得等于 msgid」会把恒等惯例打成假失败。
             assert cats[lang][msgid].strip(), f"{lang} 译文为空：{msgid[:40]!r}"
 
@@ -177,23 +173,23 @@ def _assert_translation_parity(msgids: set[str] | list[str], cats: dict[str, dic
     # （zh_TW 曾把 {msg} 写成 {msg_2}，钉钉/微信/Bark/PushPlus 的失败告警整条崩掉）。
     import re
 
-    cats = cats or _four_catalogs()
+    cats = cats or _english_catalog()
     pat = re.compile(r"\{[^{}]*\}")
     for msgid in msgids:
         want = set(pat.findall(msgid))
-        for lang in ("en_US", "en_GB", "zh_TW"):
+        for lang in ("en_US",):
             text = cats[lang].get(msgid, "")
             assert set(pat.findall(text)) == want, f"{lang} 译文占位符与源串不一致：{msgid[:40]!r}"
             assert len(text.splitlines()) == len(msgid.splitlines()), f"{lang} 译文行数与源串不一致：{msgid[:40]!r}"
 
 
 class TestPendingCatalogEntries:
-    # 新 msgid 必须已并入四语目录，且三语译文齐全（pending 袋子已随中央合并删除）。
+    # 新 msgid 必须已并入英文目录，且英文译文齐全（pending 袋子已随中央合并删除）。
 
     NEW_MSGIDS = TestI18nStringsExtractable.MSGIDS
 
     def test_catalogs_cover_new_msgids(self) -> None:
-        cats = _four_catalogs()
+        cats = _english_catalog()
         _assert_registered(self.NEW_MSGIDS, cats)
 
     def test_new_msgid_translations_keep_placeholders(self) -> None:
@@ -1189,7 +1185,7 @@ class TestCredentialMasking:
 
 
 class TestPendingMainCatalog:
-    # 本轮 main.py 新增的 tr 模板必须已并入四语目录（pending 袋子已随中央合并删除）。
+    # 本轮 main.py 新增的 tr 模板必须已并入英文目录（pending 袋子已随中央合并删除）。
 
     NEW_MSGIDS = [
         "分段目录不可读，跳过转换: {directory}",
@@ -1198,7 +1194,7 @@ class TestPendingMainCatalog:
     def test_catalogs_cover_main_new_msgids(self) -> None:
         _assert_registered(self.NEW_MSGIDS)
 
-    def test_main_new_msgids_have_three_langs(self) -> None:
+    def test_main_new_msgids_have_english_translations(self) -> None:
         _assert_translation_parity(self.NEW_MSGIDS)
 
     def test_runtime_templates_reachable_via_tr(self) -> None:

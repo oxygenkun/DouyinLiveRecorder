@@ -13,10 +13,10 @@
 //
 // 【启动引导走向】GET /api/status 固定回 401：api() 走 showLogin（不构造 EventSource、不启动
 // 仪表盘轮询），得到静止的登录态应用；随后注入测试 token、点击目标 tab。语言由
-// GET /api/language 控制，四语文案走行为级断言而非源码静态扫描。
+// GET /api/language 控制，中英文文案走行为级断言而非源码静态扫描。
 //
 // 覆盖范围：画质切换（本文件起点）、MID-37 掩码凭据、MID-38 登出入口、MID-39 错误体解析、
-// MID-2263 前后端布尔解析不变量、M-17/M-18/M-19 动态容器与代次竞态、MIN-10 四语目录检查。
+// MID-2263 前后端布尔解析不变量、M-17/M-18/M-19 动态容器与代次竞态、MIN-10 中英文目录检查。
 // 新增用例沿用同一 harness，不另开 .mjs——另开会脱离 tests/test_frontend_quality_ui.py 的
 // 单文件驱动与 ci.yml 的 node 清单，导致 CI 静默漏跑。
 //
@@ -414,12 +414,10 @@ test('切换失败：错误 toast + 回拉恢复服务端真值', async () => {
     assert.ok(ctx.elements.get('rooms-tbody').innerHTML.includes('value="蓝光8M" selected'), '失败后未恢复服务端真值');
 });
 
-test('四语切换成功文案行为级断言（toast 按当前语言渲染）', async () => {
+test('中英文切换成功文案行为级断言（toast 按当前语言渲染）', async () => {
     const expected = {
         zh_CN: '已切换画质为 超清，下一轮检测循环生效',
         en_US: 'Quality changed to 超清, effective on the next check cycle',
-        en_GB: 'Quality changed to 超清, effective on the next check cycle',
-        zh_TW: '已切換畫質為 超清，下一輪檢測循環生效',
     };
     const url = 'https://www.huya.com/dank1ng';
     for (const [lang, text] of Object.entries(expected)) {
@@ -436,7 +434,7 @@ test('四语切换成功文案行为级断言（toast 按当前语言渲染）',
         await flush();
         assert.equal(
             ctx.elements.get('toast').textContent, text,
-            `语言 ${lang} 的切换成功文案缺失或不一致（I18N 四目录键集须一致）`
+            `语言 ${lang} 的切换成功文案缺失或不一致（I18N 两个目录键集须一致）`
         );
     }
 });
@@ -972,11 +970,11 @@ test('M-19：房间消失后重建下拉，选中项回落「全部房间」而�
     assert.equal(sel.value, '', '已消失的房间仍被当作选中项（筛选会恒无匹配）');
 });
 
-// —— MIN-10：前端内嵌四语目录的机械化检查 ————————————————————————
+// —— MIN-10：前端内嵌中英文目录的机械化检查 ————————————————————————
 
 //
-// web/app.js 自带一套与后端 i18n/ 独立的四语目录（面板文案）。本段把「新增/修改翻译串须同步
-// 多处」的人记约定变成检查：前端语言集合 == 后端 i18n 实测集合、四目录键集逐一相等、
+// web/app.js 自带一套与后端 i18n/ 独立的中英文目录（面板文案）。本段把「新增/修改翻译串须同步
+// 多处」的人记约定变成检查：前端语言集合 == 后端 i18n 实测集合、两个目录键集逐一相等、
 // index.html 的 data-i18n* 与 app.js 的 t('字面量') 键全部命中、无空值/键名回显、同模板占位符
 // 一致、HTML 无未入目录的硬编码中文。目录直接从 app.js 源码截取字面量求值，不复制第二份清单。
 function extractI18nCatalogs() {
@@ -1002,19 +1000,12 @@ function extractI18nCatalogs() {
     return box.I18N;
 }
 
-// 后端语言集合由 i18n/ 目录实测得出，避免在测试里再抄一份语言清单——新增语言时前端内嵌
-// 目录漏补会被这条直接拦下。
+// 中文使用源码原文，其余语言由 JSON 翻译目录提供。
 function backendLanguages() {
     const dir = new URL('../../i18n/', import.meta.url);
-    const langs = new Set();
-    for (const entry of readdirSync(dir)) {
-        if (/^[a-z]{2}_[A-Z]{2}\.(json|ya?ml)$/.test(entry)) langs.add(entry.split('.')[0]);
-        else if (/^[a-z]{2}_[A-Z]{2}$/.test(entry)) {
-            const files = readdirSync(new URL(`../../i18n/${entry}/LC_MESSAGES/`, import.meta.url));
-            if (files.some(f => f.endsWith('.mo'))) langs.add(entry);
-        }
-    }
-    return [...langs].sort();
+    return ['zh_CN', ...readdirSync(dir)
+        .filter(entry => /^[a-z]{2}_[A-Z]{2}\.json$/.test(entry))
+        .map(entry => entry.slice(0, -5))].sort();
 }
 
 const I18N = extractI18nCatalogs();
@@ -1034,7 +1025,7 @@ test('前端内嵌目录的语言集合 == 后端 i18n 目录实测语言集合'
     assert.deepEqual(FRONTEND_LANGS.slice().sort(), backendLanguages());
 });
 
-test('四语目录键集逐一相等（漏改任一处即红，MIN-10 的核心断言）', () => {
+test('中英文目录键集逐一相等（漏改任一处即红，MIN-10 的核心断言）', () => {
     const base = Object.keys(I18N.zh_CN);
     assert.ok(base.length >= 100, `目录键数异常偏小（${base.length}），疑似截取不完整`);
     for (const lang of FRONTEND_LANGS) {
@@ -1045,7 +1036,7 @@ test('四语目录键集逐一相等（漏改任一处即红，MIN-10 的核心�
     }
 });
 
-test('index.html 的 data-i18n / -placeholder / -title 键全部命中四语目录', () => {
+test('index.html 的 data-i18n / -placeholder / -title 键全部命中中英文目录', () => {
     const keys = new Set();
     for (const m of INDEX_HTML.matchAll(/data-i18n(?:-placeholder|-title)?="([^"]+)"/g)) keys.add(m[1]);
     assert.ok(keys.size >= 40, `未从 index.html 抓到足够的 data-i18n 键（${keys.size}），选择器可能已漂移`);
@@ -1055,7 +1046,7 @@ test('index.html 的 data-i18n / -placeholder / -title 键全部命中四语目�
     }
 });
 
-test('app.js 里 t(...) 字面量键与废弃键映射值全部命中四语目录', () => {
+test('app.js 里 t(...) 字面量键与废弃键映射值全部命中中英文目录', () => {
     const used = new Set();
     for (const m of APP_JS.matchAll(/[^A-Za-z_$.]t\('([^']+)'\)/g)) used.add(m[1]);
     // 废弃键经 t(DEPRECATED_CONFIG_KEYS[key]) 动态取值，须把该映射的值一并纳入检查
@@ -1070,7 +1061,7 @@ test('app.js 里 t(...) 字面量键与废弃键映射值全部命中四语目�
     }
 });
 
-test('四语目录无空值、无「键名原样回显」，英文目录不得照抄中文源串', () => {
+test('中英文目录无空值、无「键名原样回显」，英文目录不得照抄中文源串', () => {
     for (const lang of FRONTEND_LANGS) {
         for (const [k, v] of Object.entries(I18N[lang])) {
             assert.equal(typeof v, 'string', `${lang}.${k} 不是字符串`);
@@ -1088,7 +1079,7 @@ test('四语目录无空值、无「键名原样回显」，英文目录不得�
     }
 });
 
-test('同一模板的四语译文占位符集合一致（漏一个会渲染出 {n} 原文）', () => {
+test('同一模板的中英文译文占位符集合一致（漏一个会渲染出 {n} 原文）', () => {
     const ph = s => (String(s).match(/\{[^{}]+\}/g) || []).slice().sort().join(',');
     for (const k of Object.keys(I18N.zh_CN)) {
         const expected = ph(I18N.zh_CN[k]);

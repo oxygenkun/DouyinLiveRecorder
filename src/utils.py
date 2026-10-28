@@ -650,8 +650,7 @@ def _replace(src: str, dst: str) -> None:
 
 def _fsync_dir(dir_path: str) -> None:
     # 对父目录 fsync：让「rename 改了目录项」这条元数据本身也落盘（POSIX 语义）。以只读方式
-    # 打开目录仅 POSIX 支持，Windows 无此语义 → 按平台字面量早返回（同 i18n._windows_ui_language
-    # 的门控写法，不用 # type: ignore）。
+    # 打开目录仅 POSIX 支持，Windows 无此语义 → 按平台字面量早返回，避免引用不可用的平台属性。
     if sys.platform == "win32":
         return
     try:

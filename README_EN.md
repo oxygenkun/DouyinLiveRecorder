@@ -35,7 +35,7 @@ Upstream project: [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLi
 | 🏷️ **Auto anchor-name update** | When an anchor renames, automatically syncs `URL_config.ini` and renames the recording directory and files |
 | 📱 **Message push** | Supports DingTalk, WeChat, email, Telegram, Bark, NTFY, PushPlus, etc. |
 | 🐳 **Docker support** | Supports Docker containerized deployment, ready to use out of the box |
-| 🌐 **Internationalization** | Built-in Simplified Chinese / English (US) / English (UK) / Traditional Chinese, with restart-free hot switching in the Web panel |
+| 🌐 **Internationalization** | Built-in Chinese / English, with restart-free hot switching in the Web panel |
 | ⚙️ **Flexible config** | Per-room customization of quality, format, segmented recording, etc., with hot-reload of config changes |
 | 🔐 **Web security** | Token auth, login brute-force rate limiting, path-traversal protection, sensitive-config masking, unauthenticated write protection |
 
@@ -238,15 +238,11 @@ DouyinLiveRecorder/
 │   ├── build_exe.py                # PyInstaller packaging script (CLI/Web two entries)
 │   ├── smoke_test.py           # generic Web/API smoke test (zero-dep, config-driven)
 │   ├── smoke_web.json          # smoke test sample cases (probe Web panel)
-│   ├── check_i18n.py           # JSON catalog validation (no compilation)
 │   ├── check_coverage.py       # per-module coverage gate (used by CI)
 ├── downloads/                  # recording output dir (generated at runtime)
 ├── logs/                       # log dir (generated at runtime, includes danmaku_monitor.jsonl)
-├── i18n/                       # i18n translation catalogs (JSON)
-│   ├── zh_CN.json              # 简体中文 / Simplified Chinese (JSON)
-│   ├── en_US.json              # English (US) (JSON catalog)
-│   ├── en_GB.json              # English (UK) (British spelling variant)
-│   └── zh_TW.json              # 繁體中文 / Traditional Chinese (JSON)
+├── i18n/                       # English translations (Chinese uses source text)
+│   └── en_US.json              # English (US) (JSON catalog)
 ├── ffmpeg/                     # FFmpeg dir (Windows)
 ├── node/                       # Node.js dir (Windows)
 ├── index.html                  # M3U8 video player (standalone tool page)
@@ -268,7 +264,7 @@ DouyinLiveRecorder/
 
 ```ini
 [录制设置]
-# UI language: zh_CN | en_US | en_GB | zh_TW (empty = follow system language; values such as zh_cn/zh-CN/en/en-GB/zh-Hant are also accepted and auto-normalized; falls back to en_US if the language file is missing)
+# UI language: zh_CN | en_US (empty = Chinese; missing English catalog falls back to Chinese)
 language =
 # Whether to skip proxy detection (yes/no)
 是否跳过代理检测(是/否) = 是
@@ -544,7 +540,7 @@ Features:
 - **File browser**: browse the downloads directory and download recording files
 - **Actual quality display**: the recording table shows "set quality / actual quality", highlighted in red on degradation
 - **Danmaku viewer**: reads the danmaku monitor hub snapshot and shows each room's danmaku events in real time
-- **Language switch**: top-bar language selector, instant four-language switching (writes back config and hot-switches in-process translations, no restart needed)
+- **Language switch**: top-bar language selector, instant Chinese/English switching (writes back config and hot-switches in-process translations, no restart needed)
 
 Main API routes (all require a Token, except when auth is disabled):
 
@@ -636,19 +632,17 @@ Safety constraints:
 
 ### Multi-language and UI switching
 
-All four translation catalogs load directly from `i18n/<lang>.json`:
+Chinese is the default source language; English loads `i18n/en_US.json`:
 
 | Language code | Display name | Catalog file |
 | --- | --- | --- |
-| `zh_CN` | Simplified Chinese | `i18n/zh_CN.json` |
+| `zh_CN` | Chinese | Source text; no catalog needed |
 | `en_US` | English (US) | `i18n/en_US.json` |
-| `en_GB` | English (UK) | `i18n/en_GB.json` |
-| `zh_TW` | Traditional Chinese | `i18n/zh_TW.json` |
 
-- The config key `language`: leave it empty to follow the system language; values such as `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` are accepted and auto-normalized to the canonical language code; unrecognized values or missing language files fall back to `en_US`
+- The config key `language`: empty means Chinese. English region codes normalize to `en_US`, Chinese region codes to `zh_CN`; invalid values or unavailable English translations fall back to Chinese.
 - **Hot switching**: switchable via the Web panel top-bar language selector or directly editing `config.ini`; the CLI main loop checks for config changes each round and reloads translations immediately, **no process restart needed** (the running ffmpeg subprocess is unaffected)
 - Translations no longer depend on the `LANG` / `LANGUAGE` environment variables (generally unset on Windows)
-- Edit `i18n/<lang>.json` directly; no compilation or translation dependency is needed. Run `python tool/check_i18n.py` to validate duplicate keys, string values and matching language keys.
+- Maintain only `i18n/en_US.json`. Chinese displays source text directly; no compilation or separate validation script is needed.
 
 ### Stop recording
 

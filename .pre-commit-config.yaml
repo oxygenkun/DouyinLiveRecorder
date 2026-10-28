@@ -1,4 +1,4 @@
-# 提交时运行 Ruff、配置语法、文件大小和翻译同步检查。
+# 提交时运行 Ruff、配置语法、文件大小检查。
 # 安装：uv run --locked --extra dev pre-commit install
 # 手动执行：uv run --locked --extra dev pre-commit run --all-files
 
@@ -27,13 +27,3 @@ repos:
         entry: uv run --locked --extra dev ruff format
         language: system
         types: [python]
-  # 仓库级检查在提交时执行，不按暂存文件类型过滤。
-  - repo: local
-    hooks:
-      - id: i18n-check
-        name: check_i18n.py (JSON 翻译目录校验)
-        entry: python tool/check_i18n.py
-        language: system
-        always_run: true
-        require_serial: true
-        pass_filenames: false

@@ -282,7 +282,7 @@ DouyinLiveRecorder/
 ├── tool/                             # 辅助脚本
 │   ├── check_coverage.py               # 逐模块覆盖率检查（CI test job 调用，阈值 MODULE_THRESHOLDS）
 │   ├── compile_po.py                   # gettext 翻译编译（.po → .mo；--check 零副作用校验同步，CI static job 调用）
-│   ├── extract_i18n_strings.py         # i18n 待翻译串提取器（AST 扫描 print/logger 字面量 + 四语目录比对，维护期使用）
+│   ├── extract_i18n_strings.py         # i18n 待翻译串提取器（AST 扫描 print/logger 字面量 + 英文目录比对，维护期使用）
 ├── Dockerfile                          # Docker 构建文件（多阶段）
 ├── docker-compose.yaml                 # Docker Compose（recorder/web 两服务）
 ├── .dockerignore                       # Docker 构建上下文排除文件
@@ -589,21 +589,15 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - `translated_print` 包装 `builtins.print`，自动翻译调用者来自项目根（`src/` 包及 `src/main.py` 等顶层脚本）的输出；`src/main.py` 导入时无条件安装 `builtins.print = translated_print`（任何语言下均安装——zh_CN/zh_TW 把英文常量串译为中文，en_US/en_GB 把中文串译为英文，未知串恒等返回）
 - 支持源码运行和 PyInstaller 打包两种路径检测（`_internal/i18n` vs `i18n/`）
-- **JSON 翻译目录**：`src/i18n.py` 使用标准库直接读取 `i18n/<lang>.json` 的扁平字符串映射，无需编译；目录缺失或损坏时沿用语言回退行为。
+- **英文翻译目录**：中文默认显示源码原文，仅英文读取 `i18n/en_US.json`；英文目录缺失或损坏时回退中文。
 - **语言热切换**：`set_language(lang)` 归一化（`normalize_language` 别名表：zh_cn/zh-CN/en/en-US/zh-Hant/zh_CN.UTF-8 等写法均可）后热替换 `_tr` 翻译函数，无需重启进程。两个切换入口：Web 面板（`GET/PUT /api/language`，写回 config + 热切换 + 前端 `data-i18n` 文案重绘；`PUT` 在配置缺 `language` 键时降级为节末追加补建，不再恒 500）、CLI 主循环（每轮按 config 重同步）
-- 默认语言：简体中文（zh_CN）；受支持语言：zh_CN / en_US / en_GB / zh_TW
+- 默认语言：简体中文（zh_CN）；受支持语言：zh_CN / en_US
 
 **翻译文件**:
 
-| 文件 | 说明 | 条目数 |
-| --- | --- | --- |
-| `i18n/zh_CN/LC_MESSAGES/zh_CN.po` | 简体中文翻译源文件（gettext，可编辑） | 496 |
-| `i18n/zh_CN/LC_MESSAGES/zh_CN.mo` | 编译后的二进制翻译文件（gettext 运行时唯一读取，随仓库/镜像分发） | 496 |
-| `i18n/en_US.json` | 英语（美国）目录（JSON 格式，英文源恒等 + 中文源译英） | 496 |
-| `i18n/en_GB.json` | 英语（英国）目录（JSON 格式，英式拼写：minimise/unrecognised 等） | 496 |
-| `i18n/zh_TW.yaml` | 繁体中文目录（YAML 格式，简→繁字符转换 + 台湾用语适配） | 496 |
+中文直接使用源码原文，仅维护 `i18n/en_US.json` 英文译文。
 
-**维护流程**: 修改 `.po` 后必须执行 `python tool/compile_po.py` 重新编译并一并提交 `.mo`，否则翻译改动不会生效；`python tool/compile_po.py --check`（CI `static` job）在两者不同步时拦截——其内部 `write_mo()` 为**纯内存产出不落盘**，`--check` 模式零副作用、真实比对磁盘上已提交的 `.mo`，仅非 check 模式才写盘。CI 路径过滤器（paths-filter）将 `i18n/**` 视为触发条件：纯翻译变更同样会运行该检查。**四种语言的目录键集合必须一致**（`tests/test_i18n.py::test_catalogs_share_same_keyset` 强制校验）——新增 msgid 时需同步更新四个目录。新增待翻译串的提取与比对用 `python tool/extract_i18n_strings.py`（AST 扫描运行时代码 print 常量串 + logger f-string 模板底稿并与四语目录比对；f-string 模板归一化约定：格式/转换符丢弃、表达式内双引号转单引号；纯占位符模板（如 `{color}{text}`）与 gettext 头部空 msgid 已过滤，不产生噪声）。
+**维护流程**：直接编辑英文 JSON 目录，无需编译或独立目录校验钩子。`python tool/extract_i18n_strings.py` 报告缺失的英文文案；回归测试覆盖翻译行为、文案收录和占位符。
 
 **翻译覆盖范围**（2026-08-27 全量补全后，覆盖运行时全部常量串与 logger 模板底稿）:
 
@@ -2303,3 +2297,8 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 ## JSON 翻译目录（2026-10-28）
 
 四语统一 UTF-8 JSON，每种语言原有 1160 条翻译完整保留。移除 PO/MO 编译与 YAML 目录加载，保留语言热切换、占位符插值和异常回退。CI/pre-commit 改跑 `tool/check_i18n.py`，打包仅纳入 JSON 目录。PyYAML 改为 workflow 测试使用的 dev 依赖（uvicorn standard 仍可能间接安装它）。
+
+
+## 中文原文与英文翻译（2026-10-28）
+
+中文为默认语言，直接使用源码原文，仅保留 `i18n/en_US.json`。英文地区码统一为英文，中文地区码统一为中文；空配置、未知语言、英文目录不可用时均回退中文，不再探测系统语言。删除独立目录检查脚本及 CI/pre-commit 入口，保留行为与英文文案覆盖回归测试。

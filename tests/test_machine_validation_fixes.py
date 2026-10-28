@@ -149,7 +149,7 @@ def test_ws_heartbeat_timeout_closes_connection(monkeypatch: pytest.MonkeyPatch)
     stop_requested_at: list[float] = []
 
     # 断言与语言解耦（手法与口径同 tests/conftest.py::_pin_identity_translation）：本用例要锁的
-    # warning 文案在 en_US/en_GB 目录里都有译文，而同一会话内任何 `import main`（main.py 模块级
+    # warning 文案在 英文目录里有译文，而同一会话内任何 `import main`（main.py 模块级
     # 调 i18n.set_language）都会在**用例运行中**把 i18n._tr 从恒等映射重绑成真目录，于是
     # 「按简中模板断言日志文本」当场失效——2026-09-29 本机实测同文件
     # test_video_postprocess_timeout_logged_as_timeout 正是这样红的。用例内再钉一次恒等。

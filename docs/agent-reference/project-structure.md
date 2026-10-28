@@ -80,11 +80,8 @@
 │   ├── app.js
 │   └── style.css
 │
-├── i18n/                # 翻译目录（统一 JSON）
-│   ├── zh_CN.json              # 简体中文 / Simplified Chinese (JSON)
-│   ├── en_US.json          # 英语（美国）目录（JSON 格式）
-│   ├── en_GB.json          # 英语（英国）目录（JSON 格式）
-│   └── zh_TW.json              # 繁體中文 / Traditional Chinese (JSON)
+├── i18n/                # 英文翻译目录（中文使用源码原文）
+│   └── en_US.json          # 英语（美国）目录（JSON 格式）
 │
 ├── ffmpeg/              # FFmpeg 运行时（自动下载；已忽略二进制）
 ├── node/                # Node.js 运行时（自动下载；已忽略）
@@ -101,8 +98,7 @@
 ├── tool/             # 维护脚本与独立工具（CI 检查、i18n 工具、单文件整合版；运行时链路不引用）
 │   ├── build_exe.py         # PyInstaller 打包脚本
 │   ├── check_coverage.py       # 提交前的逐模块覆盖率检查（阈值见 MODULE_THRESHOLDS）
-│   ├── check_i18n.py           # JSON catalog validation (no compilation)
-│   ├── extract_i18n_strings.py # i18n 待翻译串提取（AST 扫描，与四语目录比对）
+│   ├── extract_i18n_strings.py # i18n 待翻译串提取（AST 扫描，与英文目录比对）
 │   ├── smoke_test.py           # Web/接口冒烟测试工具（JSON 配置驱动，纯标准库）
 │   ├── smoke_web.json          # 冒烟测试接口配置
 │   └── douyin_live_recorder_standalone.py # 单文件整合版录制脚本（抖音/虎牙/B站/斗鱼，零第三方依赖）

@@ -4559,7 +4559,7 @@ def check_ffmpeg_existence() -> bool:
 
 
 # --------------------------初始化程序-------------------------------------
-# i18n 必须先于 banner 的 tr 导入（模块级顺序执行）；此时仍是默认 zh_CN 目录，
+# i18n 必须先于 banner 的 tr 导入（模块级顺序执行）；此时仍是默认中文原文，
 # banner 保持中文原文，与「banner 先于语言解析打印」的既有行为一致。
 from src import i18n
 
@@ -4615,14 +4615,14 @@ def _hot_reload_config() -> bool:
     return True
 
 
-# 读取 language 原始值；空 → 跟随系统语言，不可识别/目录缺失由 i18n.resolve_language 兜底。
+# 读取 language 原始值；空 → 中文，不可识别/目录缺失由 i18n.resolve_language 兜底。
 def _read_language_config(config_parser: configparser.RawConfigParser) -> str:
     return read_config_value(config_parser, "录制设置", "language", "")
 
 
 language = _read_language_config(config)
 
-# i18n 初始化：空 → 系统语言；不可识别/目录缺失 → en_US；随后加载翻译目录并即时生效。
+# i18n 初始化：空 / 不可识别 / 英文目录缺失 → 中文；显式英文配置才加载翻译目录。
 from src.i18n import resolve_language as _i18n_resolve
 from src.i18n import set_language as _i18n_set_language
 
@@ -4704,7 +4704,7 @@ def _apply_ssl_platform_exempt(config_parser: configparser.RawConfigParser) -> s
 _ssl_disable_platforms = _apply_ssl_platform_exempt(config)
 # 热加载时判定「禁用SSL证书验证的平台」是否变化，初值取 import 时的内存态
 _last_ssl_disable_platforms_raw = ",".join(sorted(_ssl_disable_platforms))
-# translated_print 在所有语言下安装：中英互译，未知串恒等返回；语言经 set_language 热切换。
+# translated_print 在所有语言下安装：中文原文、英文查表，未知串恒等返回；语言经 set_language 热切换。
 from src.i18n import translated_print
 
 builtins.print = translated_print  # type: ignore[assignment]

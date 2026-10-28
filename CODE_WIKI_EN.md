@@ -282,7 +282,7 @@ DouyinLiveRecorder/
 ├── tool/                             # 辅助脚本
 │   ├── check_coverage.py               # Per-module coverage gate (invoked by the CI test job, thresholds in MODULE_THRESHOLDS)
 │   ├── compile_po.py                   # gettext catalog compiler (.po → .mo; --check zero-side-effect sync check, invoked by the CI static job)
-│   ├── extract_i18n_strings.py         # i18n pending-translation string extractor (AST scan + four-catalog comparison, maintenance-time tool)
+│   ├── extract_i18n_strings.py         # i18n pending-translation string extractor (AST scan + English catalog comparison, maintenance-time tool)
 ├── Dockerfile                          # Docker 构建文件（多阶段）
 ├── docker-compose.yaml                 # Docker Compose（recorder/web 两服务）
 ├── .dockerignore                       # Docker 构建上下文排除文件
@@ -588,21 +588,15 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - `translated_print` wraps `builtins.print`, automatically translating output whose caller comes from the project root (`src/` package and top-level scripts like `src/main.py`); `src/main.py` unconditionally installs `builtins.print = translated_print` at import time (installed under any language — zh_CN/zh_TW translate English constant strings into Chinese, en_US/en_GB translate Chinese strings into English, unknown strings are returned identically)
 - Supports both source-run and PyInstaller-packaged path detection (`_internal/i18n` vs `i18n/`)
-- **JSON catalogs**: `src/i18n.py` reads flat string mappings from `i18n/<lang>.json` using the standard library; compilation is unnecessary. Missing or corrupt catalogs keep the existing language fallback behavior.
+- **English translations**: Chinese displays source text by default. Only English loads `i18n/en_US.json`; missing or corrupt translations fall back to Chinese.
 - **Hot language switch**: `set_language(lang)` normalizes (via the `normalize_language` alias table: `zh_cn`/`zh-CN`/`en`/`en-US`/`zh-Hant`/`zh_CN.UTF-8` and other spellings all work) then hot-swaps the `_tr` translation function without restarting the process. Two switch entry points: Web panel (`GET/PUT /api/language`, writes back to config + hot switch + redraws frontend `data-i18n` text; on `PUT`, a missing `language` config key now falls back to appending it at the end of its section instead of an unconditional 500), CLI main loop (re-syncs per round from config)
-- Default language: Simplified Chinese (zh_CN); supported languages: zh_CN / en_US / en_GB / zh_TW
+- Default language: Simplified Chinese (zh_CN); supported languages: zh_CN / en_US
 
 **Translation files**:
 
-| File | Description | Entries |
-| --- | --- | --- |
-| `i18n/zh_CN/LC_MESSAGES/zh_CN.po` | Simplified Chinese translation source (gettext, editable) | 496 |
-| `i18n/zh_CN/LC_MESSAGES/zh_CN.mo` | Compiled binary translation (the only file gettext reads at runtime, distributed with repo/image) | 496 |
-| `i18n/en_US.json` | US English catalog (JSON format, English source identical + Chinese source translated to English) | 496 |
-| `i18n/en_GB.json` | UK English catalog (JSON format, British spelling: minimise/unrecognised, etc.) | 496 |
-| `i18n/zh_TW.yaml` | Traditional Chinese catalog (YAML format, simplified→traditional character conversion + Taiwan usage adaptation) | 496 |
+Chinese uses source text directly. Only `i18n/en_US.json` is maintained for English translations.
 
-**Maintenance workflow**: After modifying `.po` you must run `python tool/compile_po.py` to recompile and commit the `.mo` together, otherwise translation changes will not take effect; `python tool/compile_po.py --check` (CI `static` job) blocks when the two are out of sync — internally `write_mo()` is **pure in-memory output with no disk write**, so `--check` has zero side effects and genuinely compares against the committed `.mo` on disk; only non-check mode writes the file. The CI path filter (paths-filter) treats `i18n/**` as a trigger condition: translation-only changes also run this gate. **The key sets of all four language catalogs must be consistent** (enforced by `tests/test_i18n.py::test_catalogs_share_same_keyset`) — when adding a new msgid you must update all four catalogs. To extract and compare pending-translation strings, run `python tool/extract_i18n_strings.py` (AST-scans runtime code for print constant strings + logger f-string template drafts and compares against the four catalogs; f-string template normalization conventions: format/conversion specifiers dropped, double quotes inside expressions converted to single quotes; pure-placeholder templates (e.g. `{color}{text}`) and the gettext header empty msgid are filtered out, producing no noise).
+**Maintenance workflow**: Edit the English JSON catalog directly. No compilation or standalone catalog-check hook is needed. `python tool/extract_i18n_strings.py` reports missing English strings; regression tests cover translation behavior, message coverage and placeholders.
 
 **Translation coverage** (after the full 2026-08-27 replenishment, covering all runtime constant strings and logger template drafts):
 
@@ -2280,3 +2274,8 @@ Runtime modules and CLI / GUI / Web entries now live in `src/`. Maintenance, bui
 ## JSON translation catalogs (2026-10-28)
 
 All four languages use UTF-8 JSON, preserving all 1160 translations per language. Removed PO/MO compilation and YAML catalog loading; runtime switching and formatting fallback stay unchanged. CI/pre-commit run `tool/check_i18n.py`; packaging includes JSON catalogs. PyYAML is now a dev dependency for workflow tests (uvicorn standard may still install it transitively).
+
+
+## Chinese source text and English translations (2026-10-28)
+
+Chinese is the default and needs no catalog; only `i18n/en_US.json` remains. English region codes map to English, Chinese region codes to Chinese. Empty/invalid configuration and unavailable English translations fall back to Chinese without consulting the system language. Removed the standalone catalog checker and its CI/pre-commit entries; existing behavior and English message coverage tests remain.

@@ -1,4 +1,4 @@
-# 盲区锁：raise 位的中文文案必须在「产生点」接 tr()，且四语目录齐全。
+# 盲区锁：raise 位的中文文案必须在「产生点」接 tr()，且英文译文齐全。
 #
 # 为什么必须锁在产生点：这些消息大多作为 `{reason}` 实参插进一条已经 tr() 过的日志模板
 # （main._resolve_hy_fan / _resolve_b23_tv、src/utils._make_trace_error_guard 的 str(e) 分支），
@@ -111,7 +111,7 @@ def test_untranslated_chinese_raise_sites_match_allowlist() -> None:
 
 
 def test_tr_wrapped_raise_msgids_are_covered_by_all_catalogs() -> None:
-    # 「接了 tr() 但忘登记」：运行时静默回退原文、四语界面看不出问题，只有这里能判红。
+    # 「接了 tr() 但忘登记」：运行时静默回退原文、中文界面看不出问题，只有这里能判红。
     _untranslated, translated = collect_raise_sites()
     assert ANCHOR_MSGIDS <= translated, f"解析结果为空或漏站点，判据失效（缺锚点 {sorted(ANCHOR_MSGIDS - translated)}）"
     key_sets = _cached_catalog_key_sets()

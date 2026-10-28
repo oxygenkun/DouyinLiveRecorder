@@ -33,7 +33,7 @@ import src.video_postprocess as vp
 ROOT = Path(__file__).resolve().parents[1]
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]+)\}")
 
-# 本模块新增的 msgid（已并入四语目录；pending 袋子已随中央合并删除）。
+# 本模块新增的 msgid（已并入英文目录；pending 袋子已随中央合并删除）。
 NEW_MSGIDS = [
     "[后处理]无法读取产物目录，本次跳过半成品清理: {out_path} - {type_name}: {e}",
     "[后处理]失败后无法读取产物目录，半成品未清理: {out_path} - {type_name}: {e}",
@@ -347,7 +347,7 @@ class TestSubtitleWriteGuard:
 
 
 # ────────────────────────────────────────────────────────────
-# i18n：新 msgid 已登记 pending（四语目录由主会话统一合并）
+# i18n：新 msgid 已登记 pending（英文目录由主会话统一合并）
 # ────────────────────────────────────────────────────────────
 
 
@@ -369,23 +369,20 @@ def _tr_templates_in_module() -> set[str]:
 def _catalog_keys() -> set[str]:
     from src import i18n
 
-    catalog = i18n._load_translations(i18n.locale_path, "zh_CN")
+    catalog = i18n._load_translations(i18n.locale_path, "en_US")
     assert catalog is not None
     return set(catalog)
 
 
-def _four_catalogs() -> dict[str, dict[str, str]]:
-    # 断言对象是四语目录本身：pending 袋子已按收尾约定删除，「袋子写过、目录没合并」同样要红。
+def _english_catalog() -> dict[str, dict[str, str]]:
+    # 断言对象是英文目录本身：pending 袋子已按收尾约定删除，「袋子写过、目录没合并」同样要红。
     # 复用 i18n 自己的 JSON 加载器，不写第二套解析口径。
     from pathlib import Path
 
     from src import i18n
 
     cats = {
-        "zh_CN": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_CN.json"),
         "en_US": i18n._load_json_catalog(Path(i18n.locale_path) / "en_US.json"),
-        "en_GB": i18n._load_json_catalog(Path(i18n.locale_path) / "en_GB.json"),
-        "zh_TW": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_TW.json"),
     }
     loaded: dict[str, dict[str, str]] = {}
     for lang_key, value in cats.items():
@@ -397,14 +394,13 @@ def _four_catalogs() -> dict[str, dict[str, str]]:
 
 
 def _assert_registered(msgids: set[str] | list[str], cats: dict[str, dict[str, str]] | None = None) -> None:
-    # 「已登记」= 四语目录都有该 msgid，且三条非默认语言的译文**非空**。只查 zh_CN 会漏掉「键在但
-    # 译文空」的静默不翻译；译文留空正是 MI-23 之后「繁体用户看到的仍是简体」的成因形态。
-    cats = cats or _four_catalogs()
+    # 消息必须有非空英文译文。
+    cats = cats or _english_catalog()
     for msgid in msgids:
         missing = sorted(lang for lang, cat in cats.items() if msgid not in cat)
         assert not missing, f"msgid 未并入这些语言目录：{missing} <- {msgid[:60]!r}"
-        for lang in ("en_US", "en_GB", "zh_TW"):
-            # 只断言「非空」：英文源串的 en_US/en_GB 译文按本仓惯例本就是恒等同文
+        for lang in ("en_US",):
+            # 只断言「非空」：英文源串的 英文 译文按本仓惯例本就是恒等同文
             # （如 'Disk space remaining is below'），加「不得等于 msgid」会把恒等惯例打成假失败。
             assert cats[lang][msgid].strip(), f"{lang} 译文为空：{msgid[:40]!r}"
 
@@ -414,11 +410,11 @@ def _assert_translation_parity(msgids: set[str] | list[str], cats: dict[str, dic
     # （zh_TW 曾把 {msg} 写成 {msg_2}，钉钉/微信/Bark/PushPlus 的失败告警整条崩掉）。
     import re
 
-    cats = cats or _four_catalogs()
+    cats = cats or _english_catalog()
     pat = re.compile(r"\{[^{}]*\}")
     for msgid in msgids:
         want = set(pat.findall(msgid))
-        for lang in ("en_US", "en_GB", "zh_TW"):
+        for lang in ("en_US",):
             text = cats[lang].get(msgid, "")
             assert set(pat.findall(text)) == want, f"{lang} 译文占位符与源串不一致：{msgid[:40]!r}"
             assert len(text.splitlines()) == len(msgid.splitlines()), f"{lang} 译文行数与源串不一致：{msgid[:40]!r}"
@@ -426,13 +422,13 @@ def _assert_translation_parity(msgids: set[str] | list[str], cats: dict[str, dic
 
 class TestPendingCatalogEntries:
     def test_all_runtime_templates_are_registered(self) -> None:
-        # 本模块源码里每一处 tr() 模板都必须已并入四语目录（合并前靠 pending 中转，
+        # 本模块源码里每一处 tr() 模板都必须已并入英文目录（合并前靠 pending 中转，
         # 合并后袋子按收尾约定删除，故这里直接对目录取证）
-        cats = _four_catalogs()
-        unregistered = sorted(_tr_templates_in_module() - set(cats["zh_CN"]))
-        assert unregistered == [], f"未并入 zh_CN 目录的本模块模板: {unregistered}"
+        cats = _english_catalog()
+        unregistered = sorted(_tr_templates_in_module() - set(cats["en_US"]))
+        assert unregistered == [], f"未并入英文目录的本模块模板: {unregistered}"
 
-    def test_new_msgids_have_three_langs(self) -> None:
+    def test_new_msgids_have_english_translations(self) -> None:
         _assert_registered(NEW_MSGIDS)
 
     def test_new_msgid_placeholders_render(self) -> None:

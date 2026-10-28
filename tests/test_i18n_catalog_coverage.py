@@ -1,21 +1,13 @@
 # -*- coding: utf-8 -*-
-# 按名传入 i18n.tr() 的 msgid 必须命中四语目录（提取器盲区④的可机检化）。
+# 按名传入 i18n.tr() 的 msgid 必须命中英文目录（提取器盲区④的可机检化）。
 #
 # 为什么单独成文件：tool/extract_i18n_strings.py 与 tests/test_i18n_migration.py 的不变量③
 # 都只看 tr() 的**字面量首参**；`i18n.tr(msgid)`（msgid 来自元组表）、`tr(THEME_LABELS[k])`、
 # `T(title)`（title 是循环变量）这类按名传入对两者完全隐形。2026-10-17 的实测事故即此类：
-# Qt 侧栏导航 msgid 以「两空格」的 📊  控制台 存放在元组里，四目录只有 Tk 遗留的「三空格」形态，
-# 切到 en_US/en_GB/zh_TW 后静默回落简中原文，而提取器仍报「0 缺失」（假绿）。
+# Qt 侧栏导航 msgid 以「两空格」的 📊  控制台 存放在元组里，英文目录只有 Tk 遗留的「三空格」形态，
+# 切到 英文 后静默回落简中原文，而提取器仍报「0 缺失」（假绿）。
 #
-# 三条锁：
-#   ⑤-A 按名调用点解析出的 msgid 候选，必须在**四份目录**里都存在（不止 zh_CN.json）；
-#   ⑤-B 解析不出候选的按名调用点用**白名单集合相等**判定（新增即红、已消解却不收回也红）；
-#   ⑤-C 四份目录键集合逐项相等（单侧漏登记/多登记会让某语言静默回落原文）。
-#
-# 变异验证锚点（删掉任一判据必须让某条用例变红）：把 ⑤-A 的 key_sets 收窄到只查 zh_CN.json →
-# ::test_by_name_msgids_covered_by_catalogs 红；从白名单删掉 msg_push.py:103 →
-# ::test_unresolved_by_name_calls_match_allowlist 红；把 ⑤-C 退化成「只比 po 与 en_US」→
-# ::test_catalog_key_sets_are_identical 红。
+# 回归约束：按名传入的消息必须有英文译文；解析不出的调用点须与白名单一致。
 
 import ast
 import functools
@@ -268,18 +260,8 @@ def _by_name_calls() -> tuple[dict[str, set[str]], list[str]]:
     return {k: set(v) for k, v in pairs}, list(unresolved)
 
 
-def test_catalog_key_sets_are_identical() -> None:
-    # ⑤-C 四语目录键集合逐项相等
-    keys = _cached_catalog_key_sets()
-    baseline = keys["zh_CN.json"]
-    offenders = [
-        f"{name}: 多 {len(v - baseline)} / 少 {len(baseline - v)}" for name, v in keys.items() if v != baseline
-    ]
-    assert not offenders, "四语目录键集合不一致：\n" + "\n".join(offenders)
-
-
 def test_by_name_msgids_covered_by_catalogs() -> None:
-    # ⑤-A 按名传入 tr() 的 msgid 候选必须四目录齐全
+    # ⑤-A 按名传入 tr() 的 msgid 候选必须英文目录齐全
     found, _ = _by_name_calls()
     # 锚点自检：解析结果为空 = 判据本身失效，此时「0 缺失」是假绿
     assert found, "按名调用点解析结果为空，判据失效"

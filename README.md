@@ -35,7 +35,7 @@
 | 🏷️ **主播名自动更新** | 主播改名后自动同步 `URL_config.ini` 并重命名录制目录与文件 |
 | 📱 **消息推送** | 支持钉钉、微信、邮箱、TG、Bark、NTFY、PushPlus 等推送 |
 | 🐳 **Docker 支持** | 支持 Docker 容器化部署，开箱即用 |
-| 🌐 **国际化** | 内置简体中文 / English (US) / English (UK) / 繁體中文 四语，Web 面板**免重启热切换** |
+| 🌐 **国际化** | 中文原文 / English 两种语言，Web 面板**免重启热切换** |
 | ⚙️ **灵活配置** | 支持按直播间自定义画质、格式、分段录制等，配置改动热加载 |
 | 🔐 **Web 安全** | Token 认证、登录爆破限流、路径穿越防护、敏感配置脱敏、未认证写保护 |
 
@@ -227,15 +227,11 @@ DouyinLiveRecorder/
 │   ├── build_exe.py                # PyInstaller 打包脚本（CLI/Web 两入口）
 │   ├── smoke_test.py           # 通用 Web/接口冒烟测试（零依赖，配置驱动）
 │   ├── smoke_web.json          # 冒烟测试示例用例（探活 Web 面板）
-│   ├── check_i18n.py           # JSON catalog validation (no compilation)
 │   ├── check_coverage.py       # 逐模块覆盖率检查（CI 使用）
 ├── downloads/                  # 录制文件保存目录（运行时生成）
 ├── logs/                       # 日志文件目录（运行时生成，含 danmaku_monitor.jsonl）
-├── i18n/                       # 国际化翻译目录（统一 JSON）
-│   ├── zh_CN.json              # 简体中文 / Simplified Chinese (JSON)
-│   ├── en_US.json              # English (US)（JSON 格式目录）
-│   ├── en_GB.json              # English (UK)（英式拼写变体）
-│   └── zh_TW.json              # 繁體中文 / Traditional Chinese (JSON)
+├── i18n/                       # 英文翻译（中文使用源码原文）
+│   └── en_US.json              # English (US)（JSON 格式目录）
 ├── ffmpeg/                     # FFmpeg 目录（Windows）
 ├── node/                       # Node.js 目录（Windows）
 ├── index.html                  # M3U8 视频播放器（独立工具页）
@@ -257,7 +253,7 @@ DouyinLiveRecorder/
 
 ```ini
 [录制设置]
-# 界面语言：zh_CN | en_US | en_GB | zh_TW（留空跟随系统语言；值支持 zh_cn/zh-CN/en/en-GB/zh-Hant 等写法，自动归一；对应语言文件缺失时回退 en_US）
+# 界面语言：zh_CN | en_US（留空使用中文；英文目录缺失时回退中文）
 language =
 # 是否跳过代理检测(是/否)
 是否跳过代理检测(是/否) = 是
@@ -532,7 +528,7 @@ python -m src.web
 - **文件浏览**：浏览 downloads 目录并下载录制文件
 - **实际画质展示**：录制表格显示"设置画质/实际画质"，降级时标红高亮
 - **弹幕查看**：读取弹幕监控枢纽快照，实时展示各房间弹幕事件
-- **语言切换**：顶栏语言选择器，四语即时切换（写回配置并热切换进程内翻译，无需重启）
+- **语言切换**：顶栏语言选择器，中英文即时切换（写回配置并热切换进程内翻译，无需重启）
 
 主要 API 路由（均需 Token，认证关闭时除外）：
 
@@ -624,19 +620,17 @@ Web 模式与命令行模式共用同一录制引擎与配置文件，直播间�
 
 ### 多语言与界面切换
 
-内置四语翻译目录，均直接加载 `i18n/<lang>.json`：
+提供中文和英文，默认中文；仅英文加载 `i18n/en_US.json`：
 
 | 语言码 | 显示名 | 目录文件 |
 | --- | --- | --- |
-| `zh_CN` | 简体中文 | `i18n/zh_CN.json` |
+| `zh_CN` | 中文 | 源码原文，无需翻译文件 |
 | `en_US` | English (US) | `i18n/en_US.json` |
-| `en_GB` | English (UK) | `i18n/en_GB.json` |
-| `zh_TW` | 繁體中文 | `i18n/zh_TW.json` |
 
-- 配置键 `language`：留空跟随系统语言；取值支持 `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` 等写法，自动归一化到规范语言码；键值不可识别或对应语言文件缺失时回退 `en_US`
+- 配置键 `language`：留空使用中文；`en` / `en-US` / `en-GB` 归一为英文，中文地区码归一为中文；未知值或英文目录不可用时回退中文。
 - **热切换**：Web 面板顶栏语言选择器、直接编辑 `config.ini` 两种途径均可切换；命令行主循环每轮检测配置变化并即时重载翻译，**无需重启进程**（录制中的 ffmpeg 子进程不受影响）
 - 翻译不再依赖 `LANG` / `LANGUAGE` 环境变量（Windows 普遍未设置）
-- 直接编辑 `i18n/<lang>.json`，无需编译或额外翻译依赖；运行 `python tool/check_i18n.py` 校验重复键、字符串值与四语键集合。
+- 只需维护 `i18n/en_US.json`，中文直接显示源码原文，无需编译或额外校验脚本。
 
 ### 停止录制
 

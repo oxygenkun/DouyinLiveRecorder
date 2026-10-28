@@ -167,9 +167,7 @@ async def _release_client(client: httpx.AsyncClient) -> None:
         if not client.is_closed:
             await client.aclose()
     except Exception as e:
-        # 复用已在四语目录里的 "关闭失效 AsyncClient 失败: {e}"——新增 tr 模板须同步五处目录
-        # （四份后端 + web/app.js）并重编译 .mo，否则 test_i18n_migration 的
-        # 「运行时模板 ⊆ zh_CN.json 键集合」断言即红。异常类型按本仓硬约定拼进实参。
+        # 复用英文目录中的现有消息模板。
         logger.debug(i18n.tr("关闭失效 AsyncClient 失败: {e}", e=f"{type(e).__name__}: {e}"))
 
 
@@ -594,9 +592,7 @@ class _RedirectHopRejected(httpx.HTTPError):
     def __init__(self, hop_url: str, reason: str) -> None:
         self.hop_url = hop_url
         self.reason = reason
-        # 消息文本只进日志的 {e} 位（两侧调用方都还会再过一次 mask_credentials），属诊断数据
-        # 而非用户可见文案模板，故不走 i18n.tr()：新增 tr 串必须同步四语目录 + web/app.js 并
-        # 重编 .mo（AGENTS「i18n 文案、目录与占位符」），那些文件不在本次改动范围内。
+        # 消息作为已脱敏的诊断数据传入日志模板的 {e}，无需再次查表。
         super().__init__(f"重定向逐跳复检拒绝落地目标: {utils.mask_credentials(hop_url)} - {reason}")
 
 

@@ -1531,7 +1531,7 @@ def test_every_analysis_applies_the_bloat_excludes() -> None:
 
 def test_i18n_datas_include_all_json_catalogs() -> None:
     entries = build_exe.i18n_datas_entries()
-    assert set(entries) == {(f"i18n/{lang}.json", "i18n") for lang in ("zh_CN", "en_US", "en_GB", "zh_TW")}
+    assert set(entries) == {(f"i18n/{lang}.json", "i18n") for lang in ("en_US",)}
 
 
 def test_zip_release_dir_prefixes_members_with_app_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

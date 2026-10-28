@@ -177,7 +177,7 @@ class TestDingtalk:
 
 # 推送模板占位符（2026-10-22 重新设计）：占位符是模板字段，**永不进翻译层**。
 # 守护点：
-#   ① 内置模板在四语言下都只替换成真实值，绝不出现遗留记号或被翻译的字段；
+#   ① 内置模板在中英文下都只替换成真实值，绝不出现遗留记号或被翻译的字段；
 #   ② 旧配置里的中文别名 [直播间名称]/[时间] 仍可渲染（兼容，不要求用户改配置）；
 #   ③ 用户文本里的花括号（主播昵称「兔{酱}」）不会被当成占位符。
 class TestPushTemplateRendering:
@@ -192,7 +192,7 @@ class TestPushTemplateRendering:
 
         original = i18n.get_language()
         try:
-            for lang in ("zh_CN", "en_US", "en_GB", "zh_TW"):
+            for lang in ("zh_CN", "en_US"):
                 i18n.set_language(lang)
                 for template in (self.LIVE_ON, self.LIVE_OFF):
                     out = render_push_content(template, self.ROOM, self.TIME)

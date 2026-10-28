@@ -282,7 +282,7 @@
             .replace(/'/g, '&#39;');
     }
 
-    // 6b. 前端 i18n：界面文案字典（语言集与后端 i18n.py 一致：zh_CN / en_US / en_GB / zh_TW）。
+    // 6b. 前端 i18n：界面文案字典（语言集与后端 i18n.py 一致：zh_CN / en_US）。
     // 后端负责控制台/日志输出翻译（GET/PUT /api/language 即时热切换），前端只负责静态界面文案：
     // data-i18n / data-i18n-placeholder / data-i18n-title 属性 + t() 动态拼接。
     // 下面四套目录是**字符串数据**（等同代码），键与值都不可随手改：四套键集必须逐一相等，且覆盖
@@ -290,7 +290,7 @@
     // 的 MIN-10 段机检（它从声明处按大括号配平截取本字典再求值，故声明行与键名不可重排或改名）。
     // 同步范围（实测）：面板点分键（config.save / common.cancel / danmaku.* 等）只进下面四套内嵌目录
     // ——后端 i18n/ 下的 gettext 目录按**中文源串**作 msgid、只服务控制台/推送，往里塞面板键只会
-    // 得到无人 import 的孤儿 msgid（check_i18n.py 与 extract_i18n_strings.py 都不报）。其余
+    // 得到无人 import 的孤儿 msgid（extract_i18n_strings.py 都不报）。其余
     // 用户可见文案仍「五处同改」（四份 i18n 目录 + 本文件），见 AGENTS.md 的 i18n 扫描盲区清单。
     var LANG_KEY = 'dlr_lang';
     var currentLang = 'zh_CN';
@@ -429,138 +429,6 @@
             'toast.downloadFailed': 'Download failed: ', 'toast.loginExpired': 'Login expired, please log in again',
             'toast.saveFailed': 'Save failed: ', 'toast.langSwitched': 'Language switched',
             'toast.langSwitchFailed': 'Language switch failed: '
-        },
-        en_GB: {
-            'title': 'DouyinLiveRecorder Panel', 'brand': 'Live Recording Panel',
-            'tab.dashboard': 'Dashboard', 'tab.danmaku': 'Danmaku', 'tab.rooms': 'Rooms',
-            'tab.config': 'Config', 'tab.files': 'Files', 'logout': 'Log out',
-            'theme.toggle': 'Toggle theme', 'language.select': 'Language',
-            'login.title': 'Log in', 'login.password': 'Access password', 'login.submit': 'Log in', 'login.failed': 'Log in failed',
-            'dashboard.engineWarning': '⚠️ The recording engine has stopped. Check logs or restart the service',
-            'dashboard.statusUnavailable': '⚠️ Failed to fetch status data; the panel may be showing stale values (backend error code status_unavailable)',
-            'dashboard.monitoring': 'Monitoring', 'dashboard.recording': 'Recording',
-            'dashboard.errors': 'Errors (total/recent)', 'dashboard.disk': 'Disk free (GB)',
-            'dashboard.recordingNow': 'Recording now', 'dashboard.logs': 'Live logs',
-            'recording.state.on': 'Recording active', 'recording.state.off': 'Recording stopped',
-            'recording.state.probeFailed': 'Status evidence unavailable',
-            'recording.start': 'Start recording', 'recording.stop': 'Stop recording',
-            'toast.recordingStarted': 'Recording started', 'toast.recordingStopped': 'Recording stopped',
-            'col.name': 'Name', 'col.platform': 'Platform', 'col.status': 'Status', 'col.startTime': 'Start time',
-            'col.duration': 'Duration', 'col.qualitySet': 'Set quality', 'col.qualityActual': 'Actual quality',
-            'col.url': 'URL', 'col.enabled': 'Enabled', 'col.recording': 'Recording', 'col.actions': 'Actions',
-            'col.type': 'Type', 'col.size': 'Size', 'col.mtime': 'Modified',
-            'empty.noRecording': 'No recordings', 'loading': 'Loading...', 'loadFailed': 'Load failed',
-            'danmaku.rooms': 'Danmaku rooms', 'danmaku.col.total': 'Messages', 'danmaku.col.rate': 'Rate (msg/min)',
-            'danmaku.col.gifts': 'Gifts', 'danmaku.col.online': 'Online', 'danmaku.emptyRooms': 'No monitoring data',
-            'danmaku.unavailable': 'Failed to fetch danmaku monitoring status; showing the last data retrieved successfully (backend error code danmaku_unavailable)',
-            'danmaku.live': 'Live danmaku', 'danmaku.allRooms': 'All rooms', 'danmaku.clear': 'Clear',
-            'danmaku.connected': 'Connected', 'danmaku.disconnected': 'Disconnected', 'danmaku.noData': 'No danmaku data',
-            // F-21 (2026-09-12): empty state shown when the room filter matches nothing
-            'danmaku.noMatch': 'No danmaku under the current filter — try another room or "All rooms"',
-            'danmaku.gift': '[Gift] ', 'danmaku.sc': '[SC] ', 'danmaku.dropped': ' messages omitted)',
-            'danmaku.truncated': '(Too many messages, some collapsed)',
-            'danmaku.hint': 'No data? Enable "是否弹幕监控(是/否)" in Config → Recording settings, and make sure the platform supports danmaku (Douyu/Bilibili/Huya/Douyin/Twitch)',
-            'rooms.add': 'Add room', 'rooms.urlPlaceholder': 'Live room URL', 'rooms.defaultQuality': 'Default quality',
-            'rooms.namePlaceholder': 'Streamer name (optional)', 'rooms.addBtn': 'Add', 'rooms.list': 'Room list',
-            'rooms.empty': 'No rooms', 'rooms.delete': 'Delete', 'rooms.enter': 'Open', 'rooms.download': 'Download',
-            'rooms.deleteConfirm': 'Delete this room?',
-            'rooms.manageQuality': 'Quality options', 'rooms.addQuality': 'Add quality',
-            'rooms.qualityHint': 'Quality options are stored in config.ini and used by the Web room quality selector; only built-in tiers can be selected (custom names are not recognised by the recording engine)',
-            'rooms.qualityEmpty': 'All added', 'rooms.qualityAddBtn': 'Add',
-            'toast.qualityAdded': 'Quality option added', 'toast.qualityRemoved': 'Quality option removed',
-            'toast.qualitySaveFailed': 'Failed to save quality options: ', 'toast.qualityLoadFailed': 'Failed to load quality options: ',
-            'toast.qualityChanged': 'Quality changed to {q}, effective on the next check cycle', 'toast.qualityReset': 'Reset to default quality, effective on the next check cycle',
-            'toast.qualityChangeFailed': 'Failed to change quality: ',
-            'config.title': 'Recording & Push Config', 'config.save': 'Save config', 'config.noChanges': 'No changes',
-            'config.saved': 'Saved {n} items', 'config.loadFailed': 'Load failed', 'config.none': 'No config',
-            'config.hint.https': 'On = HTTPS recording with SSL certificate verification skipped; Off = HTTP recording with default certificate verification (merges the former "force HTTPS" and "disable SSL verification" options)',
-            'config.hint.sslOn': 'HTTPS mode: certificate verification is globally skipped; this list is not needed (kept for compatibility)',
-            'config.hint.sslOff': 'HTTP mode: certificates are verified by default; platforms in this list skip verification (for platforms with broken certificates, e.g. Huya/Bilibili)',
-            'config.deprecated': 'Merged into "是否启用https录制"; this option no longer takes effect',
-            // MID-37: hints for masked credentials (inline note / clear confirmation / skipped count / server rejection)
-            'config.hint.masked': 'This value is masked as ***; the real value is still stored server-side. Submitting it empty requires confirmation, and the server refuses to blank sensitive items',
-            'config.clearSecretConfirm': '"{k}" currently shows the mask ***; submitting an empty value would overwrite the real credential with an empty string (not automatically reversible). Submit the empty value anyway?',
-            'config.secretSkipped': 'Skipped {n} empty submission(s) for masked credentials',
-            'config.saveRejected': 'Rejected by server: ',
-            'config.partialSaved': 'Applied {n} item(s); item {m} failed and the remaining changes were not submitted (server values reloaded)',
-            'config.authChangeConfirm': 'You are about to change the authentication setting "{k}": this alters who can reach this panel (disabling auth or resetting the password may let any local process take control), and the change is not reverted by revoking tokens. Submit?',
-            'config.authChangeSkipped': 'Skipped {n} authentication-related change(s) (not confirmed)',
-            'config.authChangeReauth': 'Re-enter the current Web password (required to change authentication settings; leave blank or cancel to discard this change):',
-            'files.title': 'Recordings', 'files.root': 'Root', 'files.emptyDir': 'Empty folder',
-            'common.yes': 'Yes', 'common.no': 'No', 'common.cancel': 'Cancel', 'common.unauthorized': 'Unauthorised',
-            'common.requestFailed': 'Request failed',
-            'toast.enabled': 'Enabled', 'toast.disabled': 'Disabled', 'toast.opFailed': 'Operation failed: ',
-            'toast.deleted': 'Deleted', 'toast.deleteFailed': 'Delete failed: ', 'toast.added': 'Added',
-            'toast.addFailed': 'Add failed: ', 'toast.urlRequired': 'Please enter a live room URL',
-            'toast.downloadFailed': 'Download failed: ', 'toast.loginExpired': 'Log in expired, please log in again',
-            'toast.saveFailed': 'Save failed: ', 'toast.langSwitched': 'Language switched',
-            'toast.langSwitchFailed': 'Language switch failed: '
-        },
-        zh_TW: {
-            'title': 'DouyinLiveRecorder 管理面板', 'brand': '直播錄製管理面板',
-            'tab.dashboard': '儀表板', 'tab.danmaku': '彈幕監控', 'tab.rooms': '直播間',
-            'tab.config': '設定', 'tab.files': '檔案', 'logout': '登出',
-            'theme.toggle': '切換主題', 'language.select': '語言',
-            'login.title': '登入', 'login.password': '存取密碼', 'login.submit': '登入', 'login.failed': '登入失敗',
-            'dashboard.engineWarning': '⚠️ 錄製引擎已停止執行，請檢查日誌或重新啟動服務',
-            'dashboard.statusUnavailable': '⚠️ 狀態資料取得失敗，面板資料可能不是最新的（後端錯誤碼 status_unavailable）',
-            'dashboard.monitoring': '監測中', 'dashboard.recording': '錄製中',
-            'dashboard.errors': '錯誤數(累計/近期)', 'dashboard.disk': '磁碟剩餘(GB)',
-            'dashboard.recordingNow': '正在錄製', 'dashboard.logs': '即時日誌',
-            'recording.state.on': '錄製運行中', 'recording.state.off': '錄製已停止',
-            'recording.state.probeFailed': '狀態取證失敗',
-            'recording.start': '開始錄製', 'recording.stop': '停止錄製',
-            'toast.recordingStarted': '錄製已開始', 'toast.recordingStopped': '錄製已停止',
-            'col.name': '名稱', 'col.platform': '平台', 'col.status': '狀態', 'col.startTime': '開始時間',
-            'col.duration': '已錄時長', 'col.qualitySet': '設定畫質', 'col.qualityActual': '實際畫質',
-            'col.url': '位址', 'col.enabled': '啟用', 'col.recording': '錄製中', 'col.actions': '操作',
-            'col.type': '類型', 'col.size': '大小', 'col.mtime': '修改時間',
-            'empty.noRecording': '暫無錄製', 'loading': '載入中...', 'loadFailed': '載入失敗',
-            'danmaku.rooms': '彈幕房間', 'danmaku.col.total': '累計彈幕', 'danmaku.col.rate': '速率(條/分)',
-            'danmaku.col.gifts': '禮物', 'danmaku.col.online': '線上', 'danmaku.emptyRooms': '暫無監控資料',
-            'danmaku.unavailable': '彈幕監控狀態取得失敗，以下為最後一次成功取得的資料（後端錯誤碼 danmaku_unavailable）',
-            'danmaku.live': '即時彈幕', 'danmaku.allRooms': '全部房間', 'danmaku.clear': '清空',
-            'danmaku.connected': '已連線', 'danmaku.disconnected': '已斷線', 'danmaku.noData': '暫無彈幕資料',
-            // F-21（2026-09-12）：篩選無匹配時的空態提示
-            'danmaku.noMatch': '目前篩選條件下沒有彈幕，請切換房間或選擇「全部房間」',
-            'danmaku.gift': '[禮物] ', 'danmaku.sc': '[SC] ', 'danmaku.dropped': ' 條已省略)',
-            'danmaku.truncated': '（訊息量過大，部分已摺疊）',
-            'danmaku.hint': '未看到資料？請在「設定 → 錄製設定」開啟「是否彈幕監控(是/否)」，且直播間平台需支援彈幕（鬥魚/B站/虎牙/抖音/Twitch）',
-            'rooms.add': '新增直播間', 'rooms.urlPlaceholder': '直播間位址', 'rooms.defaultQuality': '預設畫質',
-            'rooms.namePlaceholder': '主播名稱（可選）', 'rooms.addBtn': '新增', 'rooms.list': '直播間列表',
-            'rooms.empty': '暫無直播間', 'rooms.delete': '刪除', 'rooms.enter': '進入', 'rooms.download': '下載',
-            'rooms.deleteConfirm': '確認刪除該直播間？',
-            'rooms.manageQuality': '畫質選項', 'rooms.addQuality': '新增畫質',
-            'rooms.qualityHint': '畫質選項存於 config.ini，Web 由 Web 直播間畫質選單使用；僅內建檔位可選（自訂名稱不會被錄製引擎識別）',
-            'rooms.qualityEmpty': '已全部新增', 'rooms.qualityAddBtn': '新增',
-            'toast.qualityAdded': '已新增畫質選項', 'toast.qualityRemoved': '已移除畫質選項',
-            'toast.qualitySaveFailed': '儲存畫質選項失敗: ', 'toast.qualityLoadFailed': '載入畫質選項失敗: ',
-            'toast.qualityChanged': '已切換畫質為 {q}，下一輪檢測循環生效', 'toast.qualityReset': '已恢復預設畫質，下一輪檢測循環生效',
-            'toast.qualityChangeFailed': '切換畫質失敗: ',
-            'config.title': '錄製與推送設定', 'config.save': '儲存設定', 'config.noChanges': '無變更',
-            'config.saved': '已儲存 {n} 項', 'config.loadFailed': '載入失敗', 'config.none': '無設定',
-            'config.hint.https': '開啟 = HTTPS 錄製並跳過 SSL 憑證校驗；關閉 = HTTP 錄製並恢復預設憑證校驗（已整合原「是否強制啟用https錄製」與「是否禁用SSL憑證驗證」）',
-            'config.hint.sslOn': 'HTTPS 錄製模式：已全域跳過 SSL 憑證校驗，此列表無需設定（相容保留）',
-            'config.hint.sslOff': 'HTTP 錄製模式：預設校驗憑證；列表內平台將跳過憑證校驗（適用於憑證異常平台，如虎牙/B站）',
-            'config.deprecated': '已整合進「是否啟用https錄製」，此設定不再生效',
-            // MID-37：遮罩憑據的四條提示（行內說明 / 清空確認 / 跳過統計 / 服務端拒絕）
-            'config.hint.masked': '該項已脫敏為 *** ，原值仍儲存於服務端；提交空值需要先確認，且服務端不允許清空敏感項',
-            'config.clearSecretConfirm': '「{k}」目前顯示的是遮罩 ***，提交空值會嘗試以空字串覆寫真實憑據（無法自動回滾）。確定仍要提交空值嗎？',
-            'config.secretSkipped': '已跳過 {n} 項遮罩憑據的空值提交',
-            'config.saveRejected': '服務端拒絕儲存: ',
-            'config.partialSaved': '已套用 {n} 項，第 {m} 項失敗，其餘變更未提交（已回拉服務端真值）',
-            'config.authChangeConfirm': '即將修改認證相關設定「{k}」：這會改變誰能存取本面板（關閉認證或改寫口令都可能讓本機任意程序取得控制權），且該變更不隨 token 吊銷而回滾。確認提交？',
-            'config.authChangeSkipped': '已跳過 {n} 項認證相關變更（未確認）',
-            'config.authChangeReauth': '請複驗目前 Web 口令（修改認證設定需要；留空或取消即放棄本次變更）:',
-            'files.title': '錄製檔案', 'files.root': '根目錄', 'files.emptyDir': '空資料夾',
-            'common.yes': '是', 'common.no': '否', 'common.cancel': '取消', 'common.unauthorized': '未授權',
-            'common.requestFailed': '請求失敗',
-            'toast.enabled': '已啟用', 'toast.disabled': '已停用', 'toast.opFailed': '操作失敗: ',
-            'toast.deleted': '已刪除', 'toast.deleteFailed': '刪除失敗: ', 'toast.added': '已新增',
-            'toast.addFailed': '新增失敗: ', 'toast.urlRequired': '請輸入直播間位址',
-            'toast.downloadFailed': '下載失敗: ', 'toast.loginExpired': '登入已過期，請重新登入',
-            'toast.saveFailed': '儲存失敗: ', 'toast.langSwitched': '語言已切換',
-            'toast.langSwitchFailed': '語言切換失敗: '
         }
     };
 
@@ -594,8 +462,8 @@
     function initLanguage() {
         var sel = $('language-select');
         if (!sel) return;
-        var langNames = { zh_CN: '简体中文', en_US: 'English (US)', en_GB: 'English (UK)', zh_TW: '繁體中文' };
-        var codes = ['zh_CN', 'en_US', 'en_GB', 'zh_TW'];
+        var langNames = { zh_CN: '中文', en_US: 'English' };
+        var codes = ['zh_CN', 'en_US'];
         var opts = '';
         for (var i = 0; i < codes.length; i++) {
             opts += '<option value="' + codes[i] + '">' + langNames[codes[i]] + '</option>';
@@ -617,8 +485,7 @@
     }
 
     // MID-2239：PUT /api/language 的响应（language/fallback/notice）必须被消费，并按**生效码**更新，
-    // 不得按请求值回写。典型失效：zh_TW.json 缺失使繁体目录装载不到 → 后端实际生效并落盘 en_US，前端却
-    // 切成内嵌 zh_TW 并把偏好写成 zh_TW、回退说明一次都不显示（即 MID-52 的「面板与进程各说一种语言」）。
+    // 英文目录不可用时后端回退中文，前端必须使用响应中的生效码。
     function setLanguage(target) {
         api('/api/language', { method: 'PUT', body: { language: target } }).then(function (res) {
             // 以**生效码**为准：后端回什么就切什么、就持久化什么

@@ -2450,14 +2450,14 @@ class TestLanguageApi:
 
     def test_get_language_returns_current_and_available(self, app_env: types.SimpleNamespace) -> None:
         # GET /api/language 须返回当前语言码与全部可用语言集合；
-        # 断言集合**全等**而非包含：四语目录多一门或少一门（zh_TW 走 YAML、依赖 PyYAML）
+        # 断言集合**全等**而非包含：语言列表多一门或少一门
         # 都必须在这里显形，否则面板下拉会列出点不开的语言。
         token = _login(app_env.client)
         resp = app_env.client.get("/api/language", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["language"] in ("zh_CN", "en_US", "en_GB", "zh_TW")
-        assert set(data["available"].keys()) == {"zh_CN", "en_US", "en_GB", "zh_TW"}
+        assert data["language"] in ("zh_CN", "en_US")
+        assert set(data["available"].keys()) == {"zh_CN", "en_US"}
 
     def test_put_language_switches_and_persists(self, app_env: types.SimpleNamespace) -> None:
         from src import i18n as i18n_module
@@ -2479,7 +2479,7 @@ class TestLanguageApi:
             _ = i18n_module.set_language(saved)
 
     def test_put_language_accepts_alias(self, app_env: types.SimpleNamespace) -> None:
-        # 方言码 "zh-TW" 须被规整为内部键 "zh_TW"；锁住别名归一契约，
+        # 方言码 "zh-TW" 须被规整为中文 "zh_CN"；锁住别名归一契约，
         # 归一后的内部键须同时体现在应答与落盘两处；本条只断应答，落盘侧的
         # "language = en_US" 由 test_put_language_switches_and_persists 负责，两条不互相顶替。
         from src import i18n as i18n_module
@@ -2492,7 +2492,7 @@ class TestLanguageApi:
                 "/api/language", json={"language": "zh-TW"}, headers={"Authorization": f"Bearer {token}"}
             )
             assert resp.status_code == 200
-            assert resp.json()["language"] == "zh_TW"
+            assert resp.json()["language"] == "zh_CN"
         finally:
             _ = i18n_module.set_language(saved)
 
@@ -2543,14 +2543,14 @@ class TestLanguageApi:
 
         # 目标节是最后一节且文件无尾换行：追加后不应与原末行粘连
         cfg.write_text("[Web]\nweb_auth = true\n[录制设置]\ndelay = 5", encoding="utf-8-sig")
-        assert append_config_line(str(cfg), "录制设置", "language", "zh_TW") is True
+        assert append_config_line(str(cfg), "录制设置", "language", "zh_CN") is True
         text = cfg.read_text(encoding="utf-8-sig")
-        assert "delay = 5\nlanguage = zh_TW" in text
+        assert "delay = 5\nlanguage = zh_CN" in text
 
         # 节缺失：文件尾新建节再插键，返回 True
         cfg.write_text("[Web]\nweb_auth = true\n", encoding="utf-8-sig")
-        assert append_config_line(str(cfg), "录制设置", "language", "en_GB") is True
-        assert "[录制设置]\nlanguage = en_GB\n" in cfg.read_text(encoding="utf-8-sig")
+        assert append_config_line(str(cfg), "录制设置", "language", "en_US") is True
+        assert "[录制设置]\nlanguage = en_US\n" in cfg.read_text(encoding="utf-8-sig")
 
     def test_put_language_rejects_empty(self, app_env: types.SimpleNamespace) -> None:
         # 空白串与「白名单外的码」共用同一条 400（`not value.strip() or not is_recognized_language(...)`）；
@@ -2565,7 +2565,7 @@ class TestLanguageApi:
         self, app_env: types.SimpleNamespace, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # MID-52（Web 半边）：i18n.set_language() 现在返回**实际生效**的语言码——它按
-        # resolve_language 的口径查 has_catalog，目录缺失或损坏（zh_TW.json 加载不了、
+        # resolve_language 的口径查 has_catalog，目录缺失或损坏（en_US.json 加载不了、
         # 发行包漏装某语言文件）时回退。端点必须落盘并应答这个生效码：写请求值会让
         # 面板进程装载着回退语言的译文、而录制子进程每轮重解析到另一码 → 同一部署两种语言。
         from src import i18n as i18n_module
@@ -2575,24 +2575,24 @@ class TestLanguageApi:
             self._write_language_section(app_env.cfg, "zh_cn")
             real_has_catalog = i18n_module.has_catalog
 
-            def _no_zh_tw(lang: str) -> bool:
-                return lang != "zh_TW" and real_has_catalog(lang)
+            def _no_en_us(lang: str) -> bool:
+                return lang != "en_US" and real_has_catalog(lang)
 
-            monkeypatch.setattr(i18n_module, "has_catalog", _no_zh_tw)
+            monkeypatch.setattr(i18n_module, "has_catalog", _no_en_us)
             token = _login(app_env.client)
             resp = app_env.client.put(
-                "/api/language", json={"language": "zh-TW"}, headers={"Authorization": f"Bearer {token}"}
+                "/api/language", json={"language": "en_US"}, headers={"Authorization": f"Bearer {token}"}
             )
             assert resp.status_code == 200, resp.text
             body = resp.json()
-            assert body["language"] == "en_US"  # 生效码，不是请求值
-            assert body["requested"] == "zh_TW"
+            assert body["language"] == "zh_CN"  # 生效码，不是请求值
+            assert body["requested"] == "en_US"
             assert body["fallback"] is True
             assert body["notice"]
             text = app_env.cfg.read_text(encoding="utf-8-sig")
-            assert "language = en_US" in text
-            assert "zh_TW" not in text  # 缺目录的码一律不落盘
-            assert i18n_module.get_language() == "en_US"
+            assert "language = zh_CN" in text
+            assert "en_US" not in text  # 缺目录的码一律不落盘
+            assert i18n_module.get_language() == "zh_CN"
         finally:
             _ = i18n_module.set_language(saved)
 
@@ -2606,13 +2606,13 @@ class TestLanguageApi:
             self._write_language_section(app_env.cfg, "zh_cn")
             token = _login(app_env.client)
             resp = app_env.client.put(
-                "/api/language", json={"language": "en_GB"}, headers={"Authorization": f"Bearer {token}"}
+                "/api/language", json={"language": "en_US"}, headers={"Authorization": f"Bearer {token}"}
             )
             assert resp.status_code == 200, resp.text
             body = resp.json()
-            assert body["language"] == "en_GB" and body["requested"] == "en_GB"
+            assert body["language"] == "en_US" and body["requested"] == "en_US"
             assert body["fallback"] is False and body["notice"] == ""
-            assert "language = en_GB" in app_env.cfg.read_text(encoding="utf-8-sig")
+            assert "language = en_US" in app_env.cfg.read_text(encoding="utf-8-sig")
         finally:
             _ = i18n_module.set_language(saved)
 

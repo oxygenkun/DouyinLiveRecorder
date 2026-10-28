@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-# 国际化：直接读取 i18n/<lang>.json 中的「原文 → 译文」映射，无需编译。
+# 国际化：中文直接使用源码原文，英文读取 i18n/en_US.json，无需编译。
 #
 # 运行时切换：set_language(lang) 热替换翻译函数（_tr），后续 print/logger 输出
 # 即时使用新语言，无需重启进程（Web 面板 的即时切换语言功能依赖此入口）。
 #
 # 语言解析：resolve_language(value) 为配置键 language 的统一解析入口——
-# 空 → 系统语言（detect_system_language）；不可识别或语言目录文件缺失 → en_US 回退。
+# 未配置、不可识别或英文目录缺失时使用中文。
 
 import builtins
 import inspect
 import json
-import locale
 import os
 import sys
 from pathlib import Path
@@ -18,17 +17,15 @@ from typing import Any, Callable, TextIO
 
 # 支持的语言（有序；键为规范语言码，值为界面显示名，供 Web 语言选择器使用）
 SUPPORTED_LANGUAGES: dict[str, str] = {
-    "zh_CN": "简体中文 (Simplified Chinese)",
-    "en_US": "English (US)",
-    "en_GB": "English (UK)",
-    "zh_TW": "繁體中文 (Traditional Chinese)",
+    "zh_CN": "中文",
+    "en_US": "English",
 }
 
 # 默认语言（源码输出以中文为主、部分英文常量串，缺失翻译时回退恒等映射）
 DEFAULT_LANGUAGE = "zh_CN"
 
-# 回退语言：配置键值不可识别、或对应语言的目录文件缺失时，统一回退显示该语言
-FALLBACK_LANGUAGE = "en_US"
+# 配置无效或英文目录不可用时，回退到源码原文。
+FALLBACK_LANGUAGE = DEFAULT_LANGUAGE
 
 # 语言别名归一化表：配置文件/浏览器/历史键值里的各种写法 → 规范语言码。
 # 键统一为「小写 + 连字符」形态（normalize_language 会把下划线归一为连字符后查表）
@@ -39,11 +36,11 @@ _LANGUAGE_ALIASES: dict[str, str] = {
     "zh-sg": "zh_CN",
     "en": "en_US",
     "en-us": "en_US",
-    "en-gb": "en_GB",
-    "zh-tw": "zh_TW",
-    "zh-hant": "zh_TW",
-    "zh-hk": "zh_TW",
-    "zh-mo": "zh_TW",
+    "en-gb": "en_US",
+    "zh-tw": "zh_CN",
+    "zh-hant": "zh_CN",
+    "zh-hk": "zh_CN",
+    "zh-mo": "zh_CN",
 }
 
 
@@ -83,70 +80,14 @@ def normalize_language(value: str | None) -> str:
     return DEFAULT_LANGUAGE
 
 
-# 检测系统语言，失败返回 None（不抛异常）：
-#   1) 环境变量 LANGUAGE / LC_ALL / LC_MESSAGES / LANG（LANGUAGE 为冒号分隔列表，
-#      取首项；C / POSIX 视为未设置）
-#   2) Windows：用户默认 UI 语言（LANGID 经 locale.windows_locale 映射为 zh_CN 等代码）
-#   3) POSIX：locale.getlocale()（进程已 setlocale 时有效；C / POSIX 结果同样视为未设置，
-#      实测 Linux CI 的 LANG=C 进程里 getlocale() 返回 ('C', None)，不拦会原样泄漏 "C"）
-def detect_system_language() -> str | None:
-    for var in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
-        value = os.environ.get(var, "").strip()
-        if value and value.upper() not in ("C", "POSIX"):
-            return value.split(":")[0].strip() or None
-    if sys.platform == "win32":
-        win_lang = _windows_ui_language()
-        if win_lang:
-            return win_lang
-    try:
-        current = locale.getlocale()[0]
-    except ValueError:
-        current = None
-    if current and current.upper() not in ("C", "POSIX"):
-        return current
-    return None
-
-
-# Windows 用户默认 UI 语言代码（如 zh_CN / en_US）；非 Windows 或调用失败返回 None
-def _windows_ui_language() -> str | None:
-    # 平台门控放函数体首行：WinDLL 仅存在于 Windows typeshed，裸引用会让 mypy 在
-    # 非 win32 平台（CI 的 linux runner）报 attr-defined（通过平台判断门控）
-    if sys.platform != "win32":
-        return None
-    try:
-        import ctypes
-
-        # WinDLL 而非 windll：与 web.py 的 Windows API 调用惯例一致（显式声明返回类型）
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.GetUserDefaultUILanguage.restype = ctypes.c_uint16
-        lang_id = int(kernel32.GetUserDefaultUILanguage())
-    except Exception:
-        return None
-    return locale.windows_locale.get(lang_id)
-
-
-# 目录必须能加载出非空映射，避免损坏或漏装时回报虚假的语言切换成功。
+# 中文无需目录；英文目录缺失或损坏时不得回报虚假的切换成功。
 def has_catalog(lang: str) -> bool:
-    return bool(_load_translations(locale_path, lang))
+    return lang == DEFAULT_LANGUAGE or bool(_load_translations(locale_path, lang))
 
 
-# 把配置语言键值解析为最终显示语言（CLI/Web 启动初始化与热切换的统一入口）：
-#   空 / 缺失         → 系统语言（检测结果不可用或无对应目录时回退 FALLBACK_LANGUAGE）
-#   可识别且有目录    → 该语言（别名归一化，如 zh-cn → zh_CN）
-#   不可识别 / 无目录 → FALLBACK_LANGUAGE（en_US）
 def resolve_language(value: str | None) -> str:
-    raw = (value or "").strip()
-    if not raw:
-        system_lang = detect_system_language()
-        if system_lang and is_recognized_language(system_lang):
-            normalized = normalize_language(system_lang)
-            if has_catalog(normalized):
-                return normalized
-        return FALLBACK_LANGUAGE
-    if not is_recognized_language(raw):
-        return FALLBACK_LANGUAGE
-    normalized = normalize_language(raw)
-    return normalized if has_catalog(normalized) else FALLBACK_LANGUAGE
+    language = normalize_language(value)
+    return language if has_catalog(language) else DEFAULT_LANGUAGE
 
 
 # 检测执行目录，支持打包后 (_internal) 和源码两种运行方式
@@ -189,8 +130,10 @@ def _load_json_catalog(path: Path) -> dict[str, str] | None:
     return {k: v for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
 
 
-# 所有语言统一使用 JSON 目录。
+# 中文原文无需加载翻译文件。
 def _load_translations(locale_dir: str | Path, lang: str) -> dict[str, str] | None:
+    if lang == DEFAULT_LANGUAGE:
+        return None
     return _load_json_catalog(Path(locale_dir) / f"{lang}.json")
 
 
@@ -210,37 +153,13 @@ _tr: Callable[[str], str] = _build_translator(locale_path, DEFAULT_LANGUAGE)
 original_print = builtins.print  # 保存原始 print 函数
 
 
-# 切换当前语言：归一化 → 目录可用性判定 → 加载翻译目录 → 热替换 _tr。
-# 返回**实际生效**的语言码（调用方据此写配置 / 提示用户），而不是布尔「请求是否合法」。
-# MID-52：目录缺失或损坏时（如发行包漏装 en_GB.json）按 resolve_language
-# 的口径回退 FALLBACK_LANGUAGE，保证 _current_language 与实际装载的目录**永远一致**——旧实现回报
-# 请求码，「语言已切换」是假的，且该码写回 config.ini 后录制子进程经 resolve_language 落到 en_US：
-# 同一部署两种语言。注意：本函数刻意不做系统语言探测（那是 resolve_language 的职责，CLI/Web 入口
-# 已先调用），否则「set_language('') 应为默认语言」的既有语义会被宿主环境改掉。
+# 返回实际生效的语言，供调用方写回配置。
 def set_language(lang: str | None) -> str:
     global _current_language, _tr
-    effective = _effective_language(lang)
+    effective = resolve_language(lang)
     _current_language = effective
     _tr = _build_translator(locale_path, effective)
     return effective
-
-
-# 把「请求的语言」折算为「有目录可加载的生效语言」；候选按优先级排列。
-# 全部候选都没有目录（理论上只出现在「整个 i18n 目录没装好」的畸形发行包）时返回 FALLBACK_LANGUAGE
-# ——与 resolve_language 在同一情形下的答案一致，这样 Web 与录制子进程至少报同一个码（译文都是
-# 恒等映射，不再有二义）。「有目录」的判据即 has_catalog（MID-2248 收紧为「真的装载得出非空映射」）。
-def _effective_language(lang: str | None) -> str:
-    raw = (lang or "").strip()
-    if not raw:
-        candidates: list[str] = [DEFAULT_LANGUAGE, FALLBACK_LANGUAGE]
-    elif not is_recognized_language(raw):
-        candidates = [FALLBACK_LANGUAGE, DEFAULT_LANGUAGE]
-    else:
-        candidates = [normalize_language(raw), FALLBACK_LANGUAGE, DEFAULT_LANGUAGE]
-    for code in candidates:
-        if has_catalog(code):
-            return code
-    return FALLBACK_LANGUAGE
 
 
 # 返回当前语言规范码
