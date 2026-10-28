@@ -589,7 +589,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - `translated_print` 包装 `builtins.print`，自动翻译调用者来自项目根（`src/` 包及 `src/main.py` 等顶层脚本）的输出；`src/main.py` 导入时无条件安装 `builtins.print = translated_print`（任何语言下均安装——zh_CN/zh_TW 把英文常量串译为中文，en_US/en_GB 把中文串译为英文，未知串恒等返回）
 - 支持源码运行和 PyInstaller 打包两种路径检测（`_internal/i18n` vs `i18n/`）
-- **多格式目录加载（2026-08 起）**：`src/i18n.py` 按语言依次探测 gettext `.mo` → `<lang>.json` → `<lang>.yaml`，三种格式均为「原文 → 译文」扁平映射，行为一致；`PyYAML` 为运行时依赖（缺失时仅损失 YAML 格式支持）。`_load_yaml_catalog()` 捕获 `yaml.YAMLError`（非 OSError/ValueError 子类）——损坏的 yaml 目录返回 None 降级到下一格式，而非让 `set_language` 抛异常（Web 语言切换接口 500）
+- **JSON 翻译目录**：`src/i18n.py` 使用标准库直接读取 `i18n/<lang>.json` 的扁平字符串映射，无需编译；目录缺失或损坏时沿用语言回退行为。
 - **语言热切换**：`set_language(lang)` 归一化（`normalize_language` 别名表：zh_cn/zh-CN/en/en-US/zh-Hant/zh_CN.UTF-8 等写法均可）后热替换 `_tr` 翻译函数，无需重启进程。两个切换入口：Web 面板（`GET/PUT /api/language`，写回 config + 热切换 + 前端 `data-i18n` 文案重绘；`PUT` 在配置缺 `language` 键时降级为节末追加补建，不再恒 500）、CLI 主循环（每轮按 config 重同步）
 - 默认语言：简体中文（zh_CN）；受支持语言：zh_CN / en_US / en_GB / zh_TW
 
@@ -906,7 +906,6 @@ def host_of(url: str) -> str: ...
 | websockets | >=14.0 | 弹幕 WebSocket 客户端（`src/ws_client.py`；`additional_headers` 为 14.0+ API） |
 | protobuf | >=6.33.5,<8 | 抖音弹幕协议解码（`src/proto/douyin_pb2.py`；上限 <8 为 gencode 兼容护栏） |
 | brotli | >=1.2.0 | B站弹幕解压（protover=3） |
-| PyYAML | >=6.0.3 | YAML 翻译目录支持（`i18n/zh_TW.yaml`） |
 
 > 注 1：[历史注] 旧版此处记录「Weverse 平台认证由 `src/weverse_auth.py` 实现、不再依赖 pip 上的 `weverse` 包」。
 > 该模块（连同 `tests/test_weverse_auth.py`）已于 2026-09-23 整体删除，结论仅作备查：pip 上的 `weverse`
@@ -2299,3 +2298,8 @@ python tool/smoke_test.py -c tool/smoke_web.json -r smoke_report.html -f html
 ## 代码与工具目录分离（2026-10-27）
 
 运行时代码及 CLI / GUI / Web 入口统一放在 `src/`；维护、构建和独立辅助脚本统一放在 `tool/`（原 `scripts/` 与根目录打包脚本）。源码入口使用 `uv run --locked python -m src.main`、`uv run --locked --extra gui python -m src.gui` 和 `uv run --locked python -m src.web`，安装后的三个命令名称不变。构建命令改为 `uv run --locked --extra build --extra gui python tool/build_exe.py --smoke`。配置、翻译和 Web 静态资源仍在根目录对应目录。`src` 包导入不再检查运行时，CLI 在完成编码设置后初始化 Node 环境，避免 GUI 日志标记被提前读取。
+
+
+## JSON 翻译目录（2026-10-28）
+
+四语统一 UTF-8 JSON，每种语言原有 1160 条翻译完整保留。移除 PO/MO 编译与 YAML 目录加载，保留语言热切换、占位符插值和异常回退。CI/pre-commit 改跑 `tool/check_i18n.py`，打包仅纳入 JSON 目录。PyYAML 改为 workflow 测试使用的 dev 依赖（uvicorn standard 仍可能间接安装它）。

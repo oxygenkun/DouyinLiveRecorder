@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
-# 国际化（i18n）模块 - 多语言、多格式（gettext/.mo、JSON、YAML）翻译支持系统
-#
-# 语言目录（locale_path）布局与加载优先级（对每个语言依次探测，首个命中即用）：
-#   1. <locale_path>/<lang>/LC_MESSAGES/<lang>.mo   # gettext 编译产物（zh_CN 现行方案）
-#   2. <locale_path>/<lang>.json                    # JSON 目录：{"原文": "译文", ...}
-#   3. <locale_path>/<lang>.yaml                    # YAML 目录：与 JSON 同构的键值映射
-# 三种格式均为「原文 → 译文」的扁平字符串映射，加载后统一为 dict，行为一致。
+# 国际化：直接读取 i18n/<lang>.json 中的「原文 → 译文」映射，无需编译。
 #
 # 运行时切换：set_language(lang) 热替换翻译函数（_tr），后续 print/logger 输出
 # 即时使用新语言，无需重启进程（Web 面板 的即时切换语言功能依赖此入口）。
@@ -14,7 +8,6 @@
 # 空 → 系统语言（detect_system_language）；不可识别或语言目录文件缺失 → en_US 回退。
 
 import builtins
-import gettext
 import inspect
 import json
 import locale
@@ -22,16 +15,6 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, TextIO
-
-from loguru import logger
-
-# YAML 为可选依赖：缺失时仅损失 .yaml 目录支持，JSON/gettext 不受影响。
-# mypy 默认配置要求显式 stubs（types-PyYAML），但项目把 PyYAML 视为可选，
-# 故在此忽略"未安装/无类型存根"提示；运行时经下方 try/except 优雅降级。
-try:
-    import yaml  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover - 环境相关分支
-    yaml = None  # type: ignore[assignment]
 
 # 支持的语言（有序；键为规范语言码，值为界面显示名，供 Web 语言选择器使用）
 SUPPORTED_LANGUAGES: dict[str, str] = {
@@ -142,12 +125,7 @@ def _windows_ui_language() -> str | None:
     return locale.windows_locale.get(lang_id)
 
 
-# 判断某语言是否**真的能装载**出翻译目录（MID-2248）：判据是「加载得到非空映射」而非「文件存在」——
-# set_language 的 _effective_language 与 resolve_language 的唯一判据就是它。用 is_file() 会漏过两种
-# 真实形态：① PyYAML 未安装 → _load_yaml_catalog 返回 None（zh_TW 只剩恒等映射）；② .mo 损坏 →
-# _load_mo_catalog 捕获异常返回 None。漏网时 _current_language 仍被置成请求码，日志打出「语言已切换」而界面仍是原文——零告警的语言
-# 失效。代价：每次判定完整解析一遍目录（.mo/.json/.yaml 各约 680 条），调用频率仅进程启动、
-# Web 改语言与 main 主循环每轮热同步（≥30s 一轮），可忽略。
+# 目录必须能加载出非空映射，避免损坏或漏装时回报虚假的语言切换成功。
 def has_catalog(lang: str) -> bool:
     return bool(_load_translations(locale_path, lang))
 
@@ -208,74 +186,12 @@ def _load_json_catalog(path: Path) -> dict[str, str] | None:
     if not isinstance(data, dict):
         return None
     # 仅保留 str→str 条目，其余类型跳过（容忍手工编辑出的杂项值）
-    return {str(k): str(v) for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
+    return {k: v for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
 
 
-# 已就「缺 PyYAML」提醒过的目录（按路径去重）：语言判定发生在启动期与主循环每轮
-# 热同步（≥30s 一轮），不去重会把同一条告警按轮次刷进日志、淹掉真实线索。
-_YAML_MISSING_WARNED: set[str] = set()
-
-
-# 从 YAML 文件加载「原文 → 译文」映射；未安装 pyyaml / 文件不存在 / 解析失败时返回 None
-def _load_yaml_catalog(path: Path) -> dict[str, str] | None:
-    if yaml is None:
-        # MID-2248：该降级此前完全静默——调用方只看到「这个语言没目录」，用户视角是「切了繁体却没
-        # 生效且无提示」。补一条 warning 指明根因（缺 PyYAML）与后果（YAML 目录不可用、按回退语言出文）；
-        # 只在 .yaml 真的存在时提醒（zh_CN 走 .mo、en_US 走 .json，对不存在的文件报缺失是纯噪音）。
-        warned_key = str(path)
-        if path.is_file() and warned_key not in _YAML_MISSING_WARNED:
-            _YAML_MISSING_WARNED.add(warned_key)
-            logger.warning(
-                tr(
-                    "未安装 PyYAML，无法加载 YAML 格式翻译目录 {yaml_path}（该语言已回退为默认语言）",
-                    yaml_path=warned_key,
-                )
-            )
-        return None
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    # yaml.YAMLError（ParserError/ScannerError 等）不是 OSError/ValueError 子类，
-    # 不捕获则损坏的 yaml 会让 set_language 抛异常（Web 语言切换接口直接 500）
-    except OSError, ValueError, yaml.YAMLError:
-        return None
-    if not isinstance(data, dict):
-        return None
-    return {str(k): str(v) for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
-
-
-# 从 gettext .mo 编译产物加载「原文 → 译文」映射；文件不存在时返回 None
-def _load_mo_catalog(locale_dir: str | Path, lang: str) -> dict[str, str] | None:
-    mo_path = Path(locale_dir) / lang / "LC_MESSAGES" / f"{lang}.mo"
-    if not mo_path.is_file():
-        return None
-    try:
-        # fallback=False：文件存在但损坏时抛异常，由调用方降级到下一格式
-        translation = gettext.translation(lang, str(locale_dir), languages=[lang], fallback=False)
-    except Exception:
-        return None
-    # 直读 .mo 条目表：GNUTranslations._catalog 即 {msgid: msgstr}（含空串头，剔除）
-    catalog = dict(getattr(translation, "_catalog", {}))
-    catalog.pop("", None)
-    return {k: v for k, v in catalog.items() if isinstance(k, str)}
-
-
-# 按优先级加载某语言的翻译目录：gettext .mo → JSON → YAML；全缺失时返回 None
+# 所有语言统一使用 JSON 目录。
 def _load_translations(locale_dir: str | Path, lang: str) -> dict[str, str] | None:
-    base = Path(locale_dir)
-    mo = _load_mo_catalog(base, lang)
-    if mo is not None:
-        return mo
-    json_catalog = _load_json_catalog(base / f"{lang}.json")
-    if json_catalog is not None:
-        return json_catalog
-    return _load_yaml_catalog(base / f"{lang}.yaml")
-
-
-# [MIN-2254 已删除 init_gettext(locale_dir, locale_name)]：它返回的 gettext 函数**绑死在传入的
-# locale_name 上**、不随 set_language() 重读 _tr（切换后静默退回旧语言）；且 gettext.bindtextdomain /
-# textdomain 是进程级全局副作用。留一个「看起来能用、
-# 用了就失去热切换」的公开面是下一个改动踩坑的最短路径，故整体删除、不保留兼容壳；加载目录一律
-# 走 _load_translations / _build_translator（唯一的翻译函数构建入口）。
+    return _load_json_catalog(Path(locale_dir) / f"{lang}.json")
 
 
 # 构建某语言的翻译函数：加载翻译目录，命中返回译文、未命中回退原文
@@ -296,7 +212,7 @@ original_print = builtins.print  # 保存原始 print 函数
 
 # 切换当前语言：归一化 → 目录可用性判定 → 加载翻译目录 → 热替换 _tr。
 # 返回**实际生效**的语言码（调用方据此写配置 / 提示用户），而不是布尔「请求是否合法」。
-# MID-52：目录缺失时（PyYAML 未装 → zh_TW.yaml 加载不了；发行包漏装 en_GB.json）按 resolve_language
+# MID-52：目录缺失或损坏时（如发行包漏装 en_GB.json）按 resolve_language
 # 的口径回退 FALLBACK_LANGUAGE，保证 _current_language 与实际装载的目录**永远一致**——旧实现回报
 # 请求码，「语言已切换」是假的，且该码写回 config.ini 后录制子进程经 resolve_language 落到 en_US：
 # 同一部署两种语言。注意：本函数刻意不做系统语言探测（那是 resolve_language 的职责，CLI/Web 入口
@@ -369,7 +285,7 @@ def translated_print(
 # 翻译命中时按 .format(**kwargs) 二次插值；未命中则直接对原文格式化为最终输出。
 # 表达式类占位符（如 {type(e).__name__}）调用方须提前求值为局部变量后再传入。
 def tr(template: str, **kwargs: Any) -> str:
-    # MI-23：译文是**外部可编辑数据**（po/json/yaml 由译者维护），占位符写错（把 {e} 写成 {err}）或含
+    # MI-23：译文是**外部可编辑数据**（JSON 由译者维护），占位符写错（把 {e} 写成 {err}）或含
     # 未转义的花括号都会抛 KeyError/IndexError/ValueError；而 tr() 的调用点大量位于 except 分支内，
     # 二次异常会顶掉原始异常，把「网络失败」升级成崩溃、掩盖真实故障（zh_CN 常为恒等映射，问题只在
     # 切换语言后暴露）。故本函数永不抛：格式化失败降级为原文模板，再失败返回裸模板。

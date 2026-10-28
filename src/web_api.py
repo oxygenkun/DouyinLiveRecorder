@@ -1274,7 +1274,7 @@ def create_app(
     @_route(app, ["PUT"], "/api/language")
     def set_language(req: LanguageUpdate) -> dict[str, object]:
         # MID-52：旧顺序是「normalize → 写 config.ini → set_language」，而 set_language() 返回的是
-        # **实际生效**语言码（目录缺失时回退，如 PyYAML 未装则 zh_TW 回退 en_US）。写请求值会把一个
+        # **实际生效**语言码（目录缺失时回退，如 zh_TW.json 缺失则回退 en_US）。写请求值会把一个
         # 「本进程装载不到译文」的码落盘：录制子进程重解析后落到 en_US，两进程各说一种语言，
         # 且响应里的 language 是虚假成功。现改为「先热切换 → 按生效码落盘 → 按生效码应答 + 回退提示」。
         from src import i18n as i18n_module

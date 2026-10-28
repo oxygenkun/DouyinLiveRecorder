@@ -2565,7 +2565,7 @@ class TestLanguageApi:
         self, app_env: types.SimpleNamespace, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # MID-52（Web 半边）：i18n.set_language() 现在返回**实际生效**的语言码——它按
-        # resolve_language 的口径查 has_catalog，目录缺失（PyYAML 未装 → zh_TW.yaml 加载不了、
+        # resolve_language 的口径查 has_catalog，目录缺失或损坏（zh_TW.json 加载不了、
         # 发行包漏装某语言文件）时回退。端点必须落盘并应答这个生效码：写请求值会让
         # 面板进程装载着回退语言的译文、而录制子进程每轮重解析到另一码 → 同一部署两种语言。
         from src import i18n as i18n_module

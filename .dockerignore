@@ -2,9 +2,7 @@
 # DouyinLiveRecorder .dockerignore
 # 目的：只把容器运行所需内容送入构建上下文，减小体积、避免宿主机敏感文件与开发产物进镜像。
 # 运行所需：main.py / web.py + src/（javascript/ 签名脚本、platforms/ 各平台实现与
-#   弹幕采集、proto/ 弹幕协议）+ web/（面板前端）+ i18n/**/*.mo
-# 红线：编译好的 .mo 是 gettext 运行时必需、Dockerfile 不会重编译，**不可排除**；
-#   只排 .po 源文件（编译脚本 compile_po.py 在 tool/ 下，随 tool/ 整目录排除）。
+#   弹幕采集、proto/ 弹幕协议）+ web/（面板前端）+ i18n/*.json
 # =============================================================================
 
 # ---------- Git / CI（构建上下文无需版本库与流水线定义）----------
@@ -130,12 +128,6 @@ backup_config/
 ffmpeg/
 node/
 node-v*.zip
-
-# ---------- 翻译：仅排除 .po 源文件，编译好的 .mo 必须保留 ----------
-# [历史注] MID-2255 删掉了曾有的 `i18n/**/compile_po.py`：该脚本真身在 tool/ 下，
-# i18n/ 内从来没有这个文件，规则永不匹配、属空规则；回归锁见
-# tests/test_build_exe.py::test_dockerignore_excludes_dev_only_artifacts_as_bare_patterns。
-i18n/**/*.po
 
 # ---------- Windows 专用二进制与脚本（容器内为 Linux，无需）----------
 *.exe

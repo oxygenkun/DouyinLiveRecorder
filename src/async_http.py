@@ -169,7 +169,7 @@ async def _release_client(client: httpx.AsyncClient) -> None:
     except Exception as e:
         # 复用已在四语目录里的 "关闭失效 AsyncClient 失败: {e}"——新增 tr 模板须同步五处目录
         # （四份后端 + web/app.js）并重编译 .mo，否则 test_i18n_migration 的
-        # 「运行时模板 ⊆ zh_CN.po 键集合」断言即红。异常类型按本仓硬约定拼进实参。
+        # 「运行时模板 ⊆ zh_CN.json 键集合」断言即红。异常类型按本仓硬约定拼进实参。
         logger.debug(i18n.tr("关闭失效 AsyncClient 失败: {e}", e=f"{type(e).__name__}: {e}"))
 
 

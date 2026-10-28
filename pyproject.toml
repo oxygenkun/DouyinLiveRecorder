@@ -80,12 +80,11 @@ dependencies = [
     # （gencode 4.25.3），跨大版本升级 runtime 有 gencode 兼容窗口外失效风险，升级前须同代 protoc 重新生成。
     "protobuf>=6.33.5,<8",
     "brotli>=1.2.0",
-    # i18n YAML 翻译目录支持（i18n/zh_TW.yaml；缺失时仅损失该格式，JSON/gettext 不受影响）
-    "PyYAML>=6.0.3",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "PyYAML>=6.0.3",  # workflow YAML 解析测试
     "pytest==9.1.1",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",

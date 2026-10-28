@@ -8,11 +8,11 @@
 # 切到 en_US/en_GB/zh_TW 后静默回落简中原文，而提取器仍报「0 缺失」（假绿）。
 #
 # 三条锁：
-#   ⑤-A 按名调用点解析出的 msgid 候选，必须在**四份目录**里都存在（不止 zh_CN.po）；
+#   ⑤-A 按名调用点解析出的 msgid 候选，必须在**四份目录**里都存在（不止 zh_CN.json）；
 #   ⑤-B 解析不出候选的按名调用点用**白名单集合相等**判定（新增即红、已消解却不收回也红）；
 #   ⑤-C 四份目录键集合逐项相等（单侧漏登记/多登记会让某语言静默回落原文）。
 #
-# 变异验证锚点（删掉任一判据必须让某条用例变红）：把 ⑤-A 的 key_sets 收窄到只查 zh_CN.po →
+# 变异验证锚点（删掉任一判据必须让某条用例变红）：把 ⑤-A 的 key_sets 收窄到只查 zh_CN.json →
 # ::test_by_name_msgids_covered_by_catalogs 红；从白名单删掉 msg_push.py:103 →
 # ::test_unresolved_by_name_calls_match_allowlist 红；把 ⑤-C 退化成「只比 po 与 en_US」→
 # ::test_catalog_key_sets_are_identical 红。
@@ -43,7 +43,7 @@ _INDEX_PASSES = 3
 
 def _load_probe(module_name: str, filename: str) -> Any:
     # 按文件路径加载 tool/ 下的独立脚本（不在包内），与 tests/test_i18n_migration.py 同先例：
-    # 复用 compile_po 的 .po 解析与提取器的价值判定/模板还原口径，避免两套解析漂移
+    # 复用提取器的目录读取、价值判定与模板还原口径，避免两套解析漂移
     spec = importlib.util.spec_from_file_location(module_name, ROOT / "tool" / filename)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
@@ -51,7 +51,6 @@ def _load_probe(module_name: str, filename: str) -> Any:
     return mod
 
 
-_CP = _load_probe("_catalog_po_probe", "compile_po.py")
 _EX = _load_probe("_catalog_extract_probe", "extract_i18n_strings.py")
 is_valuable = getattr(_EX, "is_valuable")
 template_of = getattr(_EX, "extract_constant_or_template")
@@ -247,14 +246,7 @@ def collect_by_name_calls() -> tuple[dict[str, set[str]], list[str]]:
 
 
 def _catalog_key_sets() -> dict[str, set[str]]:
-    # 四份目录的键集合；.po 需剔除 gettext 头部空 msgid（不剔除永远「多 1 条」假阳性）
-    keys: dict[str, set[str]] = {"zh_CN.po": set(_CP.parse_po(_CP.PO_PATH)) - {""}}
-    for lang in ("en_US", "en_GB"):
-        keys[f"{lang}.json"] = set(json.loads((ROOT / "i18n" / f"{lang}.json").read_text(encoding="utf-8-sig")))
-    import yaml  # type: ignore[import-untyped]
-
-    keys["zh_TW.yaml"] = set(yaml.safe_load((ROOT / "i18n" / "zh_TW.yaml").read_text(encoding="utf-8-sig")))
-    return keys
+    return _EX.load_catalog_keys()
 
 
 # 三条用例共用同一份解析结果与同一份目录键集合：整仓 AST 扫描按文件数线性、
@@ -279,7 +271,7 @@ def _by_name_calls() -> tuple[dict[str, set[str]], list[str]]:
 def test_catalog_key_sets_are_identical() -> None:
     # ⑤-C 四语目录键集合逐项相等
     keys = _cached_catalog_key_sets()
-    baseline = keys["zh_CN.po"]
+    baseline = keys["zh_CN.json"]
     offenders = [
         f"{name}: 多 {len(v - baseline)} / 少 {len(baseline - v)}" for name, v in keys.items() if v != baseline
     ]

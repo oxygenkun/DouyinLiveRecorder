@@ -105,21 +105,13 @@ BLOAT_EXCLUDES: tuple[str, ...] = (
 )
 
 
-# i18n 资源清单（替代整目录拷贝）：运行时只消费 .mo / .json / .yaml（见 i18n.py 的加载优先级），
-# *.po 是翻译源、冻结产物里属死重量（0.12MB）。按文件逐个列出而非写 ('i18n','i18n')，因为目录形态
-# 会把 .po 一起带进分发包；新增语言只要把文件放进 i18n/ 就会被本函数自动纳入，不必改 spec 模板。
+# 仅打包运行时读取的 JSON 翻译目录。
 def i18n_datas_entries() -> list[tuple[str, str]]:
-    root = PROJECT_ROOT / "i18n"
-    if not root.is_dir():
-        return []
-    entries: list[tuple[str, str]] = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix == ".po":
-            continue
-        subdir = path.parent.relative_to(root).as_posix()
-        dest = "i18n" if subdir == "." else f"i18n/{subdir}"
-        entries.append((path.relative_to(PROJECT_ROOT).as_posix(), dest))
-    return entries
+    return [
+        (path.relative_to(PROJECT_ROOT).as_posix(), "i18n")
+        for path in sorted((PROJECT_ROOT / "i18n").glob("*.json"))
+        if path.is_file()
+    ]
 
 
 # 动态生成的 PyInstaller spec 模板：
@@ -136,7 +128,7 @@ excludes_bloat = {bloat_excludes}
 datas = [
     ('pyproject.toml', '.'),                # CLI / Web 从源码配置读取版本，冻结后同样可用
     ('src/javascript', 'src/javascript'),   # JS 签名脚本（src/__init__.py 经 __file__ 定位 → _internal/src/javascript）
-    *{i18n_datas},   # 翻译目录（剔除 *.po 源文件；由 build_exe.i18n_datas_entries() 生成）
+    *{i18n_datas},   # JSON 翻译目录（由 build_exe.i18n_datas_entries() 生成）
     ('web', 'web'),                         # Web 面板静态资源（src/web_api.py 经 __file__ 定位 → _internal/web）
 ]
 # 注意：config/ 不在此处（不进 _internal），由 copy_external_binaries 复制到 exe 同级，

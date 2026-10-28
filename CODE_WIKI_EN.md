@@ -588,7 +588,7 @@ NETEASE_QUALITY_MAP = {"blueray": "OD", "ultra": "UHD", "high": "HD", "standard"
 
 - `translated_print` wraps `builtins.print`, automatically translating output whose caller comes from the project root (`src/` package and top-level scripts like `src/main.py`); `src/main.py` unconditionally installs `builtins.print = translated_print` at import time (installed under any language — zh_CN/zh_TW translate English constant strings into Chinese, en_US/en_GB translate Chinese strings into English, unknown strings are returned identically)
 - Supports both source-run and PyInstaller-packaged path detection (`_internal/i18n` vs `i18n/`)
-- **Multi-format catalog loading (since 2026-08)**: `src/i18n.py` probes in order gettext `.mo` → `<lang>.json` → `<lang>.yaml`; all three formats are flat "original → translation" mappings with consistent behavior; `PyYAML` is a runtime dependency (only YAML format support is lost if missing). `_load_yaml_catalog()` catches `yaml.YAMLError` (not an OSError/ValueError subclass) — a corrupted yaml catalog returns None and degrades to the next format instead of letting `set_language` raise (web language-switch endpoint 500)
+- **JSON catalogs**: `src/i18n.py` reads flat string mappings from `i18n/<lang>.json` using the standard library; compilation is unnecessary. Missing or corrupt catalogs keep the existing language fallback behavior.
 - **Hot language switch**: `set_language(lang)` normalizes (via the `normalize_language` alias table: `zh_cn`/`zh-CN`/`en`/`en-US`/`zh-Hant`/`zh_CN.UTF-8` and other spellings all work) then hot-swaps the `_tr` translation function without restarting the process. Two switch entry points: Web panel (`GET/PUT /api/language`, writes back to config + hot switch + redraws frontend `data-i18n` text; on `PUT`, a missing `language` config key now falls back to appending it at the end of its section instead of an unconditional 500), CLI main loop (re-syncs per round from config)
 - Default language: Simplified Chinese (zh_CN); supported languages: zh_CN / en_US / en_GB / zh_TW
 
@@ -909,7 +909,6 @@ def host_of(url: str) -> str: ...
 | websockets | >=14.0 | Danmaku WebSocket client (`src/ws_client.py`; `additional_headers` is a 14.0+ API) |
 | protobuf | >=6.33.5,<8 | Douyin danmaku protocol decoding (`src/proto/douyin_pb2.py`; the `<8` cap is a gencode compatibility guard) |
 | brotli | >=1.2.0 | Bilibili danmaku decompression (protover=3) |
-| PyYAML | >=6.0.3 | YAML translation catalog support (`i18n/zh_TW.yaml`) |
 
 > Note 1: [Historical note] this section used to record that "Weverse platform authentication is implemented by
 > `src/weverse_auth.py` calling the API directly via requests, and no longer depends on the pip `weverse` package".
@@ -2276,3 +2275,8 @@ Removed tkinter/Qt windows, UI helpers, the Qt Web tray, the GUI extra and execu
 ## Source and tool directory separation (2026-10-27)
 
 Runtime modules and CLI / GUI / Web entries now live in `src/`. Maintenance, build and standalone auxiliary scripts live in `tool/`, replacing `scripts/` and the root build script. Run source entries with `uv run --locked python -m src.main`, `uv run --locked --extra gui python -m src.gui`, or `uv run --locked python -m src.web`. Installed command names stay the same. Build with `uv run --locked --extra build --extra gui python tool/build_exe.py --smoke`. Configuration, translation catalogs and Web assets remain at the repository root. Importing `src` no longer checks runtimes; the CLI initializes Node after configuring encoding, preserving GUI logging isolation.
+
+
+## JSON translation catalogs (2026-10-28)
+
+All four languages use UTF-8 JSON, preserving all 1160 translations per language. Removed PO/MO compilation and YAML catalog loading; runtime switching and formatting fallback stay unchanged. CI/pre-commit run `tool/check_i18n.py`; packaging includes JSON catalogs. PyYAML is now a dev dependency for workflow tests (uvicorn standard may still install it transitively).

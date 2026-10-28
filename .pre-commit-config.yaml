@@ -30,9 +30,9 @@ repos:
   # 仓库级检查在提交时执行，不按暂存文件类型过滤。
   - repo: local
     hooks:
-      - id: compile-po-check
-        name: compile_po.py --check (.po/.mo 同步校验)
-        entry: python tool/compile_po.py --check
+      - id: i18n-check
+        name: check_i18n.py (JSON 翻译目录校验)
+        entry: python tool/check_i18n.py
         language: system
         always_run: true
         require_serial: true

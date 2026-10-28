@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 # i18n 待翻译串提取器：AST 扫描运行时代码（main/web/msg_push/i18n + src/ 全部 .py），
 # 提取 print() 的全部常量实参、logger.*() 与 i18n.tr() 的首参（常量串或 f-string 模板底稿），
-# 与四语目录（zh_CN.po / en_US.json / en_GB.json / zh_TW.yaml）比对并打印缺失清单。
+# 与四语目录（zh_CN.json / en_US.json / en_GB.json / zh_TW.json）比对并打印缺失清单。
 # 只读工具、仅供维护期使用：不进运行时链路，也不在 AGENTS.md 的检查命令块里（缺失靠人工跟进）。
 #
 # 当前**扫不到的盲区**（AGENTS.md 第 14 条同源）——新增这类用户可见文案必须手工登记进四语
-# 目录并重编 .mo，否则本脚本会一直报「0 缺失」的假绿：
+# JSON 目录，否则本脚本会一直报「0 缺失」的假绿：
 #   ① color_obj.print_colored(...)（main.py 彩色控制台输出，不是 print 调用）；
 # 另两个边界：web/app.js 自带四套内嵌目录（与后端目录互不相干，不在扫描面内，须手工五处同改）；
 # 「疑似冗余」段只是参考级——孤儿 msgid（目录比代码多）不会变红，改源码删功能时要人工回查。
@@ -25,12 +25,10 @@
 #   不影响 msgid，故不收录。
 
 import ast
-import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
-from typing import cast
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,16 +48,6 @@ LOGGER_METHODS = {
     "log",
     "catch",
 }
-
-
-def _load_compile_po() -> object:
-    # 按文件路径加载 tool/compile_po.py 复用它的 parse_po()：.po 的多行 msgid 与转义还原
-    # 只有那一份实现是对的，本脚本再写一份就会与它漂移（键集合比对随之假红）
-    spec = importlib.util.spec_from_file_location("compile_po_probe", ROOT / "tool" / "compile_po.py")
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def formatted_value_template(node: ast.FormattedValue, source: str) -> str:
@@ -161,24 +149,10 @@ def is_valuable(text: str) -> bool:
 
 
 def load_catalog_keys() -> dict[str, set[str]]:
-    compile_po = _load_compile_po()
-    # 剔除 gettext 头部空 msgid ""：JSON/YAML 目录本就不含它（运行时加载亦会 pop），
-    # 不剔除会让一致性比对永远报「少 1」的假阳性
-    keys = {"zh_CN(po)": set(parse_keys(compile_po)) - {""}}
-    for lang in ("en_US", "en_GB"):
-        keys[f"{lang}.json"] = set(json.loads((ROOT / "i18n" / f"{lang}.json").read_text(encoding="utf-8-sig")))
-    # PyYAML 是可选依赖且无类型存根：与 i18n.py 一致，显式忽略 mypy 的
-    # import-untyped，避免要求额外安装 types-PyYAML（本项目不把 PyYAML 当硬依赖）
-    import yaml  # type: ignore[import-untyped]
-
-    keys["zh_TW.yaml"] = set(yaml.safe_load((ROOT / "i18n" / "zh_TW.yaml").read_text(encoding="utf-8-sig")))
-    return keys
-
-
-def parse_keys(compile_po: object) -> dict[str, str]:
-    # 复用 compile_po 的权威 po 解析（多行 msgid / 转义还原均正确）。
-    # 经 getattr 动态取属性调用返回 Any，cast 收敛回声明类型（warn_return_any 检查）
-    return cast(dict[str, str], getattr(compile_po, "parse_po")(getattr(compile_po, "PO_PATH")))
+    return {
+        f"{lang}.json": set(json.loads((ROOT / "i18n" / f"{lang}.json").read_text(encoding="utf-8")))
+        for lang in ("zh_CN", "en_US", "en_GB", "zh_TW")
+    }
 
 
 def main() -> int:
@@ -192,17 +166,17 @@ def main() -> int:
     runtime_strings = {s for s in runtime_strings if is_valuable(s)}
 
     catalogs = load_catalog_keys()
-    zh_keys = catalogs["zh_CN(po)"]
+    zh_keys = catalogs["zh_CN.json"]
 
     for name, keys in catalogs.items():
         if keys != zh_keys:
-            print(f"[不一致] {name} 与 zh_CN.po 差异：多 {len(keys - zh_keys)} / 少 {len(zh_keys - keys)}")
+            print(f"[不一致] {name} 与 zh_CN.json 差异：多 {len(keys - zh_keys)} / 少 {len(zh_keys - keys)}")
 
     missing = sorted(runtime_strings - zh_keys)
     stale = sorted(zh_keys - runtime_strings)
 
     print(f"运行时提取（有价值）串：{len(runtime_strings)} 条")
-    print(f"zh_CN.po 现有条目：{len(zh_keys)} 条")
+    print(f"zh_CN.json 现有条目：{len(zh_keys)} 条")
     print(f"\n== 缺失（运行时有、目录无，{len(missing)} 条）==")
     for s in missing:
         print(f"  + {s!r}")

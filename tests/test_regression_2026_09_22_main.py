@@ -139,16 +139,16 @@ class TestI18nStringsExtractable:
 
 def _four_catalogs() -> dict[str, dict[str, str]]:
     # 断言对象是四语目录本身：_i18n_pending*.json 只是并行修复防撞车的一次性中转袋，已按收尾约定
-    # 删除，「袋子写过、目录没合并」同样要红。复用 i18n 自己的三个加载器，不写第二套解析口径。
+    # 删除，「袋子写过、目录没合并」同样要红。复用 i18n 自己的 JSON 加载器，不写第二套解析口径。
     from pathlib import Path
 
     from src import i18n
 
     cats = {
-        "zh_CN": i18n._load_mo_catalog(i18n.locale_path, "zh_CN"),
+        "zh_CN": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_CN.json"),
         "en_US": i18n._load_json_catalog(Path(i18n.locale_path) / "en_US.json"),
         "en_GB": i18n._load_json_catalog(Path(i18n.locale_path) / "en_GB.json"),
-        "zh_TW": i18n._load_yaml_catalog(Path(i18n.locale_path) / "zh_TW.yaml"),
+        "zh_TW": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_TW.json"),
     }
     loaded: dict[str, dict[str, str]] = {}
     for lang_key, value in cats.items():

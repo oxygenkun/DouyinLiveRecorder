@@ -2,7 +2,7 @@
 # DouyinLiveRecorder .gitignore
 # -----------------------------------------------------------------------------
 # 原则：忽略字节码 / 构建产物 / 虚拟环境 / 测试与覆盖率 / 敏感配置 / 运行期产物
-#   （录制文件、日志、备份）与本地工具目录；保留源码、编译好的 .mo（gettext 运行时必需）、
+#   （录制文件、日志、备份）与本地工具目录；保留源码、JSON 翻译目录、
 #   项目维护的分发脚本。
 # 运行时资源 config/、ffmpeg/、node/ 与 exe 同级，但 config/*.ini 含凭据信息需忽略。
 # =============================================================================
@@ -66,11 +66,6 @@ cover/
 tmp_*.py
 *_tmp_*.txt
 tmp_*.txt
-
-# Translations
-*.pot
-# 保留编译好的 .mo 文件用于分发（gettext 运行时必需，Docker / 发布 zip 均依赖）
-# *.mo
 
 # Django stuff:
 *.log
@@ -230,11 +225,6 @@ logs/
 *.log.*
 # 弹幕监控边车日志（logs/danmaku_monitor.jsonl；与 .dockerignore 同源维护）
 *.jsonl
-
-# .mo 编译翻译文件随仓库分发（gettext 运行时必需，不忽略）
-# 注：下面一条是空规则——compile_po.py 真身在 tool/ 下，i18n/ 内从来没有该文件
-# （与 .dockerignore 侧 MID-2255 已删除的同名规则同源核对）
-i18n/**/compile_po.py
 
 # Windows 特定文件
 Thumbs.db

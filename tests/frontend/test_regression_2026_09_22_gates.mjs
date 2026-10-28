@@ -796,7 +796,7 @@ test('MID-2238：initTheme 与 initLanguage 各自 try/catch，单点失败不�
 
 test('MID-2239：语言切换必须按响应里的 language（生效码）更新，不得回写请求值', () => {
     // 失效形态：`.then(function () { currentLang = target; ... })` —— 形参被丢掉、恒按请求值本地切换。
-    // 后端可能回退（如 PyYAML 缺失使 zh_TW 装载不到 → 实际生效 en_US），前端必须以后端回的生效码为准。
+    // 后端可能回退（如 zh_TW.json 缺失使繁体目录装载不到 → 实际生效 en_US），前端必须以后端回的生效码为准。
     assert.match(APP_JS, /currentLang\s*=\s*\(res\s*&&\s*res\.language\)\s*\|\|\s*target/,
         '未按响应 language 生效码更新 currentLang');
     assert.match(APP_JS, /res\.fallback/, '未消费 fallback 标记，回退说明不会显示给用户');

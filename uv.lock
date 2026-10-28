@@ -279,7 +279,6 @@ dependencies = [
     { name = "protobuf" },
     { name = "pycryptodome" },
     { name = "pyexecjs" },
-    { name = "pyyaml" },
     { name = "requests" },
     { name = "socksio" },
     { name = "starlette" },
@@ -298,6 +297,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 
@@ -317,7 +317,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.17.1" },
     { name = "socksio", specifier = ">=1.0.0" },

@@ -238,17 +238,15 @@ DouyinLiveRecorder/
 │   ├── build_exe.py                # PyInstaller packaging script (CLI/Web two entries)
 │   ├── smoke_test.py           # generic Web/API smoke test (zero-dep, config-driven)
 │   ├── smoke_web.json          # smoke test sample cases (probe Web panel)
-│   ├── compile_po.py           # .po → .mo compile and sync check (--check)
+│   ├── check_i18n.py           # JSON catalog validation (no compilation)
 │   ├── check_coverage.py       # per-module coverage gate (used by CI)
 ├── downloads/                  # recording output dir (generated at runtime)
 ├── logs/                       # log dir (generated at runtime, includes danmaku_monitor.jsonl)
-├── i18n/                       # i18n translation dirs (multilingual, multi-format)
-│   ├── zh_CN/LC_MESSAGES/      # Simplified Chinese (gettext)
-│   │   ├── zh_CN.po           # Chinese translation source (1127 translation keys; 1128 entries including the header)
-│   │   └── zh_CN.mo           # compiled translation (required at runtime, shipped with repo)
+├── i18n/                       # i18n translation catalogs (JSON)
+│   ├── zh_CN.json              # 简体中文 / Simplified Chinese (JSON)
 │   ├── en_US.json              # English (US) (JSON catalog)
 │   ├── en_GB.json              # English (UK) (British spelling variant)
-│   └── zh_TW.yaml              # Traditional Chinese (YAML catalog, requires PyYAML)
+│   └── zh_TW.json              # 繁體中文 / Traditional Chinese (JSON)
 ├── ffmpeg/                     # FFmpeg dir (Windows)
 ├── node/                       # Node.js dir (Windows)
 ├── index.html                  # M3U8 video player (standalone tool page)
@@ -638,19 +636,19 @@ Safety constraints:
 
 ### Multi-language and UI switching
 
-Four translation catalogs are built in, probed at load time in the order `gettext .mo → <lang>.json → <lang>.yaml`:
+All four translation catalogs load directly from `i18n/<lang>.json`:
 
 | Language code | Display name | Catalog file |
 | --- | --- | --- |
-| `zh_CN` | Simplified Chinese | `i18n/zh_CN/LC_MESSAGES/zh_CN.mo` |
+| `zh_CN` | Simplified Chinese | `i18n/zh_CN.json` |
 | `en_US` | English (US) | `i18n/en_US.json` |
 | `en_GB` | English (UK) | `i18n/en_GB.json` |
-| `zh_TW` | Traditional Chinese | `i18n/zh_TW.yaml` |
+| `zh_TW` | Traditional Chinese | `i18n/zh_TW.json` |
 
 - The config key `language`: leave it empty to follow the system language; values such as `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` are accepted and auto-normalized to the canonical language code; unrecognized values or missing language files fall back to `en_US`
 - **Hot switching**: switchable via the Web panel top-bar language selector or directly editing `config.ini`; the CLI main loop checks for config changes each round and reloads translations immediately, **no process restart needed** (the running ffmpeg subprocess is unaffected)
 - Translations no longer depend on the `LANG` / `LANGUAGE` environment variables (generally unset on Windows)
-- `zh_TW.yaml` requires `PyYAML`; if missing, only that language is lost, other formats are unaffected
+- Edit `i18n/<lang>.json` directly; no compilation or translation dependency is needed. Run `python tool/check_i18n.py` to validate duplicate keys, string values and matching language keys.
 
 ### Stop recording
 

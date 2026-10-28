@@ -1387,8 +1387,6 @@ def test_dockerignore_excludes_dev_only_artifacts_as_bare_patterns() -> None:
     # 仓库内散落的 *.jsonl（弹幕监控边车日志）都会经 COPY . ./ 进镜像。
     for must in ("tool/build_exe.py", "*.jsonl"):
         assert must in patterns, f".dockerignore 缺少裸模式 {must!r}（带行内注释的规则永不匹配）"
-    # 空规则：i18n/ 下从来没有 compile_po.py（真身在 tool/，已整目录排除），留着只会误导读者
-    assert not [p for p in patterns if "compile_po" in p], "i18n/**/compile_po.py 永不匹配，属空规则"
 
 
 def test_gitignore_runtime_dirs_are_bare_patterns() -> None:
@@ -1531,17 +1529,9 @@ def test_every_analysis_applies_the_bloat_excludes() -> None:
     ]
 
 
-def test_i18n_datas_skip_po_sources_but_keep_runtime_formats() -> None:
-    # i18n.py 的加载优先级是 .mo → .json → .yaml，*.po 是翻译源文件、运行期不读；
-    # 用整目录拷贝（旧写法 ('i18n','i18n')）会把它一起打进分发包。
+def test_i18n_datas_include_all_json_catalogs() -> None:
     entries = build_exe.i18n_datas_entries()
-    assert entries, "i18n 资源清单为空（i18n/ 目录缺失或过滤条件写错）"
-    sources = [src for src, _dest in entries]
-    assert not [s for s in sources if s.endswith(".po")], f"i18n 资源仍含 .po 源文件：{sources}"
-    suffixes = {Path(s).suffix for s in sources}
-    assert {".mo", ".json", ".yaml"} <= suffixes, f"运行时格式缺失（实际 {sorted(suffixes)}）"
-    # 目标路径必须仍落在 i18n/ 下：i18n.py 用 __file__ 定位 _internal/i18n，改了就找不到目录
-    assert all(dest == "i18n" or dest.startswith("i18n/") for _src, dest in entries)
+    assert set(entries) == {(f"i18n/{lang}.json", "i18n") for lang in ("zh_CN", "en_US", "en_GB", "zh_TW")}
 
 
 def test_zip_release_dir_prefixes_members_with_app_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

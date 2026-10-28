@@ -290,7 +290,7 @@
     // 的 MIN-10 段机检（它从声明处按大括号配平截取本字典再求值，故声明行与键名不可重排或改名）。
     // 同步范围（实测）：面板点分键（config.save / common.cancel / danmaku.* 等）只进下面四套内嵌目录
     // ——后端 i18n/ 下的 gettext 目录按**中文源串**作 msgid、只服务控制台/推送，往里塞面板键只会
-    // 得到无人 import 的孤儿 msgid（compile_po.py --check 与 extract_i18n_strings.py 都不报）。其余
+    // 得到无人 import 的孤儿 msgid（check_i18n.py 与 extract_i18n_strings.py 都不报）。其余
     // 用户可见文案仍「五处同改」（四份 i18n 目录 + 本文件），见 AGENTS.md 的 i18n 扫描盲区清单。
     var LANG_KEY = 'dlr_lang';
     var currentLang = 'zh_CN';
@@ -617,7 +617,7 @@
     }
 
     // MID-2239：PUT /api/language 的响应（language/fallback/notice）必须被消费，并按**生效码**更新，
-    // 不得按请求值回写。典型失效：PyYAML 缺失使 zh_TW 装载不到 → 后端实际生效并落盘 en_US，前端却
+    // 不得按请求值回写。典型失效：zh_TW.json 缺失使繁体目录装载不到 → 后端实际生效并落盘 en_US，前端却
     // 切成内嵌 zh_TW 并把偏好写成 zh_TW、回退说明一次都不显示（即 MID-52 的「面板与进程各说一种语言」）。
     function setLanguage(target) {
         api('/api/language', { method: 'PUT', body: { language: target } }).then(function (res) {

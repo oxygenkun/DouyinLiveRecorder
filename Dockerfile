@@ -198,7 +198,7 @@ RUN ffmpeg -hide_banner -version > /dev/null \
 
 # 应用代码以 recorder 属主入镜像，实际内容由 .dockerignore 裁剪（那份文件是唯一清单事实源）：
 # 留下 main.py / web.py + src/（不含桌面窗口层；包含 javascript/ 签名脚本、platforms/ 平台实现、proto/ 弹幕协议）
-#   + web/ 静态资源 + i18n/**/*.mo（gettext 运行时必需，构建期不重编译）；排除测试与工具
+#   + web/ 静态资源 + i18n/*.json（直接读取，无需编译）；排除测试与工具
 #   （tests/ tool/ typings/ 等）、文档、运行期产物（logs/ downloads/ backup_config/，
 #   改由卷挂载提供）、平台二进制与 config/*.ini（含凭据）。
 COPY --chown=recorder:recorder . ./

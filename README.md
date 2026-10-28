@@ -227,17 +227,15 @@ DouyinLiveRecorder/
 │   ├── build_exe.py                # PyInstaller 打包脚本（CLI/Web 两入口）
 │   ├── smoke_test.py           # 通用 Web/接口冒烟测试（零依赖，配置驱动）
 │   ├── smoke_web.json          # 冒烟测试示例用例（探活 Web 面板）
-│   ├── compile_po.py           # .po → .mo 编译与同步校验（--check）
+│   ├── check_i18n.py           # JSON catalog validation (no compilation)
 │   ├── check_coverage.py       # 逐模块覆盖率检查（CI 使用）
 ├── downloads/                  # 录制文件保存目录（运行时生成）
 ├── logs/                       # 日志文件目录（运行时生成，含 danmaku_monitor.jsonl）
-├── i18n/                       # 国际化翻译目录（多语言多格式）
-│   ├── zh_CN/LC_MESSAGES/      # 简体中文（gettext）
-│   │   ├── zh_CN.po           # 中文翻译源（1127 个翻译键；含头部共 1128 条）
-│   │   └── zh_CN.mo           # 编译后翻译（运行时必需，随仓库分发）
+├── i18n/                       # 国际化翻译目录（统一 JSON）
+│   ├── zh_CN.json              # 简体中文 / Simplified Chinese (JSON)
 │   ├── en_US.json              # English (US)（JSON 格式目录）
 │   ├── en_GB.json              # English (UK)（英式拼写变体）
-│   └── zh_TW.yaml              # 繁體中文（YAML 格式目录，需 PyYAML）
+│   └── zh_TW.json              # 繁體中文 / Traditional Chinese (JSON)
 ├── ffmpeg/                     # FFmpeg 目录（Windows）
 ├── node/                       # Node.js 目录（Windows）
 ├── index.html                  # M3U8 视频播放器（独立工具页）
@@ -626,19 +624,19 @@ Web 模式与命令行模式共用同一录制引擎与配置文件，直播间�
 
 ### 多语言与界面切换
 
-内置四套翻译目录，加载时按 `gettext .mo → <lang>.json → <lang>.yaml` 依次探测：
+内置四语翻译目录，均直接加载 `i18n/<lang>.json`：
 
 | 语言码 | 显示名 | 目录文件 |
 | --- | --- | --- |
-| `zh_CN` | 简体中文 | `i18n/zh_CN/LC_MESSAGES/zh_CN.mo` |
+| `zh_CN` | 简体中文 | `i18n/zh_CN.json` |
 | `en_US` | English (US) | `i18n/en_US.json` |
 | `en_GB` | English (UK) | `i18n/en_GB.json` |
-| `zh_TW` | 繁體中文 | `i18n/zh_TW.yaml` |
+| `zh_TW` | 繁體中文 | `i18n/zh_TW.json` |
 
 - 配置键 `language`：留空跟随系统语言；取值支持 `zh_cn` / `zh-CN` / `en` / `en-US` / `en-GB` / `zh-Hant` / `zh_CN.UTF-8` 等写法，自动归一化到规范语言码；键值不可识别或对应语言文件缺失时回退 `en_US`
 - **热切换**：Web 面板顶栏语言选择器、直接编辑 `config.ini` 两种途径均可切换；命令行主循环每轮检测配置变化并即时重载翻译，**无需重启进程**（录制中的 ffmpeg 子进程不受影响）
 - 翻译不再依赖 `LANG` / `LANGUAGE` 环境变量（Windows 普遍未设置）
-- `zh_TW.yaml` 需要 `PyYAML`；缺失时仅损失该语言，其余格式不受影响
+- 直接编辑 `i18n/<lang>.json`，无需编译或额外翻译依赖；运行 `python tool/check_i18n.py` 校验重复键、字符串值与四语键集合。
 
 ### 停止录制
 

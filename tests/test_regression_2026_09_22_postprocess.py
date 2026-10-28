@@ -367,26 +367,25 @@ def _tr_templates_in_module() -> set[str]:
 
 
 def _catalog_keys() -> set[str]:
-    # 直接复用 tool/compile_po.py 的权威 .po 解析（多行 msgid / 转义还原均正确），不写第二套口径
-    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "tool" / "compile_po.py")
-    assert spec is not None and spec.loader is not None
-    cp = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cp)
-    return set(cp.parse_po(cp.PO_PATH))
+    from src import i18n
+
+    catalog = i18n._load_translations(i18n.locale_path, "zh_CN")
+    assert catalog is not None
+    return set(catalog)
 
 
 def _four_catalogs() -> dict[str, dict[str, str]]:
     # 断言对象是四语目录本身：pending 袋子已按收尾约定删除，「袋子写过、目录没合并」同样要红。
-    # 复用 i18n 自己的三个加载器，不写第二套解析口径。
+    # 复用 i18n 自己的 JSON 加载器，不写第二套解析口径。
     from pathlib import Path
 
     from src import i18n
 
     cats = {
-        "zh_CN": i18n._load_mo_catalog(i18n.locale_path, "zh_CN"),
+        "zh_CN": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_CN.json"),
         "en_US": i18n._load_json_catalog(Path(i18n.locale_path) / "en_US.json"),
         "en_GB": i18n._load_json_catalog(Path(i18n.locale_path) / "en_GB.json"),
-        "zh_TW": i18n._load_yaml_catalog(Path(i18n.locale_path) / "zh_TW.yaml"),
+        "zh_TW": i18n._load_json_catalog(Path(i18n.locale_path) / "zh_TW.json"),
     }
     loaded: dict[str, dict[str, str]] = {}
     for lang_key, value in cats.items():

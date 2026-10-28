@@ -9,12 +9,13 @@
 #      的 JoinedStr」而非「首参直接是 JoinedStr」——后者会漏掉 `f"A" + (f"B" if x else "") + f"C"`
 #      这类 ast.BinOp 形态（MID-68，详见该用例内注释）；
 #   ② 每个 tr() 调用的模板占位符集合 == 关键字实参集合（防止改模板漏改实参）；
-#   ③ 运行时模板集合 ⊆ zh_CN.po 键集合（等价于提取器「缺失 0」）；
+#   ③ 运行时模板集合 ⊆ zh_CN.json 键集合（等价于提取器「缺失 0」）；
 #   ④ print_colored / messagebox 实参位不再出现插值 f-string：这两处是提取器盲区①②，
 #      主提取器与不变量①都看不见；盲区文案须 tr 预格式化后整体传入，否则目录词条静默失效。
 
 import ast
 import importlib.util
+import json
 import re
 from pathlib import Path
 from typing import TypeGuard
@@ -202,21 +203,14 @@ def test_tr_template_placeholders_match_kwargs() -> None:
 
 
 def test_runtime_templates_covered_by_catalog() -> None:
-    # ③ 运行时提取到的模板集合必须被 zh_CN.po 键集合完全覆盖（等价于提取器「缺失 0」）
+    # ③ 运行时提取到的模板集合必须被 zh_CN.json 键集合完全覆盖（等价于提取器「缺失 0」）
     runtime: set[str] = set()
     for path in _iter_files():
         runtime |= scan_file(path)
     # 只保留有价值串（与提取器同口径）：纯装饰线/纯占位符模板本就不入目录
     runtime = {s for s in runtime if is_valuable(s)}
 
-    # 直接复用 compile_po 的权威 .po 解析（多行 msgid / 转义还原均正确），
-    # 不自己写解析器，避免两套解析口径不一致导致误判
-    spec = importlib.util.spec_from_file_location("_compile_po_probe", ROOT / "tool" / "compile_po.py")
-    assert spec is not None and spec.loader is not None
-    cp = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cp)
-    # 剔除 gettext 头部空 msgid（目录本就不含它，不剔除会永远报「多 1 条」）
-    keys = set(cp.parse_po(cp.PO_PATH)) - {""}
+    keys = set(json.loads((ROOT / "i18n" / "zh_CN.json").read_text(encoding="utf-8")))
 
     missing = sorted(runtime - keys)
     assert not missing, f"目录缺失 {len(missing)} 条运行时模板：\n" + "\n".join(repr(m) for m in missing)

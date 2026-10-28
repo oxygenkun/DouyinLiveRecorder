@@ -1,6 +1,7 @@
 # i18n.py 回归：环境变量污染与翻译加载环境。
 
 import importlib.util
+import json
 import os
 import sys
 import types
@@ -12,10 +13,32 @@ import pytest
 from src import i18n
 
 ROOT = Path(__file__).resolve().parents[1]
-MO_PATH = ROOT / "i18n" / "zh_CN" / "LC_MESSAGES" / "zh_CN.mo"
 
 
-class TestInitGettext:
+class TestCatalogCheck:
+    @pytest.mark.parametrize(
+        "content",
+        ['{"key": "译文", "key": "重复"}', '{"key": 1}', '{"key": ""}', "[]", "{}", "{broken"],
+    )
+    def test_rejects_invalid_catalog(self, tmp_path: Path, content: str) -> None:
+        from tool.check_i18n import check_catalogs
+
+        (tmp_path / "zh_CN.json").write_text(content, encoding="utf-8")
+        with pytest.raises(ValueError, match="zh_CN.json"):
+            check_catalogs(tmp_path)
+
+    def test_matching_and_mismatched_keys(self, tmp_path: Path) -> None:
+        from tool.check_i18n import LANGUAGES, check_catalogs
+
+        for lang in LANGUAGES:
+            (tmp_path / f"{lang}.json").write_text(json.dumps({"key": lang}), encoding="utf-8")
+        check_catalogs(tmp_path)
+        (tmp_path / "zh_TW.json").write_text('{"other": "译文"}', encoding="utf-8")
+        with pytest.raises(ValueError, match="missing keys"):
+            check_catalogs(tmp_path)
+
+
+class TestInitialization:
     def test_no_lang_env_pollution(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # 原实现导入即写死 LANG=zh_CN.utf8（macOS 非法 locale），并传染子进程。
         # LT-09（2026-10-18 审查）：判据改为「执行模块体前后取值对比」，旧断言拿**宿主此刻
@@ -39,39 +62,14 @@ class TestInitGettext:
     def test_locale_path_exists(self) -> None:
         assert Path(i18n.locale_path).exists()
 
-    # [历史注] MIN-2254 删除了 `i18n.init_gettext()` 及其用例：该函数返回绑死 locale_name
-    # 的 gettext、不随 set_language 重读 `_tr`，与本模块热切换契约相反且生产零调用。
 
-
-class TestMoCatalog:
-    def test_mo_file_exists(self) -> None:
-        # gettext 运行时只读取 .mo；.po 修改后必须重编译并随仓库分发（见 .gitignore 约定）
-        assert MO_PATH.exists() and MO_PATH.stat().st_size > 0
-
+class TestJsonCatalog:
     def test_translation_works_without_lang_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Windows 客户端普遍不设 LANG/LC_*，翻译加载不得依赖它们：清空后直接走本模块的
-        # .mo 加载器查表，若实现回退成按环境变量查找的全局 gettext，这里会查不到而失败。
-        # [历史注] MIN-2254 前本用例经已删除的 `init_gettext()` 走全局 gettext（进程级副作用
-        # 且不随 set_language 生效），意图不变、现改驱 `_load_mo_catalog`。
-        # 必须用 monkeypatch 逐键删除：patch.dict(os.environ) 整体快照写回会撞 Windows
-        # 32767 字符上限（见 AGENTS.md 已知坑）。
         for key in [k for k in os.environ if k.startswith(("LANG", "LC_"))]:
             monkeypatch.delenv(key, raising=False)
-        catalog = i18n._load_mo_catalog(i18n.locale_path, "zh_CN")
-        assert catalog is not None, "清空 LANG/LC_* 后 .mo 目录加载不出来"
+        catalog = i18n._load_translations(i18n.locale_path, "zh_CN")
+        assert catalog is not None
         assert catalog["IP banned. Please change device or network."] == "IP被禁止 请更换设备或网络"
-
-    def test_po_and_mo_in_sync(self) -> None:
-        # .po 与 .mo 字节级同步，改动 .po 忘记重编译时在此失败；
-        # 以 import 方式复用 tool/compile_po.py 的编译逻辑（与 CI --check 同源）。
-        spec = importlib.util.spec_from_file_location("compile_po_check", ROOT / "tool" / "compile_po.py")
-        assert spec is not None and spec.loader is not None
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        entries = mod.parse_po(mod.PO_PATH)
-        # write_mo 纯内存产出不落盘（CI --check 的零副作用语义依赖此约定），取返回值直接比对
-        fresh_bytes = mod.write_mo(entries)
-        assert fresh_bytes == MO_PATH.read_bytes(), ".po 已修改但 .mo 未重编译，请运行 python tool/compile_po.py"
 
 
 class TestTranslatedPrint:
@@ -98,30 +96,30 @@ class TestTranslatedPrint:
         assert i18n._should_translate(child) is True
 
 
-# 多格式翻译目录：gettext .mo（zh_CN）+ JSON（en_US/en_GB）+ YAML（zh_TW）。
-class TestMultiFormatCatalogs:
+# 四语均直接读取 JSON。
+class TestCatalogs:
     def test_supported_languages_complete(self) -> None:
         assert set(i18n.SUPPORTED_LANGUAGES.keys()) == {"zh_CN", "en_US", "en_GB", "zh_TW"}
         assert i18n.DEFAULT_LANGUAGE == "zh_CN"
 
     def test_catalog_files_exist(self) -> None:
         base = Path(i18n.locale_path)
-        assert (base / "zh_CN" / "LC_MESSAGES" / "zh_CN.mo").is_file()
+        assert (base / "zh_CN.json").is_file()
         assert (base / "en_US.json").is_file()
         assert (base / "en_GB.json").is_file()
-        assert (base / "zh_TW.yaml").is_file()
+        assert (base / "zh_TW.json").is_file()
 
     def test_catalogs_share_same_keyset(self) -> None:
         # 四种语言的目录键集合一致（同一批 msgid），保证切换语言后查找行为一致
-        mo = i18n._load_mo_catalog(i18n.locale_path, "zh_CN")
+        zh_cn = i18n._load_translations(i18n.locale_path, "zh_CN")
         en_us = i18n._load_json_catalog(Path(i18n.locale_path) / "en_US.json")
         en_gb = i18n._load_json_catalog(Path(i18n.locale_path) / "en_GB.json")
-        zh_tw = i18n._load_yaml_catalog(Path(i18n.locale_path) / "zh_TW.yaml")
-        assert mo is not None and en_us is not None and en_gb is not None and zh_tw is not None
-        assert set(mo) == set(en_us) == set(en_gb) == set(zh_tw)
+        zh_tw = i18n._load_json_catalog(Path(i18n.locale_path) / "zh_TW.json")
+        assert zh_cn is not None and en_us is not None and en_gb is not None and zh_tw is not None
+        assert set(zh_cn) == set(en_us) == set(en_gb) == set(zh_tw)
 
-    def test_load_translations_priority(self) -> None:
-        # .mo 优先于 JSON/YAML：zh_CN 命中 .mo
+    def test_load_translations(self) -> None:
+        # zh_CN 直接读取 JSON
         catalog = i18n._load_translations(i18n.locale_path, "zh_CN")
         assert catalog is not None
         assert catalog.get("The anchor did not start broadcasting.") == "主播并未开播"
@@ -129,17 +127,34 @@ class TestMultiFormatCatalogs:
         en = i18n._load_translations(i18n.locale_path, "en_US")
         assert en is not None
         assert en.get("开始录制") == "Start Recording"
-        # zh_TW 命中 YAML
+        # zh_TW 直接读取 JSON
         tw = i18n._load_translations(i18n.locale_path, "zh_TW")
         assert tw is not None
         assert tw.get("开始录制") == "開始錄製"
 
-    def test_load_yaml_catalog_corrupted_returns_none(self, tmp_path: Path) -> None:
-        # 损坏的 YAML 抛 yaml.YAMLError（非 OSError/ValueError 子类）：须捕获并返回 None 降级，
-        # 否则 set_language 抛异常会让 Web 语言切换接口（PUT /api/language）直接 500
-        bad = tmp_path / "bad.yaml"
-        bad.write_text("{invalid: [unclosed", encoding="utf-8")
-        assert i18n._load_yaml_catalog(bad) is None
+    @pytest.mark.parametrize("content", ["{invalid", "[]", "null", '"text"', '{"x": '])
+    def test_invalid_json_returns_none(self, tmp_path: Path, content: str) -> None:
+        bad = tmp_path / "bad.json"
+        bad.write_text(content, encoding="utf-8")
+        assert i18n._load_json_catalog(bad) is None
+
+    def test_missing_json_returns_none(self, tmp_path: Path) -> None:
+        assert i18n._load_translations(tmp_path, "zh_CN") is None
+
+    def test_json_keeps_only_string_entries(self, tmp_path: Path) -> None:
+        path = tmp_path / "zh_CN.json"
+        path.write_text('{"message": "译文", "bad": 1}', encoding="utf-8")
+        assert i18n._load_json_catalog(path) == {"message": "译文"}
+
+    def test_corrupt_catalog_falls_back(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / "zh_TW.json").write_text("{broken", encoding="utf-8")
+        (tmp_path / "en_US.json").write_text('{"开始录制": "Start Recording"}', encoding="utf-8")
+        monkeypatch.setattr(i18n, "locale_path", tmp_path)
+        monkeypatch.setattr(i18n, "_tr", i18n._tr)
+        monkeypatch.setattr(i18n, "_current_language", i18n._current_language)
+        assert i18n.resolve_language("zh_TW") == "en_US"
+        assert i18n.set_language("zh_TW") == "en_US"
+        assert i18n.tr("开始录制") == "Start Recording"
 
 
 # 运行时语言切换（Web 面板/GUI 即时切换语言功能的底层机制）。
